@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
 import ProjectList from './components/ProjectList';
-import XTermPanel from './components/XTermPanel';
+import ProjectView from './components/ProjectView';
+import ProjectModal from './components/ProjectModal';
 import type { Project, TerminalOutput, ProcessExit } from './types';
 
 function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [isElectron, setIsElectron] = useState(false);
+  const [manuallyStopped, setManuallyStopped] = useState<Set<string>>(new Set());
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   useEffect(() => {
     // Check if we're running in Electron
@@ -16,7 +20,15 @@ function App() {
       // Load saved projects
       window.electronAPI.loadProjects().then((savedProjects: Project[]) => {
         if (savedProjects.length > 0) {
-          setProjects(savedProjects.map(p => ({ ...p, status: 'idle', output: [] })));
+          setProjects(savedProjects.map(p => ({ 
+            ...p, 
+            status: 'idle' as const, 
+            output: [],
+            // Ensure all new fields are present with defaults if missing
+            icon: p.icon || 'folder',
+            runCommand: p.runCommand || undefined,
+            previewUrl: p.previewUrl || undefined
+          })));
           setSelectedProject(savedProjects[0].id);
         }
         // No demo project - start with empty project list
@@ -35,15 +47,24 @@ function App() {
       });
 
       const unsubscribeExit = window.electronAPI.onProcessExit((exit: ProcessExit) => {
-        setProjects(prev => prev.map(project => 
-          project.id === exit.projectId 
-            ? { 
-                ...project, 
-                status: exit.code === 0 ? 'completed' : 'error',
-                lastActivity: new Date().toLocaleTimeString()
-              }
-            : project
-        ));
+        setProjects(prev => prev.map(project => {
+          if (project.id === exit.projectId) {
+            // Check if this project was manually stopped using a synchronous check
+            return project.status === 'idle' ? project : {
+              ...project,
+              status: exit.code === 0 ? 'completed' : 'error',
+              lastActivity: new Date().toLocaleTimeString()
+            };
+          }
+          return project;
+        }));
+        
+        // Clean up the manually stopped set
+        setManuallyStopped(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(exit.projectId);
+          return newSet;
+        });
       });
 
       const unsubscribeReady = window.electronAPI.onClaudeReady((data: { projectId: string; timestamp: number }) => {
@@ -89,27 +110,63 @@ function App() {
         id: p.id,
         name: p.name,
         path: p.path,
+        icon: p.icon,
+        runCommand: p.runCommand,
+        previewUrl: p.previewUrl,
         lastActivity: p.lastActivity
       }));
       window.electronAPI.saveProjects(projectsToSave);
     }
   }, [projects, isElectron]);
 
-  const handleProjectAdd = (name: string, path: string) => {
-    const newProject: Project = {
-      id: Date.now().toString(),
-      name,
-      path,
-      status: 'idle',
-      lastActivity: new Date().toLocaleTimeString(),
-      output: []
-    };
-    setProjects(prev => [...prev, newProject]);
-    setSelectedProject(newProject.id);
+  const handleProjectAdd = (projectData: {
+    name: string;
+    path: string;
+    icon?: string;
+    runCommand?: string;
+    previewUrl?: string;
+    yoloMode?: boolean;
+  }) => {
+    if (editingProject) {
+      // Update existing project
+      setProjects(prev => prev.map(p => 
+        p.id === editingProject.id 
+          ? {
+              ...p,
+              name: projectData.name,
+              path: projectData.path,
+              icon: projectData.icon,
+              runCommand: projectData.runCommand,
+              previewUrl: projectData.previewUrl,
+              yoloMode: projectData.yoloMode,
+            }
+          : p
+      ));
+      setEditingProject(null);
+    } else {
+      // Create new project
+      const newProject: Project = {
+        id: Date.now().toString(),
+        name: projectData.name,
+        path: projectData.path,
+        icon: projectData.icon,
+        runCommand: projectData.runCommand,
+        previewUrl: projectData.previewUrl,
+        yoloMode: projectData.yoloMode,
+        status: 'idle',
+        lastActivity: new Date().toLocaleTimeString(),
+        output: []
+      };
+      setProjects(prev => [...prev, newProject]);
+      setSelectedProject(newProject.id);
+    }
+    setIsModalOpen(false);
   };
 
   const handleProjectSelect = (projectId: string) => {
     setSelectedProject(projectId);
+    // Notify Electron about the project selection for notifications
+    window.electronAPI.setSelectedProject(projectId);
   };
 
   const handleProjectStart = async (projectId: string, command: string) => {
@@ -123,7 +180,7 @@ function App() {
     ));
 
     if (isElectron && window.electronAPI) {
-      const result = await window.electronAPI.startClaudeProcess(projectId, project.path, command);
+      const result = await window.electronAPI.startClaudeProcess(projectId, project.path, command, project.name, project.yoloMode);
       if (!result.success) {
         setProjects(prev => prev.map(p => 
           p.id === projectId 
@@ -144,14 +201,20 @@ function App() {
   };
 
   const handleProjectStop = async (projectId: string) => {
+    // Mark as manually stopped before stopping
+    setManuallyStopped(prev => new Set(prev).add(projectId));
+    
     if (isElectron && window.electronAPI) {
       await window.electronAPI.stopClaudeProcess(projectId);
     }
     setProjects(prev => prev.map(p => 
       p.id === projectId 
-        ? { ...p, status: 'idle', lastActivity: new Date().toLocaleTimeString() }
+        ? { ...p, status: 'idle', output: [], lastActivity: new Date().toLocaleTimeString() }
         : p
     ));
+    
+    // Also clear the terminal output
+    handleClearOutput(projectId);
   };
 
   // Remove handleSendInput since XTermPanel handles input directly
@@ -162,6 +225,14 @@ function App() {
         ? { ...project, output: [] }
         : project
     ));
+  };
+
+  const handleProjectEdit = (projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      setEditingProject(project);
+      setIsModalOpen(true);
+    }
   };
 
   const handleProjectDelete = (projectId: string) => {
@@ -193,13 +264,30 @@ function App() {
           onProjectStart={handleProjectStart}
           onProjectStop={handleProjectStop}
           onProjectDelete={handleProjectDelete}
+          onProjectEdit={handleProjectEdit}
+          onOpenModal={() => {
+            setEditingProject(null);
+            setIsModalOpen(true);
+          }}
         />
-        <XTermPanel
+        <ProjectView
           selectedProject={currentProject || null}
           projects={projects}
           onClearOutput={handleClearOutput}
+          onStopProject={handleProjectStop}
         />
       </div>
+      
+      {/* Project Creation/Edit Modal */}
+      <ProjectModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingProject(null);
+        }}
+        onSubmit={handleProjectAdd}
+        editingProject={editingProject}
+      />
     </div>
   );
 }

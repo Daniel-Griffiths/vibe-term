@@ -1,5 +1,5 @@
 export interface ElectronAPI {
-  startClaudeProcess: (projectId: string, projectPath: string, command: string) => Promise<{ success: boolean; projectId?: string; error?: string }>;
+  startClaudeProcess: (projectId: string, projectPath: string, command: string, projectName?: string, yoloMode?: boolean) => Promise<{ success: boolean; projectId?: string; error?: string }>;
   stopClaudeProcess: (projectId: string) => Promise<{ success: boolean; error?: string }>;
   sendInput: (projectId: string, input: string) => Promise<{ success: boolean; error?: string }>;
   selectDirectory: () => Promise<string | null>;
@@ -9,6 +9,12 @@ export interface ElectronAPI {
   onProcessExit: (callback: (data: ProcessExit) => void) => () => void;
   onClaudeReady: (callback: (data: { projectId: string; timestamp: number }) => void) => () => void;
   onClaudeWorking: (callback: (data: { projectId: string; timestamp: number }) => void) => () => void;
+  getGitDiff: (projectPath: string) => Promise<{ success: boolean; data?: any; error?: string }>;
+  saveFile: (projectPath: string, filePath: string, content: string) => Promise<{ success: boolean; error?: string }>;
+  revertFile: (projectPath: string, filePath: string) => Promise<{ success: boolean; error?: string }>;
+  gitCommit: (projectPath: string, message: string) => Promise<{ success: boolean; error?: string }>;
+  gitPush: (projectPath: string) => Promise<{ success: boolean; error?: string }>;
+  setSelectedProject: (projectId: string | null) => Promise<{ success: boolean }>;
 }
 
 export interface TerminalOutput {
@@ -26,6 +32,10 @@ export interface Project {
   id: string;
   name: string;
   path: string;
+  icon?: string;
+  runCommand?: string;
+  previewUrl?: string;
+  yoloMode?: boolean;
   status: 'idle' | 'running' | 'ready' | 'working' | 'completed' | 'error';
   lastActivity: string;
   output: string[];

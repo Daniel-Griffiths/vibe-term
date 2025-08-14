@@ -1,0 +1,500 @@
+import { useEffect, useState } from "react";
+import { DiffEditor, Editor } from "@monaco-editor/react";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Button } from "./ui/button";
+import { GitBranch, FileText, Plus, Minus, Edit, Save, Undo2, RefreshCw, X, GitCommit, Upload } from "lucide-react";
+import type { Project } from "../types";
+
+interface GitDiffViewProps {
+  selectedProject: Project | null;
+}
+
+interface GitFile {
+  path: string;
+  status: 'added' | 'modified' | 'deleted';
+  additions: number;
+  deletions: number;
+  oldContent: string;
+  newContent: string;
+}
+
+interface GitDiffData {
+  files: GitFile[];
+  branch: string;
+  ahead: number;
+  behind: number;
+}
+
+export default function GitDiffView({ selectedProject }: GitDiffViewProps) {
+  const [diffData, setDiffData] = useState<GitDiffData | null>(null);
+  const [selectedFile, setSelectedFile] = useState<GitFile | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editContent, setEditContent] = useState<string>("");
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [commitMessage, setCommitMessage] = useState<string>("");
+  const [isCommitting, setIsCommitting] = useState(false);
+
+  useEffect(() => {
+    if (!selectedProject) {
+      setDiffData(null);
+      setSelectedFile(null);
+      return;
+    }
+
+    const fetchGitDiff = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await window.electronAPI?.getGitDiff(selectedProject.path);
+        if (result.success) {
+          setDiffData(result.data);
+          if (result.data.files.length > 0) {
+            // Try to preserve the currently selected file if it still exists
+            const currentSelectedPath = selectedFile?.path;
+            const stillExists = currentSelectedPath && result.data.files.some((f: GitFile) => f.path === currentSelectedPath);
+            
+            if (stillExists) {
+              // Update the selected file with new content but keep it selected
+              const updatedFile = result.data.files.find((f: GitFile) => f.path === currentSelectedPath);
+              setSelectedFile(updatedFile || result.data.files[0]);
+            } else if (!selectedFile) {
+              // Only select the first file if no file was previously selected
+              setSelectedFile(result.data.files[0]);
+            }
+          }
+        } else {
+          setError(result.error || 'Failed to fetch git diff');
+        }
+      } catch (err) {
+        setError('Error fetching git diff');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Fetch git diff only when component mounts or project changes
+    fetchGitDiff();
+  }, [selectedProject]);
+
+  // Manual refresh function
+  const handleRefresh = async () => {
+    if (!selectedProject) return;
+    
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await window.electronAPI?.getGitDiff(selectedProject.path);
+      if (result.success) {
+        setDiffData(result.data);
+        if (result.data.files.length > 0) {
+          // Try to preserve the currently selected file if it still exists
+          const currentSelectedPath = selectedFile?.path;
+          const stillExists = currentSelectedPath && result.data.files.some((f: GitFile) => f.path === currentSelectedPath);
+          
+          if (stillExists) {
+            // Update the selected file with new content but keep it selected
+            const updatedFile = result.data.files.find((f: GitFile) => f.path === currentSelectedPath);
+            setSelectedFile(updatedFile || result.data.files[0]);
+          } else if (!selectedFile) {
+            // Only select the first file if no file was previously selected
+            setSelectedFile(result.data.files[0]);
+          }
+        }
+      } else {
+        setError(result.error || 'Failed to fetch git diff');
+      }
+    } catch (err) {
+      setError('Error fetching git diff');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle entering edit mode
+  const handleEditMode = () => {
+    if (selectedFile) {
+      setEditContent(selectedFile.newContent);
+      setEditMode(true);
+      setHasUnsavedChanges(false);
+    }
+  };
+
+  // Handle exiting edit mode (back to diff view)
+  const handleViewMode = () => {
+    setEditMode(false);
+    setHasUnsavedChanges(false);
+  };
+
+  // Handle content changes in edit mode
+  const handleContentChange = (value: string | undefined) => {
+    if (value !== undefined) {
+      setEditContent(value);
+      setHasUnsavedChanges(value !== selectedFile?.newContent);
+    }
+  };
+
+  // Handle saving file changes
+  const handleSaveFile = async () => {
+    if (!selectedProject || !selectedFile) return;
+
+    try {
+      const result = await window.electronAPI?.saveFile(selectedProject.path, selectedFile.path, editContent);
+      if (result?.success) {
+        // Update the selected file with new content
+        if (selectedFile) {
+          const updatedFile = { ...selectedFile, newContent: editContent };
+          setSelectedFile(updatedFile);
+        }
+        setHasUnsavedChanges(false);
+        // Optionally refresh the diff data
+        // fetchGitDiff();
+      } else {
+        setError(result?.error || 'Failed to save file');
+      }
+    } catch (err) {
+      setError('Error saving file');
+      console.error(err);
+    }
+  };
+
+  // Handle committing all files
+  const handleCommit = async () => {
+    if (!selectedProject || !commitMessage.trim() || !diffData?.files.length) return;
+
+    setIsCommitting(true);
+    try {
+      const result = await window.electronAPI?.gitCommit(selectedProject.path, commitMessage.trim());
+      if (result?.success) {
+        setCommitMessage("");
+        // Ask user if they want to push
+        const shouldPush = window.confirm("Commit successful! Do you want to push to remote?");
+        if (shouldPush) {
+          const pushResult = await window.electronAPI?.gitPush(selectedProject.path);
+          if (pushResult?.success) {
+            alert("Successfully pushed to remote!");
+          } else {
+            alert(`Push failed: ${pushResult?.error || 'Unknown error'}`);
+          }
+        }
+        // Refresh the diff data
+        handleRefresh();
+      } else {
+        setError(result?.error || 'Failed to commit');
+      }
+    } catch (err) {
+      setError('Error committing changes');
+      console.error(err);
+    } finally {
+      setIsCommitting(false);
+    }
+  };
+
+  // Handle reverting a specific file (from the file list)
+  const handleRevertSpecificFile = async (filePath: string) => {
+    if (!selectedProject) return;
+
+    try {
+      const result = await window.electronAPI?.revertFile(selectedProject.path, filePath);
+      if (result?.success) {
+        // If this was the currently selected file, update it
+        if (selectedFile && selectedFile.path === filePath) {
+          const revertedFile = { ...selectedFile, newContent: selectedFile.oldContent };
+          setSelectedFile(revertedFile);
+          setEditContent(selectedFile.oldContent);
+          setHasUnsavedChanges(false);
+        }
+        // Refresh the diff data to update the file list
+        handleRefresh();
+      } else {
+        setError(result?.error || 'Failed to revert file');
+      }
+    } catch (err) {
+      setError('Error reverting file');
+      console.error(err);
+    }
+  };
+
+  if (!selectedProject) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="text-center text-gray-400 glass-card p-8 rounded-xl">
+          <GitBranch className="h-16 w-16 mx-auto mb-4 opacity-50" />
+          <h3 className="text-lg font-semibold mb-2 text-gray-200">
+            No Project Selected
+          </h3>
+          <p className="text-sm">
+            Select a project from the sidebar to view its git changes
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="text-center text-red-400 glass-card p-8 rounded-xl">
+          <p className="text-sm">Error: {error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!diffData || diffData.files.length === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="text-center text-gray-400 glass-card p-8 rounded-xl">
+          <GitBranch className="h-16 w-16 mx-auto mb-4 opacity-50" />
+          <h3 className="text-lg font-semibold mb-2 text-gray-200">
+            No Changes
+          </h3>
+          <p className="text-sm">
+            Working directory is clean on branch {diffData?.branch || 'main'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full flex">
+      {/* File List Sidebar */}
+      <div className="w-80 bg-gray-950 border-r border-t border-gray-800 overflow-y-auto mt-4 rounded-tr-lg">
+        <div className="p-4 border-b border-gray-800">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <GitBranch className="h-4 w-4" />
+              <span>{diffData.branch}</span>
+              {diffData.ahead > 0 && (
+                <span className="text-green-400">↑{diffData.ahead}</span>
+              )}
+              {diffData.behind > 0 && (
+                <span className="text-red-400">↓{diffData.behind}</span>
+              )}
+            </div>
+            {/* Refresh button for entire git diff */}
+            <Button
+              size="sm"
+              onClick={handleRefresh}
+              disabled={loading}
+              className="h-6 w-6 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50"
+              title="Refresh git status"
+            >
+              <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
+          <div className="text-xs text-gray-500 mb-3">
+            {diffData.files.length} file{diffData.files.length !== 1 ? 's' : ''} changed
+          </div>
+          
+          {/* Commit section */}
+          {diffData.files.length > 0 && (
+            <div className="space-y-2">
+              <input
+                type="text"
+                placeholder="Commit message"
+                value={commitMessage}
+                onChange={(e) => setCommitMessage(e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-gray-800 border border-gray-700 rounded text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gray-600"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && commitMessage.trim() && !isCommitting) {
+                    handleCommit();
+                  }
+                }}
+              />
+              <Button
+                size="sm"
+                onClick={handleCommit}
+                disabled={!commitMessage.trim() || isCommitting}
+                className="w-full h-8 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <GitCommit className="h-3 w-3 mr-1" />
+                {isCommitting ? 'Committing...' : 'Commit All'}
+              </Button>
+            </div>
+          )}
+        </div>
+        
+        <div className="p-2">
+          {diffData.files.map((file) => (
+            <div
+              key={file.path}
+              className={`group rounded p-2 transition-colors cursor-pointer ${
+                selectedFile?.path === file.path ? 'bg-gray-800' : 'hover:bg-gray-800/50'
+              }`}
+              onClick={() => setSelectedFile(file)}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  {file.status === 'added' ? (
+                    <Plus className="h-4 w-4 text-green-400 flex-shrink-0" />
+                  ) : file.status === 'deleted' ? (
+                    <Minus className="h-4 w-4 text-red-400 flex-shrink-0" />
+                  ) : (
+                    <Edit className="h-4 w-4 text-yellow-400 flex-shrink-0" />
+                  )}
+                  <span 
+                    className="text-sm text-gray-300 truncate flex-1 min-w-0"
+                    title={file.path}
+                  >
+                    <span className="font-medium">
+                      {file.path.split('/').pop()}
+                    </span>
+                    <span className="text-gray-500 ml-2">
+                      {file.path}
+                    </span>
+                  </span>
+                </div>
+                
+                {/* Revert button - only show for modified/deleted files, not added */}
+                {file.status !== 'added' && (
+                  <Button
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRevertSpecificFile(file.path);
+                    }}
+                    className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-orange-600 hover:bg-orange-700 text-white"
+                    title={`Revert ${file.path}`}
+                  >
+                    <Undo2 className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Diff Editor */}
+      <div className="flex-1 flex flex-col">
+        <Card className="flex-1 m-4 flex flex-col glass-card overflow-hidden">
+          <CardHeader className="flex-shrink-0 pb-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800 rounded-t-lg">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-gray-200 font-semibold">
+                <FileText className="h-5 w-5 text-green-400" />
+                {selectedFile?.path || 'Select a file'}
+                {hasUnsavedChanges && <span className="text-yellow-400 text-xs">●</span>}
+              </CardTitle>
+              
+              {selectedFile && (
+                <div className="flex items-center gap-2">
+                  {!editMode ? (
+                    <Button
+                      size="sm"
+                      onClick={handleEditMode}
+                      className="h-7 px-3 bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      <Edit className="h-3 w-3 mr-1" />
+                      Edit
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        size="sm"
+                        onClick={handleSaveFile}
+                        disabled={!hasUnsavedChanges}
+                        className="h-7 px-3 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
+                      >
+                        <Save className="h-3 w-3 mr-1" />
+                        Save
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleViewMode}
+                        className="h-7 px-3 bg-gray-600 hover:bg-gray-700 text-white"
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Cancel
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          
+          <CardContent className="flex-1 p-0 overflow-hidden">
+            {selectedFile && (
+              <>
+                {!editMode ? (
+                  <DiffEditor
+                    original={selectedFile.oldContent}
+                    modified={selectedFile.newContent}
+                    language={getLanguageFromPath(selectedFile.path)}
+                    theme="vs-dark"
+                    options={{
+                      readOnly: true,
+                      automaticLayout: true,
+                      fontSize: 14,
+                      fontFamily: '"JetBrains Mono", "SF Mono", Monaco, Consolas, monospace',
+                      minimap: { enabled: false },
+                      scrollBeyondLastLine: false,
+                      renderSideBySide: true,
+                    }}
+                  />
+                ) : (
+                  <Editor
+                    value={editContent}
+                    onChange={handleContentChange}
+                    language={getLanguageFromPath(selectedFile.path)}
+                    theme="vs-dark"
+                    options={{
+                      automaticLayout: true,
+                      fontSize: 14,
+                      fontFamily: '"JetBrains Mono", "SF Mono", Monaco, Consolas, monospace',
+                      minimap: { enabled: false },
+                      scrollBeyondLastLine: false,
+                      wordWrap: 'on',
+                      lineNumbers: 'on',
+                      bracketPairColorization: { enabled: true },
+                    }}
+                  />
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function getLanguageFromPath(path: string): string {
+  const ext = path.split('.').pop()?.toLowerCase();
+  const languageMap: Record<string, string> = {
+    ts: 'typescript',
+    tsx: 'typescript',
+    js: 'javascript',
+    jsx: 'javascript',
+    json: 'json',
+    html: 'html',
+    css: 'css',
+    scss: 'scss',
+    md: 'markdown',
+    py: 'python',
+    rs: 'rust',
+    go: 'go',
+    java: 'java',
+    cpp: 'cpp',
+    c: 'c',
+    h: 'c',
+    hpp: 'cpp',
+    cs: 'csharp',
+    rb: 'ruby',
+    php: 'php',
+    swift: 'swift',
+    kt: 'kotlin',
+    yaml: 'yaml',
+    yml: 'yaml',
+    toml: 'toml',
+    xml: 'xml',
+    sh: 'shell',
+    bash: 'shell',
+  };
+  return languageMap[ext || ''] || 'plaintext';
+}

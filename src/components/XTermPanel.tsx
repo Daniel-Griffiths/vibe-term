@@ -2,8 +2,7 @@ import { useEffect, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Button } from "./ui/button";
-import { Terminal as TerminalIcon, X } from "lucide-react";
+import { Terminal as TerminalIcon } from "lucide-react";
 import type { Project } from "../types";
 import "@xterm/xterm/css/xterm.css";
 
@@ -11,12 +10,14 @@ interface XTermPanelProps {
   selectedProject: Project | null;
   projects: Project[];
   onClearOutput: (projectId: string) => void;
+  onStopProject: (projectId: string) => void;
 }
 
 export default function XTermPanel({
   selectedProject,
   projects,
   onClearOutput,
+  onStopProject,
 }: XTermPanelProps) {
   const terminalsRef = useRef<
     Map<
@@ -107,9 +108,34 @@ export default function XTermPanel({
     });
   }, [selectedProject]);
 
+  // Track previous project statuses to detect when a project is stopped
+  const prevProjectsRef = useRef<Project[]>([]);
+  
+  useEffect(() => {
+    // Clear terminal when project transitions from running/working to idle
+    projects.forEach((project) => {
+      const prevProject = prevProjectsRef.current.find(p => p.id === project.id);
+      const wasRunning = prevProject && (prevProject.status === 'running' || prevProject.status === 'working' || prevProject.status === 'ready');
+      const nowIdle = project.status === 'idle';
+      
+      if (wasRunning && nowIdle) {
+        const instance = terminalsRef.current.get(project.id);
+        if (instance) {
+          // Wait a moment for any final output (like "Terminal session ended") to appear
+          setTimeout(() => {
+            instance.terminal.clear();
+          }, 500);
+        }
+      }
+    });
+    
+    // Update previous projects reference
+    prevProjectsRef.current = [...projects];
+  }, [projects]);
+
   if (!selectedProject) {
     return (
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center p-4">
         <div className="text-center text-gray-400 glass-card p-8 rounded-xl">
           <TerminalIcon className="h-16 w-16 mx-auto mb-4 opacity-50" />
           <h3 className="text-lg font-semibold mb-2 text-gray-200">
@@ -124,7 +150,7 @@ export default function XTermPanel({
   }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="h-full flex flex-col">
       <Card
         className="flex-1 m-4 flex flex-col glass-card overflow-hidden"
         style={{ width: "calc(100vw - 350px)" }}
@@ -150,19 +176,6 @@ export default function XTermPanel({
               <span className="text-sm text-gray-300 capitalize font-medium">
                 {selectedProject.status}
               </span>
-              <Button
-                size="sm"
-                className="h-6 px-2 raycast-button"
-                onClick={() => {
-                  const instance = terminalsRef.current.get(selectedProject.id);
-                  if (instance) {
-                    instance.terminal.clear();
-                  }
-                  onClearOutput(selectedProject.id);
-                }}
-              >
-                <X className="h-3 w-3" />
-              </Button>
             </div>
           </div>
           <p className="text-sm text-gray-400 font-mono">

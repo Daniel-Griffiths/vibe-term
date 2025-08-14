@@ -1,15 +1,33 @@
 import { useState } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Input } from "./ui/input";
 import {
   Plus,
-  FolderOpen,
   Play,
   Square,
   CheckCircle,
   AlertCircle,
   Trash2,
+  Edit,
+  Folder,
+  Terminal,
+  Globe,
+  Zap,
+  Code, Database, Server, Cpu, 
+  Smartphone, Monitor, Tablet, Gamepad2,
+  Palette, Brush, Image, Camera,
+  ShoppingCart, CreditCard, DollarSign, TrendingUp,
+  Users, MessageCircle, Mail, Phone,
+  Book, GraduationCap, FileText, Bookmark,
+  Music, Video, Headphones, Radio,
+  Home, Building, Factory, Store,
+  Car, Plane, Ship, Bike,
+  Heart, Star, Gift, Coffee,
+  Settings, Wrench, Hammer,
+  Cloud, Sun, Moon, CloudRain,
+  Lock, Shield, Key, Eye,
+  Rocket, Target, Flag, Award,
+  PieChart, BarChart, Activity, TrendingDown
 } from "lucide-react";
 import type { Project } from "../types";
 
@@ -17,10 +35,18 @@ interface ProjectListProps {
   projects: Project[];
   selectedProject: string | null;
   onProjectSelect: (projectId: string) => void;
-  onProjectAdd: (name: string, path: string) => void;
+  onProjectAdd: (projectData: {
+    name: string;
+    path: string;
+    icon?: string;
+    runCommand?: string;
+    previewUrl?: string;
+  }) => void;
   onProjectStart: (projectId: string, command: string) => void;
   onProjectStop: (projectId: string) => void;
   onProjectDelete: (projectId: string) => void;
+  onProjectEdit: (projectId: string) => void;
+  onOpenModal: () => void;
 }
 
 export default function ProjectList({
@@ -31,30 +57,65 @@ export default function ProjectList({
   onProjectStart,
   onProjectStop,
   onProjectDelete,
+  onProjectEdit,
+  onOpenModal,
 }: ProjectListProps) {
-  const [isAdding, setIsAdding] = useState(false);
-  const [newProjectName, setNewProjectName] = useState("");
 
-  const handleAddProject = async () => {
-    let path: string | null = null;
-
-    if (typeof window !== "undefined" && window.electronAPI) {
-      path = await window.electronAPI.selectDirectory();
-    } else {
-      // Fallback for browser - use a mock path
-      path = `/mock/path/${newProjectName
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, "-")}`;
-    }
-
-    if (path) {
-      // Auto-generate name from folder if no name provided
-      const finalName =
-        newProjectName.trim() || path.split("/").pop() || "Unnamed Project";
-      onProjectAdd(finalName, path);
-      setNewProjectName("");
-      setIsAdding(false);
+  const getProjectIcon = (iconId?: string) => {
+    switch (iconId) {
+      case 'code': return Code;
+      case 'terminal': return Terminal;
+      case 'database': return Database;
+      case 'server': return Server;
+      case 'cpu': return Cpu;
+      case 'globe': return Globe;
+      case 'smartphone': return Smartphone;
+      case 'monitor': return Monitor;
+      case 'tablet': return Tablet;
+      case 'palette': return Palette;
+      case 'brush': return Brush;
+      case 'image': return Image;
+      case 'camera': return Camera;
+      case 'music': return Music;
+      case 'video': return Video;
+      case 'shoppingcart': return ShoppingCart;
+      case 'creditcard': return CreditCard;
+      case 'dollarsign': return DollarSign;
+      case 'trendingup': return TrendingUp;
+      case 'piechart': return PieChart;
+      case 'users': return Users;
+      case 'messagecircle': return MessageCircle;
+      case 'mail': return Mail;
+      case 'phone': return Phone;
+      case 'book': return Book;
+      case 'graduationcap': return GraduationCap;
+      case 'filetext': return FileText;
+      case 'bookmark': return Bookmark;
+      case 'home': return Home;
+      case 'building': return Building;
+      case 'factory': return Factory;
+      case 'store': return Store;
+      case 'settings': return Settings;
+      case 'tool': return Settings;
+      case 'wrench': return Wrench;
+      case 'hammer': return Hammer;
+      case 'lock': return Lock;
+      case 'shield': return Shield;
+      case 'key': return Key;
+      case 'eye': return Eye;
+      case 'rocket': return Rocket;
+      case 'target': return Target;
+      case 'flag': return Flag;
+      case 'award': return Award;
+      case 'gamepad2': return Gamepad2;
+      case 'zap': return Zap;
+      case 'heart': return Heart;
+      case 'star': return Star;
+      case 'gift': return Gift;
+      case 'coffee': return Coffee;
+      case 'folder':
+      default:
+        return Folder;
     }
   };
 
@@ -85,73 +146,26 @@ export default function ProjectList({
     }
   };
 
-  const getStatusColor = (status: Project["status"]) => {
-    switch (status) {
-      case "running":
-        return "border-l-blue-500";
-      case "working":
-        return "border-l-yellow-500";
-      case "completed":
-        return "border-l-green-500";
-      case "error":
-        return "border-l-red-500";
-      default:
-        return "border-l-gray-300";
-    }
-  };
-
   return (
     <div className="w-80 min-w-80 max-w-80 glass-sidebar p-4 overflow-y-auto flex-shrink-0">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-200">Projects</h2>
         <Button
           size="sm"
-          onClick={() => setIsAdding(true)}
+          onClick={onOpenModal}
           className="h-8 w-8 p-0 raycast-button"
         >
           <Plus className="h-4 w-4" />
         </Button>
       </div>
 
-      {isAdding && (
-        <Card className="mb-4">
-          <CardContent className="p-3 space-y-2">
-            <Input
-              placeholder="Project name (optional - will use folder name)"
-              value={newProjectName}
-              onChange={(e) => setNewProjectName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddProject()}
-            />
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={handleAddProject}
-                className="raycast-button-primary"
-              >
-                <FolderOpen className="h-3 w-3 mr-1" />
-                Select
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => {
-                  setIsAdding(false);
-                  setNewProjectName("");
-                }}
-                className="raycast-button"
-              >
-                Cancel
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="space-y-2">
         {projects.map((project) => (
           <Card
             key={project.id}
             className={`cursor-pointer project-card-raycast ${
-              selectedProject === project.id && project.status === "ready"
+              selectedProject === project.id
                 ? "rainbow-glow"
                 : ""
             }`}
@@ -159,15 +173,29 @@ export default function ProjectList({
           >
             <CardHeader className="p-3">
               <div className="flex items-center justify-between">
-                <CardTitle
-                  className={`text-sm font-medium ${
-                    selectedProject === project.id
-                      ? "text-white font-semibold"
-                      : "text-gray-200"
-                  }`}
-                >
-                  {project.name}
-                </CardTitle>
+                <div className="flex items-center gap-2">
+                  {(() => {
+                    const IconComponent = getProjectIcon(project.icon);
+                    return (
+                      <IconComponent 
+                        className={`h-4 w-4 ${
+                          selectedProject === project.id
+                            ? "text-white"
+                            : "text-gray-400"
+                        }`}
+                      />
+                    );
+                  })()}
+                  <CardTitle
+                    className={`text-sm font-medium ${
+                      selectedProject === project.id
+                        ? "text-white font-semibold"
+                        : "text-gray-200"
+                    }`}
+                  >
+                    {project.name}
+                  </CardTitle>
+                </div>
                 {getStatusIcon(project.status)}
               </div>
               <p
@@ -203,12 +231,22 @@ export default function ProjectList({
                       className="h-6 px-2 text-xs raycast-button-primary"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onProjectStart(project.id, "");
+                        onProjectStart(project.id, project.runCommand || "");
                       }}
                     >
                       <Play className="h-3 w-3" />
                     </Button>
                   )}
+                  <Button
+                    size="sm"
+                    className="h-6 px-2 text-xs raycast-button text-blue-300 hover:text-blue-200"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onProjectEdit(project.id);
+                    }}
+                  >
+                    <Edit className="h-3 w-3" />
+                  </Button>
                   <Button
                     size="sm"
                     className="h-6 px-2 text-xs raycast-button text-red-300 hover:text-red-200"
@@ -226,8 +264,8 @@ export default function ProjectList({
         ))}
       </div>
 
-      {projects.length === 0 && !isAdding && (
-        <div className="text-center text-gray-400 mt-8">
+      {projects.length === 0 && (
+        <div className="text-center text-gray-400 mt-8 glass-card p-8 rounded-xl">
           <p className="text-sm">No projects yet</p>
           <p className="text-xs mt-1">Click the + button to add one</p>
         </div>

@@ -1,8 +1,8 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  startClaudeProcess: (projectId: string, projectPath: string, command: string) => 
-    ipcRenderer.invoke('start-claude-process', projectId, projectPath, command),
+  startClaudeProcess: (projectId: string, projectPath: string, command: string, projectName?: string) => 
+    ipcRenderer.invoke('start-claude-process', projectId, projectPath, command, projectName),
   
   stopClaudeProcess: (projectId: string) => 
     ipcRenderer.invoke('stop-claude-process', projectId),
@@ -37,7 +37,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onClaudeWorking: (callback: (data: any) => void) => {
     ipcRenderer.on('claude-working', (event, data) => callback(data));
     return () => ipcRenderer.removeAllListeners('claude-working');
-  }
+  },
+  
+  getGitDiff: (projectPath: string) => 
+    ipcRenderer.invoke('get-git-diff', projectPath),
+  
+  saveFile: (projectPath: string, filePath: string, content: string) => 
+    ipcRenderer.invoke('save-file', projectPath, filePath, content),
+  
+  revertFile: (projectPath: string, filePath: string) => 
+    ipcRenderer.invoke('revert-file', projectPath, filePath),
+  
+  gitCommit: (projectPath: string, message: string) => 
+    ipcRenderer.invoke('git-commit', projectPath, message),
+  
+  gitPush: (projectPath: string) => 
+    ipcRenderer.invoke('git-push', projectPath),
+  
+  setSelectedProject: (projectId: string | null) => 
+    ipcRenderer.invoke('set-selected-project', projectId)
 });
 
 export {};
