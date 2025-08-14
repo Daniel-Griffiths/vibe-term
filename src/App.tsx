@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import ProjectList from './components/ProjectList';
 import ProjectView from './components/ProjectView';
 import ProjectModal from './components/ProjectModal';
+import SettingsModal from './components/SettingsModal';
 import type { Project, TerminalOutput, ProcessExit } from './types';
 
 function App() {
@@ -11,6 +12,7 @@ function App() {
   const [manuallyStopped, setManuallyStopped] = useState<Set<string>>(new Set());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
     // Check if we're running in Electron
@@ -269,6 +271,7 @@ function App() {
             setEditingProject(null);
             setIsModalOpen(true);
           }}
+          onOpenSettings={() => setIsSettingsOpen(true)}
         />
         <ProjectView
           selectedProject={currentProject || null}
@@ -287,6 +290,12 @@ function App() {
         }}
         onSubmit={handleProjectAdd}
         editingProject={editingProject}
+      />
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
       />
     </div>
   );

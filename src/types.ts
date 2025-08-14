@@ -15,6 +15,10 @@ export interface ElectronAPI {
   gitCommit: (projectPath: string, message: string) => Promise<{ success: boolean; error?: string }>;
   gitPush: (projectPath: string) => Promise<{ success: boolean; error?: string }>;
   setSelectedProject: (projectId: string | null) => Promise<{ success: boolean }>;
+  loadSettings: () => Promise<any>;
+  saveSettings: (settings: any) => Promise<{ success: boolean; error?: string }>;
+  testDiscordNotification: (discordSettings: any) => Promise<{ success: boolean; error?: string }>;
+  sendDiscordNotification: (discordSettings: any, message: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 export interface TerminalOutput {

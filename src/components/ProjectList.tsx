@@ -47,6 +47,7 @@ interface ProjectListProps {
   onProjectDelete: (projectId: string) => void;
   onProjectEdit: (projectId: string) => void;
   onOpenModal: () => void;
+  onOpenSettings: () => void;
 }
 
 export default function ProjectList({
@@ -59,6 +60,7 @@ export default function ProjectList({
   onProjectDelete,
   onProjectEdit,
   onOpenModal,
+  onOpenSettings,
 }: ProjectListProps) {
 
   const getProjectIcon = (iconId?: string) => {
@@ -150,13 +152,24 @@ export default function ProjectList({
     <div className="w-80 min-w-80 max-w-80 glass-sidebar p-4 overflow-y-auto flex-shrink-0">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-200">Projects</h2>
-        <Button
-          size="sm"
-          onClick={onOpenModal}
-          className="h-8 w-8 p-0 raycast-button"
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            onClick={onOpenSettings}
+            className="h-8 w-8 p-0 raycast-button"
+            title="Settings"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            onClick={onOpenModal}
+            className="h-8 w-8 p-0 raycast-button"
+            title="Add Project"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
 

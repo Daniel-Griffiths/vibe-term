@@ -1,8 +1,8 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  startClaudeProcess: (projectId: string, projectPath: string, command: string, projectName?: string) => 
-    ipcRenderer.invoke('start-claude-process', projectId, projectPath, command, projectName),
+  startClaudeProcess: (projectId: string, projectPath: string, command: string, projectName?: string, yoloMode?: boolean) => 
+    ipcRenderer.invoke('start-claude-process', projectId, projectPath, command, projectName, yoloMode),
   
   stopClaudeProcess: (projectId: string) => 
     ipcRenderer.invoke('stop-claude-process', projectId),
@@ -55,7 +55,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('git-push', projectPath),
   
   setSelectedProject: (projectId: string | null) => 
-    ipcRenderer.invoke('set-selected-project', projectId)
+    ipcRenderer.invoke('set-selected-project', projectId),
+  
+  loadSettings: () => 
+    ipcRenderer.invoke('load-settings'),
+  
+  saveSettings: (settings: any) => 
+    ipcRenderer.invoke('save-settings', settings),
+  
+  testDiscordNotification: (discordSettings: any) => 
+    ipcRenderer.invoke('test-discord-notification', discordSettings),
+  
+  sendDiscordNotification: (discordSettings: any, message: string) => 
+    ipcRenderer.invoke('send-discord-notification', discordSettings, message)
 });
 
 export {};

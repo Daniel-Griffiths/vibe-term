@@ -263,7 +263,7 @@ export default function GitDiffView({ selectedProject }: GitDiffViewProps) {
   return (
     <div className="h-full flex">
       {/* File List Sidebar */}
-      <div className="w-80 bg-gray-950 border-r border-t border-gray-800 overflow-y-auto mt-4 rounded-tr-lg">
+      <div className="w-80 bg-gray-950 border-r border-t border-gray-800 overflow-y-auto mt-4 rounded-tr-lg max-h-screen">
         <div className="p-4 border-b border-gray-800">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2 text-sm text-gray-400">
@@ -379,6 +379,16 @@ export default function GitDiffView({ selectedProject }: GitDiffViewProps) {
                 <FileText className="h-5 w-5 text-green-400" />
                 {selectedFile?.path || 'Select a file'}
                 {hasUnsavedChanges && <span className="text-yellow-400 text-xs">●</span>}
+                {selectedFile && (
+                  <div className="flex items-center gap-1 text-xs ml-2">
+                    {selectedFile.additions > 0 && (
+                      <span className="text-green-400">+{selectedFile.additions}</span>
+                    )}
+                    {selectedFile.deletions > 0 && (
+                      <span className="text-red-400">-{selectedFile.deletions}</span>
+                    )}
+                  </div>
+                )}
               </CardTitle>
               
               {selectedFile && (
