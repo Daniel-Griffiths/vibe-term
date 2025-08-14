@@ -38,6 +38,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('claude-working', (event, data) => callback(data));
     return () => ipcRenderer.removeAllListeners('claude-working');
   },
+
+  onBackgroundOutput: (callback: (data: any) => void) => {
+    ipcRenderer.on('background-output', (event, data) => callback(data));
+    return () => ipcRenderer.removeAllListeners('background-output');
+  },
   
   onMissingDependencies: (callback: (deps: string[]) => void) => {
     ipcRenderer.on('missing-dependencies', (event, deps) => callback(deps));
@@ -68,11 +73,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveSettings: (settings: any) => 
     ipcRenderer.invoke('save-settings', settings),
   
+  getLocalIp: () =>
+    ipcRenderer.invoke('get-local-ip'),
+  
   testDiscordNotification: (discordSettings: any) => 
     ipcRenderer.invoke('test-discord-notification', discordSettings),
   
   sendDiscordNotification: (discordSettings: any, message: string) => 
-    ipcRenderer.invoke('send-discord-notification', discordSettings, message)
+    ipcRenderer.invoke('send-discord-notification', discordSettings, message),
+
+  testCommand: (projectPath: string, command: string) => 
+    ipcRenderer.invoke('test-command', projectPath, command)
 });
 
 export {};

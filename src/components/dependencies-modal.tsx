@@ -143,7 +143,8 @@ export default function DependenciesModal({
           <div className="mt-6 flex justify-center">
             <Button
               onClick={() => window.location.reload()}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2"
+              variant="primary"
+              className="px-6 py-2"
             >
               Check Again
             </Button>

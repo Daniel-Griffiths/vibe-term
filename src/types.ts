@@ -18,6 +18,7 @@ export interface ElectronAPI {
   setSelectedProject: (projectId: string | null) => Promise<{ success: boolean }>;
   loadSettings: () => Promise<any>;
   saveSettings: (settings: any) => Promise<{ success: boolean; error?: string }>;
+  getLocalIp: () => Promise<string>;
   testDiscordNotification: (discordSettings: any) => Promise<{ success: boolean; error?: string }>;
   sendDiscordNotification: (discordSettings: any, message: string) => Promise<{ success: boolean; error?: string }>;
 }

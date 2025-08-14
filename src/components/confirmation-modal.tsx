@@ -34,13 +34,13 @@ export default function ConfirmationModal({
         <div className="flex gap-3 justify-end">
           <Button
             onClick={onCancel}
-            className="raycast-button"
+            variant="outline"
           >
             {cancelText}
           </Button>
           <Button
             onClick={onConfirm}
-            className="raycast-button-primary bg-red-600 hover:bg-red-700 text-white"
+            variant="danger"
           >
             {confirmText}
           </Button>

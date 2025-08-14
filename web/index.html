@@ -392,7 +392,10 @@
                 
                 document.getElementById('project-name').textContent = this.selectedProject.name;
                 
-                // Initialize terminal for this project
+                // Reset terminal state completely before initializing
+                this.resetTerminalState();
+                
+                // Initialize fresh terminal for this project
                 this.initializeTerminal();
                 
                 this.updateProjectStatus(this.selectedProject.id, 'idle');
@@ -425,6 +428,9 @@
                 
                 const stateElement = document.getElementById('connection-state');
                 this.clearOutput();
+                
+                // Load terminal history first
+                await this.loadTerminalHistory();
                 
                 try {
                     // Try to start/attach to the project session
@@ -495,11 +501,18 @@
             
             initializeTerminal() {
                 if (window.Terminal && window.FitAddon) {
-                    // Always dispose of existing terminal to ensure clean state
+                    // Clean up existing terminal and all event listeners
                     if (this.terminal) {
                         this.terminal.dispose();
                         this.terminal = null;
                     }
+                    if (this.fitAddon) {
+                        this.fitAddon = null;
+                    }
+                    
+                    // Clear container completely
+                    const container = document.getElementById('terminal-container');
+                    container.innerHTML = '';
                     
                     // Create terminal with theme matching the Electron app
                     this.terminal = new Terminal({
@@ -512,22 +525,35 @@
                         fontFamily: '"JetBrains Mono", "SF Mono", Monaco, Consolas, monospace',
                         fontSize: 14,
                         cursorBlink: true,
-                        convertEol: true,
+                        convertEol: false,
                         scrollback: 1000,
+                        disableStdin: false
                     });
 
                     // Add fit addon for responsive sizing
                     this.fitAddon = new FitAddon.FitAddon();
                     this.terminal.loadAddon(this.fitAddon);
 
-                    // Clear the container and open terminal
-                    const container = document.getElementById('terminal-container');
-                    container.innerHTML = '';
+                    // Open terminal in the cleared container
                     this.terminal.open(container);
                     
-                    // Fit terminal to container
+                    // Fit terminal to container and sync dimensions with server
                     if (this.fitAddon) {
                         this.fitAddon.fit();
+                        
+                        // Get the fitted dimensions
+                        const dims = this.fitAddon.proposeDimensions();
+                        if (dims) {
+                            // Ensure minimum size for Claude's interface
+                            const cols = Math.max(dims.cols, 80);
+                            const rows = Math.max(dims.rows, 24);
+                            
+                            // Resize terminal to fitted dimensions
+                            this.terminal.resize(cols, rows);
+                            
+                            // Sync these dimensions with the server PTY
+                            this.syncTerminalSize(cols, rows);
+                        }
                     }
 
                     // Handle input from terminal - pass all input directly to PTY
@@ -537,10 +563,19 @@
                         }
                     });
 
-                    // Handle resize
+                    // Handle resize with dimension sync
                     window.addEventListener('resize', () => {
-                        if (this.fitAddon) {
+                        if (this.fitAddon && this.terminal) {
                             this.fitAddon.fit();
+                            
+                            // Sync new dimensions with server
+                            const dims = this.fitAddon.proposeDimensions();
+                            if (dims) {
+                                const cols = Math.max(dims.cols, 80);
+                                const rows = Math.max(dims.rows, 24);
+                                this.terminal.resize(cols, rows);
+                                this.syncTerminalSize(cols, rows);
+                            }
                         }
                     });
                     
@@ -563,6 +598,23 @@
             clearOutput() {
                 if (this.selectedProject && this.terminal) {
                     this.terminal.clear();
+                }
+            }
+            
+            resetTerminalState() {
+                // Clear any existing terminal completely
+                if (this.terminal) {
+                    this.terminal.dispose();
+                    this.terminal = null;
+                }
+                if (this.fitAddon) {
+                    this.fitAddon = null;
+                }
+                
+                // Clear the container
+                const container = document.getElementById('terminal-container');
+                if (container) {
+                    container.innerHTML = '';
                 }
             }
             
@@ -626,6 +678,42 @@
                     }
                 } catch (error) {
                     console.error('Failed to send input:', error);
+                }
+            }
+            
+            async syncTerminalSize(cols, rows) {
+                if (!this.selectedProject) return;
+                
+                try {
+                    const response = await fetch(`/api/projects/${this.selectedProject.id}/resize`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ cols, rows })
+                    });
+                    
+                    const result = await response.json();
+                    if (!result.success) {
+                        console.error('Failed to sync terminal size:', result.error);
+                    }
+                } catch (error) {
+                    console.error('Failed to sync terminal size:', error);
+                }
+            }
+            
+            async loadTerminalHistory() {
+                if (!this.selectedProject || !this.terminal) return;
+                
+                try {
+                    const response = await fetch(`/api/projects/${this.selectedProject.id}/history`);
+                    const result = await response.json();
+                    
+                    if (result.success && result.data) {
+                        // Write the historical terminal output
+                        this.terminal.write(result.data);
+                        console.log(`[WEB] Loaded ${result.data.length} characters of terminal history`);
+                    }
+                } catch (error) {
+                    console.error('Failed to load terminal history:', error);
                 }
             }
             

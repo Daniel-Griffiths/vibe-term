@@ -12,20 +12,54 @@ import {
   Terminal,
   Globe,
   Zap,
-  Code, Database, Server, Cpu, 
-  Smartphone, Monitor, Tablet, Gamepad2,
-  Palette, Brush, Image, Camera,
-  ShoppingCart, CreditCard, DollarSign, TrendingUp,
-  Users, MessageCircle, Mail, Phone,
-  Book, GraduationCap, FileText, Bookmark,
-  Music, Video,
-  Home, Building, Factory, Store,
-  Heart, Star, Gift, Coffee,
-  Settings, Wrench, Hammer,
-  Lock, Shield, Key, Eye,
-  Rocket, Target, Flag, Award,
-  PieChart
+  Code,
+  Database,
+  Server,
+  Cpu,
+  Smartphone,
+  Monitor,
+  Tablet,
+  Gamepad2,
+  Palette,
+  Brush,
+  Image,
+  Camera,
+  ShoppingCart,
+  CreditCard,
+  DollarSign,
+  TrendingUp,
+  Users,
+  MessageCircle,
+  Mail,
+  Phone,
+  Book,
+  GraduationCap,
+  FileText,
+  Bookmark,
+  Music,
+  Video,
+  Home,
+  Building,
+  Factory,
+  Store,
+  Heart,
+  Star,
+  Gift,
+  Coffee,
+  Settings,
+  Wrench,
+  Hammer,
+  Lock,
+  Shield,
+  Key,
+  Eye,
+  Rocket,
+  Target,
+  Flag,
+  Award,
+  PieChart,
 } from "lucide-react";
+import { NonIdealState } from "./non-ideal-state";
 import type { Project } from "../types";
 
 interface ProjectListProps {
@@ -51,60 +85,109 @@ export default function ProjectList({
   onOpenModal,
   onOpenSettings,
 }: ProjectListProps) {
-
   const getProjectIcon = (iconId?: string) => {
     switch (iconId) {
-      case 'code': return Code;
-      case 'terminal': return Terminal;
-      case 'database': return Database;
-      case 'server': return Server;
-      case 'cpu': return Cpu;
-      case 'globe': return Globe;
-      case 'smartphone': return Smartphone;
-      case 'monitor': return Monitor;
-      case 'tablet': return Tablet;
-      case 'palette': return Palette;
-      case 'brush': return Brush;
-      case 'image': return Image;
-      case 'camera': return Camera;
-      case 'music': return Music;
-      case 'video': return Video;
-      case 'shoppingcart': return ShoppingCart;
-      case 'creditcard': return CreditCard;
-      case 'dollarsign': return DollarSign;
-      case 'trendingup': return TrendingUp;
-      case 'piechart': return PieChart;
-      case 'users': return Users;
-      case 'messagecircle': return MessageCircle;
-      case 'mail': return Mail;
-      case 'phone': return Phone;
-      case 'book': return Book;
-      case 'graduationcap': return GraduationCap;
-      case 'filetext': return FileText;
-      case 'bookmark': return Bookmark;
-      case 'home': return Home;
-      case 'building': return Building;
-      case 'factory': return Factory;
-      case 'store': return Store;
-      case 'settings': return Settings;
-      case 'tool': return Settings;
-      case 'wrench': return Wrench;
-      case 'hammer': return Hammer;
-      case 'lock': return Lock;
-      case 'shield': return Shield;
-      case 'key': return Key;
-      case 'eye': return Eye;
-      case 'rocket': return Rocket;
-      case 'target': return Target;
-      case 'flag': return Flag;
-      case 'award': return Award;
-      case 'gamepad2': return Gamepad2;
-      case 'zap': return Zap;
-      case 'heart': return Heart;
-      case 'star': return Star;
-      case 'gift': return Gift;
-      case 'coffee': return Coffee;
-      case 'folder':
+      case "code":
+        return Code;
+      case "terminal":
+        return Terminal;
+      case "database":
+        return Database;
+      case "server":
+        return Server;
+      case "cpu":
+        return Cpu;
+      case "globe":
+        return Globe;
+      case "smartphone":
+        return Smartphone;
+      case "monitor":
+        return Monitor;
+      case "tablet":
+        return Tablet;
+      case "palette":
+        return Palette;
+      case "brush":
+        return Brush;
+      case "image":
+        return Image;
+      case "camera":
+        return Camera;
+      case "music":
+        return Music;
+      case "video":
+        return Video;
+      case "shoppingcart":
+        return ShoppingCart;
+      case "creditcard":
+        return CreditCard;
+      case "dollarsign":
+        return DollarSign;
+      case "trendingup":
+        return TrendingUp;
+      case "piechart":
+        return PieChart;
+      case "users":
+        return Users;
+      case "messagecircle":
+        return MessageCircle;
+      case "mail":
+        return Mail;
+      case "phone":
+        return Phone;
+      case "book":
+        return Book;
+      case "graduationcap":
+        return GraduationCap;
+      case "filetext":
+        return FileText;
+      case "bookmark":
+        return Bookmark;
+      case "home":
+        return Home;
+      case "building":
+        return Building;
+      case "factory":
+        return Factory;
+      case "store":
+        return Store;
+      case "settings":
+        return Settings;
+      case "tool":
+        return Settings;
+      case "wrench":
+        return Wrench;
+      case "hammer":
+        return Hammer;
+      case "lock":
+        return Lock;
+      case "shield":
+        return Shield;
+      case "key":
+        return Key;
+      case "eye":
+        return Eye;
+      case "rocket":
+        return Rocket;
+      case "target":
+        return Target;
+      case "flag":
+        return Flag;
+      case "award":
+        return Award;
+      case "gamepad2":
+        return Gamepad2;
+      case "zap":
+        return Zap;
+      case "heart":
+        return Heart;
+      case "star":
+        return Star;
+      case "gift":
+        return Gift;
+      case "coffee":
+        return Coffee;
+      case "folder":
       default:
         return Folder;
     }
@@ -143,17 +226,17 @@ export default function ProjectList({
         <h2 className="text-lg font-semibold text-gray-200">Projects</h2>
         <div className="flex gap-2">
           <Button
-            size="sm"
+            size="icon"
+            variant="outline"
             onClick={onOpenSettings}
-            className="h-8 w-8 p-0 raycast-button"
             title="Settings"
           >
             <Settings className="h-4 w-4" />
           </Button>
           <Button
-            size="sm"
+            size="icon"
+            variant="outline"
             onClick={onOpenModal}
-            className="h-8 w-8 p-0 raycast-button"
             title="Add Project"
           >
             <Plus className="h-4 w-4" />
@@ -161,15 +244,12 @@ export default function ProjectList({
         </div>
       </div>
 
-
       <div className="space-y-2">
         {projects.map((project) => (
           <Card
             key={project.id}
             className={`cursor-pointer project-card-raycast ${
-              selectedProject === project.id
-                ? "rainbow-glow"
-                : ""
+              selectedProject === project.id ? "rainbow-glow" : ""
             }`}
             onClick={() => onProjectSelect(project.id)}
           >
@@ -179,7 +259,7 @@ export default function ProjectList({
                   {(() => {
                     const IconComponent = getProjectIcon(project.icon);
                     return (
-                      <IconComponent 
+                      <IconComponent
                         className={`h-4 w-4 ${
                           selectedProject === project.id
                             ? "text-white"
@@ -219,7 +299,8 @@ export default function ProjectList({
                   {["running", "working", "ready"].includes(project.status) ? (
                     <Button
                       size="sm"
-                      className="h-6 px-2 text-xs raycast-button"
+                      variant="outline"
+                      className="h-6 px-2 text-xs"
                       onClick={(e) => {
                         e.stopPropagation();
                         onProjectStop(project.id);
@@ -230,7 +311,8 @@ export default function ProjectList({
                   ) : (
                     <Button
                       size="sm"
-                      className="h-6 px-2 text-xs raycast-button-primary"
+                      variant="primary"
+                      className="h-6 px-2 text-xs"
                       onClick={(e) => {
                         e.stopPropagation();
                         onProjectStart(project.id, project.runCommand || "");
@@ -241,7 +323,8 @@ export default function ProjectList({
                   )}
                   <Button
                     size="sm"
-                    className="h-6 px-2 text-xs raycast-button text-blue-300 hover:text-blue-200"
+                    variant="outline"
+                    className="h-6 px-2 text-xs"
                     onClick={(e) => {
                       e.stopPropagation();
                       onProjectEdit(project.id);
@@ -251,7 +334,8 @@ export default function ProjectList({
                   </Button>
                   <Button
                     size="sm"
-                    className="h-6 px-2 text-xs raycast-button text-red-300 hover:text-red-200"
+                    variant="outline"
+                    className="h-6 px-2 text-xs"
                     onClick={(e) => {
                       e.stopPropagation();
                       onProjectDelete(project.id);
@@ -267,10 +351,17 @@ export default function ProjectList({
       </div>
 
       {projects.length === 0 && (
-        <div className="text-center text-gray-400 mt-8 glass-card p-8 rounded-xl">
-          <p className="text-sm">No projects yet</p>
-          <p className="text-xs mt-1">Click the + button to add one</p>
-        </div>
+        <NonIdealState
+          icon={Folder}
+          title="No Projects Found"
+          description="Add your first project to get started"
+          action={
+            <Button onClick={onOpenModal} variant="primary">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Project
+            </Button>
+          }
+        />
       )}
     </div>
   );

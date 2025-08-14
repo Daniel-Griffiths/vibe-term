@@ -2,75 +2,67 @@ import { useEffect, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Terminal as TerminalIcon } from "lucide-react";
+import { FileCode } from "lucide-react";
 import type { Project } from "../types";
 import "@xterm/xterm/css/xterm.css";
 
-interface XTermPanelProps {
+interface OutputTerminalPanelProps {
   selectedProject: Project | null;
   projects: Project[];
 }
 
-export default function XTermPanel({
+export default function OutputTerminalPanel({
   selectedProject,
   projects,
-}: XTermPanelProps) {
+}: OutputTerminalPanelProps) {
   const terminalsRef = useRef<
     Map<
       string,
       { terminal: Terminal; fitAddon: FitAddon; element: HTMLDivElement }
     >
   >(new Map());
-  const currentLineRef = useRef<string>("");
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Create terminals for all projects
+  // Create output terminals for projects with run commands
   useEffect(() => {
     if (!containerRef.current) return;
 
     projects.forEach((project) => {
-      if (!terminalsRef.current.has(project.id)) {
+      if (project.runCommand && !terminalsRef.current.has(project.id)) {
         // Create terminal element
         const element = document.createElement("div");
         element.style.width = "100%";
         element.style.height = "100%";
         element.style.display = "none";
-        // No padding - Claude draws its own UI borders
         containerRef.current?.appendChild(element);
 
         // Create terminal instance
         const terminal = new Terminal({
           theme: {
-            background: "#000000",
-            foreground: "#22c55e",
-            cursor: "#22c55e",
-            selectionBackground: "rgba(255, 255, 255, 0.3)",
+            background: "#0a0a0a",
+            foreground: "#e0e0e0",
+            cursor: "#e0e0e0",
+            selectionBackground: "rgba(255, 255, 255, 0.2)",
           },
           fontFamily:
             '"JetBrains Mono", "SF Mono", Monaco, Consolas, monospace',
           fontSize: 14,
-          cursorBlink: true,
+          cursorBlink: false,
           convertEol: true,
-          scrollback: 1000,
+          scrollback: 5000,
+          disableStdin: true, // Output only, no input
         });
 
         const fitAddon = new FitAddon();
         terminal.loadAddon(fitAddon);
         terminal.open(element);
 
-        // Handle keyboard input - pass all input directly to PTY for interactive apps
-        const projectId = project.id;
-        terminal.onData((data) => {
-          // Pass all input directly to the PTY process (Claude Code handles its own input)
-          window.electronAPI?.sendInput(projectId, data);
-        });
-
         terminalsRef.current.set(project.id, { terminal, fitAddon, element });
       }
     });
 
-    // Set up global output listener
-    const unsubscribe = window.electronAPI?.onTerminalOutput((output: any) => {
+    // Set up background output listener
+    const unsubscribe = window.electronAPI?.onBackgroundOutput?.((output: any) => {
       const instance = terminalsRef.current.get(output.projectId);
       if (instance) {
         instance.terminal.write(output.data);
@@ -82,33 +74,34 @@ export default function XTermPanel({
         instance.fitAddon.fit();
       });
     };
+
     window.addEventListener("resize", handleResize);
 
     return () => {
-      unsubscribe?.();
+      if (unsubscribe) unsubscribe();
       window.removeEventListener("resize", handleResize);
     };
   }, [projects]);
 
   // Show/hide terminals based on selected project
   useEffect(() => {
-    currentLineRef.current = "";
-
     terminalsRef.current.forEach((instance, projectId) => {
       if (projectId === selectedProject?.id) {
         instance.element.style.display = "block";
-        instance.fitAddon.fit();
+        // Delay fit() to allow the element to render after being shown
+        setTimeout(() => {
+          instance.fitAddon.fit();
+        }, 10);
       } else {
         instance.element.style.display = "none";
       }
     });
   }, [selectedProject]);
 
-  // Track previous project statuses to detect when a project is stopped
+  // Track previous project statuses to clear terminal when stopped
   const prevProjectsRef = useRef<Project[]>([]);
   
   useEffect(() => {
-    // Clear terminal when project transitions from running/working to idle
     projects.forEach((project) => {
       const prevProject = prevProjectsRef.current.find(p => p.id === project.id);
       const wasRunning = prevProject && (prevProject.status === 'running' || prevProject.status === 'working' || prevProject.status === 'ready');
@@ -117,7 +110,6 @@ export default function XTermPanel({
       if (wasRunning && nowIdle) {
         const instance = terminalsRef.current.get(project.id);
         if (instance) {
-          // Wait a moment for any final output (like "Terminal session ended") to appear
           setTimeout(() => {
             instance.terminal.clear();
           }, 500);
@@ -125,20 +117,19 @@ export default function XTermPanel({
       }
     });
     
-    // Update previous projects reference
     prevProjectsRef.current = [...projects];
   }, [projects]);
 
-  if (!selectedProject) {
+  if (!selectedProject?.runCommand) {
     return (
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="text-center text-gray-400 glass-card p-8 rounded-xl">
-          <TerminalIcon className="h-16 w-16 mx-auto mb-4 opacity-50" />
+          <FileCode className="h-16 w-16 mx-auto mb-4 opacity-50" />
           <h3 className="text-lg font-semibold mb-2 text-gray-200">
-            No Project Selected
+            No Output Available
           </h3>
           <p className="text-sm">
-            Select a project from the sidebar to view its terminal
+            This project doesn't have a run command configured
           </p>
         </div>
       </div>
@@ -151,11 +142,11 @@ export default function XTermPanel({
         className="flex-1 m-4 flex flex-col glass-card overflow-hidden"
         style={{ width: "calc(100vw - 350px)" }}
       >
-        <CardHeader className="flex-shrink-0 pb-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800 rounded-t-lg">
+        <CardHeader className="flex-shrink-0 pb-3 bg-gradient-to-r from-gray-900 to-black border-b border-gray-800 rounded-t-lg">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-gray-200 font-semibold">
-              <TerminalIcon className="h-5 w-5 text-green-400" />
-              {selectedProject.name}
+              <FileCode className="h-5 w-5 text-blue-400" />
+              {selectedProject.name} - Output
             </CardTitle>
             <div className="flex items-center gap-2">
               <div
@@ -175,7 +166,7 @@ export default function XTermPanel({
             </div>
           </div>
           <p className="text-sm text-gray-400 font-mono">
-            {selectedProject.path}
+            {selectedProject.runCommand}
           </p>
         </CardHeader>
 
@@ -186,10 +177,9 @@ export default function XTermPanel({
             style={{
               minHeight: "400px",
               maxHeight: "100%",
-              backgroundColor: "#000000",
+              backgroundColor: "#0a0a0a",
               paddingLeft: "16px",
-              paddingTop: "16px",
-              paddingBottom: "16px",
+              paddingRight: "16px",
             }}
           />
         </CardContent>

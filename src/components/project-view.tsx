@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import { Button } from "./ui/button";
-import XTermPanel from "./XTermPanel";
-import GitDiffView from "./GitDiffView";
+import XTermPanel from "./x-term-panel";
+import GitDiffView from "./git-diff-view";
 import { Terminal, GitBranch, Copy, Check, Globe, RotateCcw, Code } from "lucide-react";
 import type { Project } from "../types";
 
@@ -100,6 +100,7 @@ export default function ProjectView({
               projects={projects}
             />
           </div>
+          
           
           {activeTab === "git-diff" && (
             <div className="flex-1">

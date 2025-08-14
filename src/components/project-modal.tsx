@@ -343,7 +343,7 @@ export default function ProjectModal({ isOpen, onClose, onSubmit, editingProject
           {/* Project Name */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
-              Project Name
+              Project Name (optional)
             </label>
             <input
               type="text"
@@ -357,7 +357,7 @@ export default function ProjectModal({ isOpen, onClose, onSubmit, editingProject
           {/* Icon Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
-              Icon
+              Icon (optional)
             </label>
             <div className="relative" ref={iconDropdownRef}>
               <div 
@@ -432,7 +432,11 @@ export default function ProjectModal({ isOpen, onClose, onSubmit, editingProject
               placeholder="npm run dev, python main.py, etc."
               className="w-full px-3 py-2 text-sm bg-gray-800 border border-gray-700 rounded text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gray-600"
             />
+            <p className="text-xs text-gray-500 mt-1">
+              This command will run in the background when the project starts
+            </p>
           </div>
+
 
           {/* Preview URL */}
           <div>
@@ -486,13 +490,15 @@ export default function ProjectModal({ isOpen, onClose, onSubmit, editingProject
             <Button
               type="button"
               onClick={onClose}
-              className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-200"
+              variant="outline"
+              className="flex-1"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+              variant="primary"
+              className="flex-1"
             >
               {editingProject ? 'Update Project' : 'Create Project'}
             </Button>

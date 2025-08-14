@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import ProjectList from './components/ProjectList';
-import ProjectView from './components/ProjectView';
-import ProjectModal from './components/ProjectModal';
-import SettingsModal from './components/SettingsModal';
-import DependenciesModal from './components/DependenciesModal';
-import ConfirmationModal from './components/ConfirmationModal';
+import ProjectList from './components/project-list';
+import ProjectView from './components/project-view';
+import ProjectModal from './components/project-modal';
+import SettingsModal from './components/settings-modal';
+import DependenciesModal from './components/dependencies-modal';
+import ConfirmationModal from './components/confirmation-modal';
 import type { Project, TerminalOutput, ProcessExit } from './types';
 
 function App() {
@@ -164,7 +164,7 @@ function App() {
               previewUrl: projectData.previewUrl,
               yoloMode: projectData.yoloMode ?? true,
               restrictedBranches: projectData.restrictedBranches,
-            }
+                  }
           : p
       ));
       setEditingProject(null);

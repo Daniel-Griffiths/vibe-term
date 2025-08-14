@@ -1,7 +1,8 @@
-import { app, BrowserWindow, ipcMain, shell, Notification } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, Notification, dialog } from 'electron';
 import fs from 'fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import os from 'node:os';
 import { spawn, ChildProcess, exec } from 'child_process';
 import { promisify } from 'util';
 import * as pty from 'node-pty';
@@ -10,6 +11,9 @@ import { WebSocketServer } from 'ws';
 import cors from 'cors';
 import { createServer } from 'http';
 import net from 'net';
+import { ShellUtils } from '../src/utils/shellUtils';
+import { StorageService } from '../src/services/StorageService';
+import { IPCService } from '../src/services/IPCService';
 
 const execAsync = promisify(exec);
 
@@ -17,8 +21,8 @@ const execAsync = promisify(exec);
 const FORCE_SHOW_DEPENDENCIES_MODAL = false; // Set to true for testing
 
 // Check for required dependencies
-async function checkDependencies() {
-  const missing = [];
+async function checkDependencies(): Promise<string[]> {
+  const missing: string[] = [];
   
   // Force missing dependencies for testing
   if (FORCE_SHOW_DEPENDENCIES_MODAL) {
@@ -26,60 +30,20 @@ async function checkDependencies() {
     return ['tmux', 'claude'];
   }
   
-  try {
-    await execAsync('tmux -V');
+  // Check tmux
+  const tmuxAvailable = await ShellUtils.checkDependency('tmux');
+  if (tmuxAvailable) {
     console.log('✅ tmux is installed');
-  } catch (error) {
+  } else {
     missing.push('tmux');
     console.log('❌ tmux is not installed');
   }
   
-  try {
-    // Try multiple ways to detect claude
-    let claudeFound = false;
-    
-    // First try direct command
-    try {
-      await execAsync('claude --version');
-      claudeFound = true;
-    } catch {
-      // Try through zsh with shell initialization
-      try {
-        await execAsync('zsh -l -c "claude --version"');
-        claudeFound = true;
-      } catch {
-        // Try common installation paths
-        try {
-          const homePath = process.env.HOME;
-          await execAsync(`${homePath}/.claude/local/claude --version`);
-          claudeFound = true;
-        } catch {
-          // Check if claude binary exists in common paths
-          try {
-            const { stdout } = await execAsync(`find /usr/local/bin ~/.claude /usr/bin -name "claude" -type f 2>/dev/null | head -1`);
-            if (stdout.trim()) {
-              claudeFound = true;
-            }
-          } catch {
-            // Final attempt with user shell
-            try {
-              await execAsync('zsh -c "source ~/.zshrc ~/.bashrc 2>/dev/null; claude --version"');
-              claudeFound = true;
-            } catch {
-              // Claude not found
-            }
-          }
-        }
-      }
-    }
-    
-    if (claudeFound) {
-      console.log('✅ claude is installed');
-    } else {
-      missing.push('claude');
-      console.log('❌ claude is not installed');
-    }
-  } catch (error) {
+  // Check claude
+  const claudeAvailable = await ShellUtils.checkDependency('claude');
+  if (claudeAvailable) {
+    console.log('✅ claude is installed');
+  } else {
     missing.push('claude');
     console.log('❌ claude is not installed');
   }
@@ -103,9 +67,10 @@ export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist');
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST;
 
 let win: BrowserWindow | null;
-const processes = new Map<string, ChildProcess>(); // Desktop processes
-const webProcesses = new Map<string, ChildProcess>(); // Web processes  
-const ptyProcesses = new Map<string, any>();
+const processes = new Map<string, ChildProcess>(); // Legacy - kept for compatibility
+const sharedPtyProcesses = new Map<string, any>(); // Shared PTY processes for both desktop and web
+const terminalBuffers = new Map<string, string>(); // Store terminal history for each project
+const backgroundProcesses = new Map<string, any>(); // Background start command processes
 
 // Track currently selected project for notifications
 let currentlySelectedProject: string | null = null;
@@ -115,54 +80,86 @@ let webServer: any = null;
 let webSocketServer: WebSocketServer | null = null;
 const webClients = new Set<any>();
 
-// Storage for projects and settings
-const getStoragePath = () => path.join(app.getPath('userData'), 'projects.json');
-const getSettingsPath = () => path.join(app.getPath('userData'), 'settings.json');
+// Storage functions using StorageService
+const loadProjects = () => StorageService.loadProjects().data || [];
+const saveProjects = (projects: any[]) => StorageService.saveProjects(projects);
+const loadSettings = () => StorageService.loadSettings().data;
+const saveSettings = (settings: any) => StorageService.saveSettings(settings);
 
-const loadProjects = () => {
-  try {
-    const storagePath = getStoragePath();
-    if (fs.existsSync(storagePath)) {
-      const data = fs.readFileSync(storagePath, 'utf8');
-      return JSON.parse(data);
+// Setup IPC handlers using IPCService
+function setupIPCHandlers() {
+  // Process management
+  IPCService.handle('start-claude-process', async (projectId: string, projectPath: string, command: string, projectName?: string, yoloMode?: boolean) => {
+    return await getOrCreateSharedPty(projectId, projectPath, projectName, yoloMode, command);
+  });
+
+  IPCService.handle('stop-claude-process', async (projectId: string) => {
+    const proc = sharedPtyProcesses.get(projectId);
+    const backgroundProc = backgroundProcesses.get(projectId);
+    
+    // Kill both PTY and background processes
+    if (proc) {
+      proc.kill();
+      sharedPtyProcesses.delete(projectId);
     }
-  } catch (error) {
-    console.error('Error loading projects:', error);
-  }
-  return [];
-};
-
-const saveProjects = (projects: any[]) => {
-  try {
-    const storagePath = getStoragePath();
-    fs.writeFileSync(storagePath, JSON.stringify(projects, null, 2));
-  } catch (error) {
-    console.error('Error saving projects:', error);
-  }
-};
-
-// Settings storage functions
-const loadSettings = () => {
-  try {
-    const settingsPath = getSettingsPath();
-    if (fs.existsSync(settingsPath)) {
-      const data = fs.readFileSync(settingsPath, 'utf8');
-      return JSON.parse(data);
+    
+    if (backgroundProc) {
+      backgroundProc.kill('SIGTERM');
+      backgroundProcesses.delete(projectId);
     }
-  } catch (error) {
-    console.error('Error loading settings:', error);
-  }
-  return null;
-};
+    
+    return { success: true };
+  });
 
-const saveSettings = (settings: any) => {
-  try {
-    const settingsPath = getSettingsPath();
-    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
-  } catch (error) {
-    console.error('Error saving settings:', error);
-  }
-};
+  IPCService.handle('send-input', async (projectId: string, input: string) => {
+    const proc = sharedPtyProcesses.get(projectId);
+    if (proc) {
+      proc.write(input);
+      return { success: true };
+    }
+    return { success: false, error: 'Process not found' };
+  });
+
+  // Storage operations
+  IPCService.handle('load-projects', () => loadProjects());
+  IPCService.handle('save-projects', (projects: any[]) => {
+    saveProjects(projects);
+    return undefined; // Simple success
+  });
+  
+  IPCService.handle('load-settings', () => loadSettings());
+  IPCService.handle('save-settings', (settings: any) => {
+    saveSettings(settings);
+    return undefined; // Simple success
+  });
+
+  // Command testing
+  IPCService.handle('test-command', async (projectPath: string, command: string) => {
+    console.log(`[Test] Testing command "${command}" in ${projectPath}`);
+    
+    const result = await ShellUtils.execute(command, {
+      cwd: projectPath,
+      timeout: 30000
+    });
+
+    return {
+      success: result.success,
+      output: result.output || '',
+      error: result.error || ''
+    };
+  });
+
+  // Directory selection
+  IPCService.handle('select-directory', async () => {
+    const result = await dialog.showOpenDialog(win!, {
+      properties: ['openDirectory']
+    });
+    
+    return result.canceled ? null : result.filePaths[0];
+  });
+
+  console.log('[IPC] Registered handlers:', IPCService.getRegisteredChannels());
+}
 
 // Discord notification function
 const sendDiscordNotification = async (webhookUrl: string, username: string, content: string) => {
@@ -263,95 +260,16 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
         return res.json({ success: false, error: 'Project not found' });
       }
       
-      // Clean up any existing web process for this project
-      if (webProcesses.has(id)) {
-        webProcesses.get(id)?.kill();
+      // Use the start command from the request, or fall back to project's runCommand
+      const startCommand = command || project.runCommand;
+      
+      // Use or create shared PTY process
+      const result = await getOrCreateSharedPty(id, project.path, projectName, yoloMode, startCommand);
+      if (result.success) {
+        res.json({ success: true });
+      } else {
+        res.json({ success: false, error: result.error });
       }
-
-      const sessionBase = projectName || id;
-      const tmuxSessionName = sessionBase.toLowerCase().replace(/[^a-z0-9]/g, '-');
-      
-      // Try to attach to existing session, or create new one if it doesn't exist
-      const tmuxCommand = `tmux has-session -t "${tmuxSessionName}" 2>/dev/null && tmux attach-session -t "${tmuxSessionName}" || tmux new-session -s "${tmuxSessionName}" -c "${project.path}" \\; set-option status off`;
-      
-      const proc = pty.spawn('/bin/zsh', ['-l', '-c', tmuxCommand], {
-        cwd: project.path,
-        env: { 
-          ...process.env,
-          PATH: `${process.env.PATH}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`,
-          TERM: 'xterm-256color',
-          FORCE_COLOR: '1',
-          CLICOLOR_FORCE: '1',
-          COLORTERM: 'truecolor',
-          TERM_PROGRAM: 'vscode',
-          LANG: 'en_US.UTF-8',
-          LC_ALL: 'en_US.UTF-8',
-          LC_CTYPE: 'en_US.UTF-8'
-        },
-        cols: 80,
-        rows: 24
-      });
-
-      webProcesses.set(id, proc);
-      
-      // Check if we're attaching to existing session or creating new one
-      let isNewSession = true;
-      try {
-        const { stdout } = await execAsync(`/bin/zsh -c 'tmux has-session -t "${tmuxSessionName}" 2>/dev/null && echo "exists" || echo "new"'`);
-        isNewSession = stdout.trim() === 'new';
-      } catch (e) {
-        // Error checking, assume new session
-      }
-      
-      // Broadcast to web clients
-      broadcastToWebClients({ 
-        type: 'project-started',
-        projectId: id,
-        data: isNewSession 
-          ? `Creating new tmux session "${tmuxSessionName}" in ${project.path}\r\n`
-          : `Attaching to existing tmux session "${tmuxSessionName}"\r\n`
-      });
-
-      // Only auto-start Claude Code if this is a new session
-      if (isNewSession) {
-        setTimeout(() => {
-          if (proc) {
-            const claudeCommand = yoloMode ? 'claude --dangerously-skip-permissions\r' : 'claude\r';
-            proc.write(claudeCommand);
-          }
-        }, 200);
-      }
-
-      // Handle PTY output
-      proc.onData((data) => {
-        broadcastToWebClients({ 
-          type: 'terminal-output',
-          projectId: id,
-          data: data
-        });
-        
-        // Same status detection logic as Electron app
-        if (data.includes('⏺')) {
-          setTimeout(() => {
-            broadcastToWebClients({ 
-              type: 'project-ready',
-              projectId: id,
-              timestamp: Date.now()
-            });
-          }, 100);
-        }
-      });
-
-      proc.on('exit', (code) => {
-        broadcastToWebClients({ 
-          type: 'process-exit',
-          projectId: id,
-          code: code
-        });
-        webProcesses.delete(id);
-      });
-      
-      res.json({ success: true });
     } catch (error: any) {
       res.json({ success: false, error: error.message });
     }
@@ -359,25 +277,36 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
   
   app.post('/api/projects/:id/stop', async (req, res) => {
     const { id } = req.params;
-    const proc = webProcesses.get(id);
+    const proc = sharedPtyProcesses.get(id);
+    const backgroundProc = backgroundProcesses.get(id);
     
+    // Kill both PTY and background processes
     if (proc) {
       proc.kill();
-      webProcesses.delete(id);
-      broadcastToWebClients({ 
-        type: 'project-stopped',
-        projectId: id
-      });
-      res.json({ success: true });
-    } else {
-      res.json({ success: false, error: 'Process not found' });
+      sharedPtyProcesses.delete(id);
     }
+    
+    if (backgroundProc) {
+      console.log(`[${id}] Stopping background process`);
+      backgroundProc.kill('SIGTERM');
+      backgroundProcesses.delete(id);
+    }
+    
+    // Clean up terminal buffer
+    terminalBuffers.delete(id);
+    
+    broadcastToWebClients({ 
+      type: 'project-stopped',
+      projectId: id
+    });
+    
+    res.json({ success: true });
   });
   
   app.post('/api/projects/:id/input', async (req, res) => {
     const { id } = req.params;
     const { input } = req.body;
-    const proc = webProcesses.get(id);
+    const proc = sharedPtyProcesses.get(id);
     
     if (proc) {
       proc.write(input);
@@ -385,6 +314,36 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
     } else {
       res.json({ success: false, error: 'Process not found' });
     }
+  });
+  
+  app.post('/api/projects/:id/resize', async (req, res) => {
+    const { id } = req.params;
+    const { cols, rows } = req.body;
+    const proc = sharedPtyProcesses.get(id);
+    
+    if (proc) {
+      console.log(`[${id}] Resizing PTY to ${cols}×${rows}`);
+      proc.resize(cols, rows);
+      
+      // Also notify desktop client of the new dimensions
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('terminal-resize', { 
+          projectId: id, 
+          cols, 
+          rows 
+        });
+      }
+      
+      res.json({ success: true });
+    } else {
+      res.json({ success: false, error: 'Process not found' });
+    }
+  });
+  
+  app.get('/api/projects/:id/history', async (req, res) => {
+    const { id } = req.params;
+    const buffer = terminalBuffers.get(id) || '';
+    res.json({ success: true, data: buffer });
   });
   
   // WebSocket setup
@@ -421,6 +380,450 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
       reject(error);
     });
   });
+}
+
+// Shared PTY process management
+async function getOrCreateSharedPty(projectId: string, projectPath: string, projectName?: string, yoloMode?: boolean, startCommand?: string) {
+  try {
+    // If PTY already exists, just return success
+    if (sharedPtyProcesses.has(projectId)) {
+      console.log(`[${projectId}] Using existing shared PTY process`);
+      return { success: true, projectId };
+    }
+
+    const sessionBase = projectName || projectId;
+    const tmuxSessionName = ShellUtils.generateTmuxSessionName(sessionBase);
+    
+    console.log(`[${projectId}] Creating shared PTY for tmux session: ${tmuxSessionName}`);
+    
+    // Try to attach to existing session, or create new one if it doesn't exist
+    const attachCommand = ShellUtils.attachTmuxSessionCommand(tmuxSessionName);
+    const createCommand = ShellUtils.createTmuxSessionCommand(tmuxSessionName, projectPath);
+    const tmuxCommand = `${ShellUtils.checkTmuxSessionCommand(tmuxSessionName)} 2>/dev/null && ${attachCommand} || ${createCommand} \\; set-option status off`;
+    
+    const proc = pty.spawn(ShellUtils.getPreferredShell(), ['-l', '-c', tmuxCommand], {
+      cwd: projectPath,
+      env: { 
+        ...process.env,
+        PATH: `${process.env.PATH}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`,
+        TERM: 'xterm-256color',
+        FORCE_COLOR: '1',
+        CLICOLOR_FORCE: '1',
+        COLORTERM: 'truecolor',
+        TERM_PROGRAM: 'vscode',
+        LANG: 'en_US.UTF-8',
+        LC_ALL: 'en_US.UTF-8',
+        LC_CTYPE: 'en_US.UTF-8'
+      },
+      cols: 80,
+      rows: 24
+    });
+
+    sharedPtyProcesses.set(projectId, proc);
+
+    // Check if we're attaching to existing session or creating new one
+    let isNewSession = true;
+    try {
+      const result = await ShellUtils.execute(ShellUtils.checkTmuxSessionCommand(tmuxSessionName));
+      isNewSession = !result.success;
+    } catch (e) {
+      // Error checking, assume new session
+    }
+    
+    // Start background process if provided (regardless of session state)
+    if (startCommand) {
+      console.log(`[${projectId}] Starting background process: ${startCommand} (isNewSession: ${isNewSession})`);
+      console.log(`[${projectId}] Working directory: ${projectPath}`);
+      
+      const backgroundProc = spawn('/bin/zsh', ['-l', '-c', startCommand], {
+        cwd: projectPath,
+        env: { 
+          ...process.env,
+          PATH: `${process.env.PATH}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`,
+        },
+        stdio: 'pipe'
+      });
+      
+      backgroundProcesses.set(projectId, backgroundProc);
+      
+      // Send background process output to output terminal
+      backgroundProc.stdout?.on('data', (data) => {
+        const output = data.toString();
+        console.log(`[${projectId}] Background stdout:`, output);
+        
+        // Send to desktop output terminal
+        if (win && !win.isDestroyed()) {
+          win.webContents.send('background-output', { 
+            projectId, 
+            data: output,
+            type: 'stdout' 
+          });
+        }
+        
+        // Send to web output terminal
+        broadcastToWebClients({ 
+          type: 'background-output',
+          projectId: projectId,
+          data: output
+        });
+      });
+      
+      backgroundProc.stderr?.on('data', (data) => {
+        const output = data.toString();
+        console.log(`[${projectId}] Background stderr:`, output);
+        
+        // Send to desktop output terminal
+        if (win && !win.isDestroyed()) {
+          win.webContents.send('background-output', { 
+            projectId, 
+            data: `\x1b[31m${output}\x1b[0m`, // Red text for errors
+            type: 'stderr' 
+          });
+        }
+        
+        // Send to web output terminal
+        broadcastToWebClients({ 
+          type: 'background-output',
+          projectId: projectId,
+          data: `\x1b[31m${output}\x1b[0m` // Red text for errors
+        });
+      });
+      
+      backgroundProc.on('exit', (code) => {
+        console.log(`[${projectId}] Background process exited with code:`, code);
+        const exitMessage = `\x1b[33m[Process exited with code ${code}]\x1b[0m\r\n`; // Yellow text
+        
+        // Send to desktop output terminal
+        if (win && !win.isDestroyed()) {
+          win.webContents.send('background-output', { 
+            projectId, 
+            data: exitMessage,
+            type: 'system' 
+          });
+        }
+        
+        // Send to web output terminal
+        broadcastToWebClients({ 
+          type: 'background-output',
+          projectId: projectId,
+          data: exitMessage
+        });
+        
+        backgroundProcesses.delete(projectId);
+      });
+      
+      backgroundProc.on('error', (error) => {
+        console.log(`[${projectId}] Background process error:`, error);
+        const errorMessage = `\x1b[31m[Error: ${error.message}]\x1b[0m\r\n`; // Red text
+        
+        // Send to desktop output terminal
+        if (win && !win.isDestroyed()) {
+          win.webContents.send('background-output', { 
+            projectId, 
+            data: errorMessage,
+            type: 'error' 
+          });
+        }
+        
+        // Send to web output terminal
+        broadcastToWebClients({ 
+          type: 'background-output',
+          projectId: projectId,
+          data: errorMessage
+        });
+      });
+    }
+    
+    // Send initial message to both desktop and web
+    const initialMessage = isNewSession 
+      ? `Creating new tmux session "${tmuxSessionName}" in ${projectPath}\r\n`
+      : `Attaching to existing tmux session "${tmuxSessionName}"\r\n`;
+    
+    // Send to desktop if window exists
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('terminal-output', { 
+        projectId, 
+        data: initialMessage, 
+        type: 'system' 
+      });
+    }
+    
+    // Send to web clients
+    broadcastToWebClients({ 
+      type: 'project-started',
+      projectId: projectId,
+      data: initialMessage
+    });
+
+    // Auto-start Claude Code if this is a new session
+    if (isNewSession) {
+      setTimeout(() => {
+        if (proc && sharedPtyProcesses.has(projectId)) {
+          const claudeCommand = yoloMode ? 'claude --dangerously-skip-permissions\r' : 'claude\r';
+          console.log(`[${projectId}] Auto-starting Claude Code in new tmux session with command: ${claudeCommand.trim()}`);
+          proc.write(claudeCommand);
+        }
+      }, 200);
+    }
+
+    // Track the most recent state indicator
+    let lastStateIndicator = null;
+    let statusChangeTimeout = null;
+
+    // Debounced status change function
+    const sendStatusChange = (status, delay = 1000) => {
+      if (statusChangeTimeout) {
+        clearTimeout(statusChangeTimeout);
+      }
+      
+      statusChangeTimeout = setTimeout(() => {
+        if (status === 'ready') {
+          // Send to desktop
+          if (win && !win.isDestroyed()) {
+            win.webContents.send('claude-ready', { 
+              projectId,
+              timestamp: Date.now()
+            });
+          }
+          
+          // Send to web clients
+          broadcastToWebClients({ 
+            type: 'project-ready',
+            projectId: projectId,
+            timestamp: Date.now()
+          });
+          
+          // Send desktop notification if window is not focused and notifications are enabled
+          const settings = loadSettings();
+          const desktopNotificationsEnabled = settings?.desktop?.notifications !== false; // Default to true
+          const windowFocused = win && !win.isDestroyed() && win.isFocused();
+          
+          console.log(`[${projectId}] Notification check: windowFocused="${windowFocused}", notificationsEnabled="${desktopNotificationsEnabled}"`);
+          
+          if (!windowFocused && desktopNotificationsEnabled) {
+            // Get the actual project name from saved projects
+            const projects = loadProjects();
+            const project = projects.find((p: any) => p.id === projectId);
+            const projectDisplayName = project?.name || projectId;
+            const notification = new Notification({
+              title: `${projectDisplayName} finished`,
+              body: 'Claude Code process completed',
+              icon: path.join(process.env.APP_ROOT || '', 'public', 'icon.png'),
+              silent: false
+            });
+            
+            notification.show();
+            
+            notification.on('click', () => {
+              if (win) {
+                if (win.isMinimized()) win.restore();
+                win.focus();
+              }
+            });
+
+            // Also send Discord notification if configured
+            const settings = loadSettings();
+            if (settings?.discord?.enabled && settings?.discord?.webhookUrl) {
+              const discordMessage = `🎯 **Project Finished**\n\n**${projectDisplayName}** has completed successfully and is ready for input.`;
+              sendDiscordNotification(
+                settings.discord.webhookUrl,
+                settings.discord.username || 'Vibe Term',
+                discordMessage
+              ).catch(error => {
+                console.error('Failed to send Discord notification:', error);
+              });
+            }
+          }
+        } else if (status === 'working') {
+          // Send to desktop
+          if (win && !win.isDestroyed()) {
+            win.webContents.send('claude-working', { 
+              projectId,
+              timestamp: Date.now()
+            });
+          }
+          
+          // Send to web clients
+          broadcastToWebClients({ 
+            type: 'project-working',
+            projectId: projectId,
+            timestamp: Date.now()
+          });
+        }
+        statusChangeTimeout = null;
+      }, delay);
+    };
+
+    // Handle PTY output - send to both desktop and web
+    proc.onData((data) => {
+      console.log(`[${projectId}] PTY DATA:`, data);
+      
+      // Check if process still exists before handling data
+      if (!sharedPtyProcesses.has(projectId)) {
+        return;
+      }
+      
+      try {
+        // Accumulate terminal history (keep last 10KB to avoid memory issues)
+        const currentBuffer = terminalBuffers.get(projectId) || '';
+        const newBuffer = currentBuffer + data;
+        // Keep only last 10KB of history
+        const trimmedBuffer = newBuffer.length > 10000 ? newBuffer.slice(-10000) : newBuffer;
+        terminalBuffers.set(projectId, trimmedBuffer);
+        // Check for circle (⏺) - Claude finished
+        if (data.includes('⏺')) {
+          lastStateIndicator = 'finished';
+          console.log(`[${projectId}] *** CLAUDE FINISHED (⏺ detected) ***`);
+          
+          // Check if input box appears in the same data
+          if ((data.includes('│') && data.includes('>')) || 
+              (data.includes('╭') && data.includes('╰'))) {
+            console.log(`[${projectId}] *** CLAUDE IS READY FOR INPUT ***`);
+            sendStatusChange('ready');
+          } else {
+            // Wait a bit for input box to appear
+            setTimeout(() => {
+              sendStatusChange('ready');
+            }, 100);
+          }
+        }
+        // Check for asterisk/star symbols - Claude working
+        else if (data.match(/[✳✽✻✶✢]/)) {
+          if (lastStateIndicator !== 'working') {
+            lastStateIndicator = 'working';
+            console.log(`[${projectId}] *** CLAUDE IS WORKING/THINKING ***`);
+            sendStatusChange('working');
+          }
+        }
+        // Check for input box (initial ready state)
+        else if ((data.includes('│') && data.includes('>')) || 
+                 (data.includes('╭') && data.includes('╰')) ||
+                 data.includes('⏵⏵')) {
+          if (lastStateIndicator !== 'ready') {
+            lastStateIndicator = 'ready';
+            console.log(`[${projectId}] *** CLAUDE IS READY FOR INPUT (initial) ***`);
+            sendStatusChange('ready');
+          }
+        }
+        
+        // Send to desktop
+        if (win && !win.isDestroyed()) {
+          win.webContents.send('terminal-output', { 
+            projectId, 
+            data: data, 
+            type: 'stdout' 
+          });
+        }
+        
+        // Send to web clients
+        broadcastToWebClients({ 
+          type: 'terminal-output',
+          projectId: projectId,
+          data: data
+        });
+      } catch (error) {
+        console.error(`Error handling PTY output for project ${projectId}:`, error);
+        // Clean up the process if it's causing errors
+        sharedPtyProcesses.delete(projectId);
+        terminalBuffers.delete(projectId);
+      }
+    });
+
+    proc.on('exit', (code) => {
+      console.log(`[${projectId}] Shared PTY process exit:`, code);
+      
+      // Send to desktop
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('process-exit', { projectId, code });
+        win.webContents.send('terminal-output', { 
+          projectId, 
+          data: `\nTerminal session ended with code ${code}\n`, 
+          type: 'system' 
+        });
+      }
+      
+      // Send to web clients
+      broadcastToWebClients({ 
+        type: 'process-exit',
+        projectId: projectId,
+        code: code
+      });
+      
+      // Send desktop notification for non-zero exit codes if window is not focused
+      if (code !== 0) {
+        const settings = loadSettings();
+        const desktopNotificationsEnabled = settings?.desktop?.notifications !== false; // Default to true
+        const windowFocused = win && !win.isDestroyed() && win.isFocused();
+        
+        if (!windowFocused && desktopNotificationsEnabled) {
+          const projects = loadProjects();
+          const project = projects.find((p: any) => p.id === projectId);
+          const projectDisplayName = project?.name || projectId;
+          const notification = new Notification({
+            title: `${projectDisplayName} failed`,
+            body: `Process exited with code ${code}`,
+            icon: path.join(process.env.APP_ROOT || '', 'public', 'icon.png'),
+            silent: false
+          });
+          
+          notification.show();
+          
+          notification.on('click', () => {
+            if (win) {
+              if (win.isMinimized()) win.restore();
+              win.focus();
+            }
+          });
+        }
+      }
+      
+      sharedPtyProcesses.delete(projectId);
+      terminalBuffers.delete(projectId);
+    });
+
+    proc.on('error', (error) => {
+      console.log(`[${projectId}] Shared PTY process error:`, error);
+      
+      // Send to desktop
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('terminal-output', { 
+          projectId, 
+          data: `Error: ${error.message}\n`, 
+          type: 'error' 
+        });
+      }
+      
+      // Send desktop notification for errors if window is not focused
+      const settings = loadSettings();
+      const desktopNotificationsEnabled = settings?.desktop?.notifications !== false; // Default to true
+      const windowFocused = win && !win.isDestroyed() && win.isFocused();
+      
+      if (!windowFocused && desktopNotificationsEnabled) {
+        const projects = loadProjects();
+        const project = projects.find((p: any) => p.id === projectId);
+        const projectDisplayName = project?.name || projectId;
+        const notification = new Notification({
+          title: `${projectDisplayName} error`,
+          body: error.message,
+          icon: path.join(process.env.APP_ROOT || '', 'public', 'icon.png'),
+          silent: false
+        });
+        
+        notification.show();
+        
+        notification.on('click', () => {
+          if (win) {
+            if (win.isMinimized()) win.restore();
+            win.focus();
+          }
+        });
+      }
+    });
+
+    return { success: true, projectId };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 }
 
 function broadcastToWebClients(message: any) {
@@ -516,10 +919,16 @@ function createWindow() {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
-    processes.forEach(proc => proc.kill());
-    processes.clear();
-    webProcesses.forEach(proc => proc.kill());
-    webProcesses.clear();
+    // Clean up shared PTY processes
+    sharedPtyProcesses.forEach(proc => proc.kill());
+    sharedPtyProcesses.clear();
+    
+    // Clean up background processes
+    backgroundProcesses.forEach((proc, projectId) => {
+      console.log(`Stopping background process for project: ${projectId}`);
+      proc.kill('SIGTERM');
+    });
+    backgroundProcesses.clear();
     
     // Close web server
     if (webServer) {
@@ -543,6 +952,9 @@ app.whenReady().then(async () => {
   // Check for required dependencies
   const missingDeps = await checkDependencies();
   console.log('Main process detected missing dependencies:', missingDeps);
+  
+  // Register IPC handlers
+  setupIPCHandlers();
   if (missingDeps.length > 0) {
     // Send missing dependencies to renderer for user notification
     win?.webContents.once('did-finish-load', () => {
@@ -574,242 +986,36 @@ app.whenReady().then(async () => {
 });
 
 ipcMain.handle('start-claude-process', async (event, projectId: string, projectPath: string, command: string, projectName?: string, yoloMode?: boolean) => {
-  try {
-    // Clean up any existing PTY process for this project (but don't kill tmux session)
-    if (processes.has(projectId)) {
-      processes.get(projectId)?.kill();
-      processes.delete(projectId);
-    }
-
-    // Create tmux session name from project name (if available) or project ID (sanitized)
-    // Desktop app uses no suffix to maintain compatibility with existing sessions
-    const sessionBase = projectName || projectId;
-    const tmuxSessionName = sessionBase.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    
-    console.log(`[${projectId}] Checking for existing tmux session: ${tmuxSessionName}`);
-    
-    // Try to attach to existing session, or create new one if it doesn't exist
-    const tmuxCommand = `tmux has-session -t "${tmuxSessionName}" 2>/dev/null && tmux attach-session -t "${tmuxSessionName}" || tmux new-session -s "${tmuxSessionName}" -c "${projectPath}" \\; set-option status off`;
-    
-    const proc = pty.spawn('/bin/zsh', ['-l', '-c', tmuxCommand], {
-      cwd: projectPath,
-      env: { 
-        ...process.env,
-        PATH: `${process.env.PATH}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`,
-        TERM: 'xterm-256color',
-        FORCE_COLOR: '1',
-        CLICOLOR_FORCE: '1',
-        COLORTERM: 'truecolor',
-        TERM_PROGRAM: 'vscode',
-        LANG: 'en_US.UTF-8',
-        LC_ALL: 'en_US.UTF-8',
-        LC_CTYPE: 'en_US.UTF-8'
-      },
-      cols: 80,
-      rows: 24
-    });
-
-    processes.set(projectId, proc);
-
-    // Check if we're attaching to existing session or creating new one
-    let isNewSession = true;
-    try {
-      const { stdout } = await execAsync(`/bin/zsh -c 'tmux has-session -t "${tmuxSessionName}" 2>/dev/null && echo "exists" || echo "new"'`);
-      isNewSession = stdout.trim() === 'new';
-    } catch (e) {
-      // Error checking, assume new session
-    }
-
-    // Send initial prompt
-    win?.webContents.send('terminal-output', { 
-      projectId, 
-      data: isNewSession 
-        ? `Creating new tmux session "${tmuxSessionName}" in ${projectPath}\r\n`
-        : `Attaching to existing tmux session "${tmuxSessionName}"\r\n`, 
-      type: 'system' 
-    });
-
-    // Only auto-start Claude Code if this is a new session
-    if (isNewSession) {
-      setTimeout(() => {
-        if (proc) {
-          const claudeCommand = yoloMode ? 'claude --dangerously-skip-permissions\r' : 'claude\r';
-          console.log(`[${projectId}] Auto-starting Claude Code in new tmux session with command: ${claudeCommand.trim()}`);
-          proc.write(claudeCommand);
-        }
-      }, 200);
-    }
-
-    // Track the most recent state indicator
-    let lastStateIndicator = null;
-    let statusChangeTimeout = null;
-
-    // Debounced status change function
-    const sendStatusChange = (status, delay = 1000) => {
-      if (statusChangeTimeout) {
-        clearTimeout(statusChangeTimeout);
-      }
-      
-      statusChangeTimeout = setTimeout(() => {
-        if (status === 'ready') {
-          win?.webContents.send('claude-ready', { 
-            projectId,
-            timestamp: Date.now()
-          });
-          
-          // Send to web clients
-          broadcastToWebClients({ 
-            type: 'project-ready',
-            projectId: projectId,
-            timestamp: Date.now()
-          });
-          
-          // Send desktop notification if this project is not currently selected
-          console.log(`[${projectId}] Notification check: currentlySelectedProject="${currentlySelectedProject}", projectId="${projectId}"`);
-          if (currentlySelectedProject !== projectId) {
-            // Get the actual project name from saved projects
-            const projects = loadProjects();
-            const project = projects.find((p: any) => p.id === projectId);
-            const projectName = project?.name || projectId;
-            const notification = new Notification({
-              title: `${projectName} finished`,
-              body: '',
-              icon: path.join(process.env.APP_ROOT || '', 'public', 'icon.png'), // Optional icon
-              silent: false
-            });
-            
-            notification.show();
-            
-            // Optional: Click notification to focus the app
-            notification.on('click', () => {
-              if (win) {
-                if (win.isMinimized()) win.restore();
-                win.focus();
-              }
-            });
-
-            // Also send Discord notification if configured
-            const settings = loadSettings();
-            if (settings?.discord?.enabled && settings?.discord?.webhookUrl) {
-              const discordMessage = `🎯 **Project Finished**\n\n**${projectName}** has completed successfully and is ready for input.`;
-              sendDiscordNotification(
-                settings.discord.webhookUrl,
-                settings.discord.username || 'Vibe Term',
-                discordMessage
-              ).catch(error => {
-                console.error('Failed to send Discord notification:', error);
-              });
-            }
-          }
-        } else if (status === 'working') {
-          win?.webContents.send('claude-working', { 
-            projectId,
-            timestamp: Date.now()
-          });
-          
-          // Send to web clients
-          broadcastToWebClients({ 
-            type: 'project-working',
-            projectId: projectId,
-            timestamp: Date.now()
-          });
-        }
-        statusChangeTimeout = null;
-      }, delay);
-    };
-
-    proc.onData((data) => {
-      console.log(`[${projectId}] PTY DATA:`, data);
-      
-      // Check for circle (⏺) - Claude finished
-      if (data.includes('⏺')) {
-        lastStateIndicator = 'finished';
-        console.log(`[${projectId}] *** CLAUDE FINISHED (⏺ detected) ***`);
-        
-        // Check if input box appears in the same data - Updated for new Claude Code format
-        if ((data.includes('│') && data.includes('>')) || 
-            (data.includes('╭') && data.includes('╰'))) {
-          console.log(`[${projectId}] *** CLAUDE IS READY FOR INPUT ***`);
-          sendStatusChange('ready');
-        } else {
-          // Wait a bit for input box to appear
-          setTimeout(() => {
-            sendStatusChange('ready');
-          }, 100);
-        }
-      }
-      // Check for asterisk/star symbols - Claude working
-      else if (data.match(/[✳✽✻✶✢]/)) {
-        if (lastStateIndicator !== 'working') {
-          lastStateIndicator = 'working';
-          console.log(`[${projectId}] *** CLAUDE IS WORKING/THINKING ***`);
-          sendStatusChange('working');
-        }
-      }
-      // Check for input box (initial ready state) - Updated for new Claude Code format
-      else if ((data.includes('│') && data.includes('>')) || 
-               (data.includes('╭') && data.includes('╰')) ||
-               data.includes('⏵⏵')) {
-        if (lastStateIndicator !== 'ready') {
-          lastStateIndicator = 'ready';
-          console.log(`[${projectId}] *** CLAUDE IS READY FOR INPUT (initial) ***`);
-          sendStatusChange('ready');
-        }
-      }
-      
-      // Send to Electron renderer
-      win?.webContents.send('terminal-output', { 
-        projectId, 
-        data: data, 
-        type: 'stdout' 
-      });
-      
-      // Send to web clients
-      broadcastToWebClients({ 
-        type: 'terminal-output',
-        projectId: projectId,
-        data: data
-      });
-    });
-
-    proc.on('exit', (code) => {
-      console.log(`[${projectId}] Process exit:`, code);
-      win?.webContents.send('process-exit', { projectId, code });
-      win?.webContents.send('terminal-output', { 
-        projectId, 
-        data: `\nTerminal session ended with code ${code}\n`, 
-        type: 'system' 
-      });
-      processes.delete(projectId);
-    });
-
-    proc.on('error', (error) => {
-      console.log(`[${projectId}] Process error:`, error);
-      win?.webContents.send('terminal-output', { 
-        projectId, 
-        data: `Error: ${error.message}\n`, 
-        type: 'error' 
-      });
-    });
-
-    return { success: true, projectId };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
+  return await getOrCreateSharedPty(projectId, projectPath, projectName, yoloMode, command);
 });
 
 ipcMain.handle('stop-claude-process', async (event, projectId: string) => {
-  const proc = processes.get(projectId);
+  const proc = sharedPtyProcesses.get(projectId);
+  const backgroundProc = backgroundProcesses.get(projectId);
+  
+  // Kill both PTY and background processes
   if (proc) {
     proc.kill();
-    processes.delete(projectId);
+    sharedPtyProcesses.delete(projectId);
+  }
+  
+  if (backgroundProc) {
+    console.log(`[${projectId}] Stopping background process`);
+    backgroundProc.kill('SIGTERM');
+    backgroundProcesses.delete(projectId);
+  }
+  
+  // Clean up terminal buffer
+  terminalBuffers.delete(projectId);
+  
+  if (proc || backgroundProc) {
     return { success: true };
   }
   return { success: false, error: 'Process not found' };
 });
 
 ipcMain.handle('send-input', async (event, projectId: string, input: string) => {
-  const proc = processes.get(projectId);
+  const proc = sharedPtyProcesses.get(projectId);
   if (proc) {
     console.log(`[${projectId}] Sending raw input to PTY:`, JSON.stringify(input));
     // Send raw input directly to PTY - let Claude handle its own input processing
@@ -1024,6 +1230,54 @@ ipcMain.handle('load-settings', async () => {
   return loadSettings();
 });
 
+ipcMain.handle('get-local-ip', async () => {
+  const interfaces = os.networkInterfaces();
+  
+  console.log('All network interfaces:', Object.keys(interfaces));
+  
+  // On macOS, en0 is typically the primary network interface (WiFi or Ethernet)
+  // On Windows, it might be "Wi-Fi" or "Ethernet"
+  // On Linux, it might be "eth0" or "wlan0"
+  const priorityInterfaces = ['en0', 'en1', 'eth0', 'wlan0', 'Wi-Fi', 'Ethernet'];
+  
+  // Try priority interfaces first
+  for (const name of priorityInterfaces) {
+    if (interfaces[name]) {
+      console.log(`Checking interface ${name}:`, interfaces[name]);
+      for (const iface of interfaces[name]) {
+        // Look for IPv4 addresses that are not internal
+        if (iface.family === 'IPv4' && !iface.internal) {
+          console.log(`Found IP on ${name}: ${iface.address}`);
+          return iface.address;
+        }
+      }
+    }
+  }
+  
+  // Fallback: Look for any 192.168.x.x address (common for home networks)
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal && iface.address.startsWith('192.168.')) {
+        console.log(`Found IP on ${name}: ${iface.address}`);
+        return iface.address;
+      }
+    }
+  }
+  
+  // Fallback: Look for any non-internal IPv4 address
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        console.log(`Found IP on ${name}: ${iface.address}`);
+        return iface.address;
+      }
+    }
+  }
+  
+  console.log('No external IP found, using localhost');
+  return 'localhost';
+});
+
 ipcMain.handle('save-settings', async (event, settings) => {
   try {
     const oldSettings = loadSettings();
@@ -1097,6 +1351,26 @@ ipcMain.handle('send-discord-notification', async (event, discordSettings, messa
 
     return { success: true };
   } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('test-command', async (event, projectPath: string, command: string) => {
+  try {
+    console.log(`[Test] Testing command "${command}" in ${projectPath}`);
+    
+    const result = await ShellUtils.execute(command, {
+      cwd: projectPath,
+      timeout: 30000
+    });
+
+    return {
+      success: result.success,
+      output: result.output || '',
+      error: result.error || ''
+    };
+  } catch (error: any) {
+    console.log(`[Test] Exception:`, error);
     return { success: false, error: error.message };
   }
 });

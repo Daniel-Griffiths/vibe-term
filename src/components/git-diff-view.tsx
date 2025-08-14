@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { DiffEditor, Editor } from "@monaco-editor/react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
-import { GitBranch, FileText, Plus, Minus, Edit, Save, Undo2, RefreshCw, X, GitCommit } from "lucide-react";
+import { GitBranch, FileText, Plus, Minus, Edit, Save, Undo2, RefreshCw, X, GitCommit, AlertCircle } from "lucide-react";
+import { NonIdealState } from "./non-ideal-state";
 import type { Project } from "../types";
 
 interface GitDiffViewProps {
@@ -230,43 +231,39 @@ export default function GitDiffView({ selectedProject }: GitDiffViewProps) {
 
   if (!selectedProject) {
     return (
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="text-center text-gray-400 glass-card p-8 rounded-xl">
-          <GitBranch className="h-16 w-16 mx-auto mb-4 opacity-50" />
-          <h3 className="text-lg font-semibold mb-2 text-gray-200">
-            No Project Selected
-          </h3>
-          <p className="text-sm">
-            Select a project from the sidebar to view its git changes
-          </p>
-        </div>
-      </div>
+      <NonIdealState
+        icon={GitBranch}
+        title="No Project Selected"
+        description="Select a project from the sidebar to view its git diff"
+      />
     );
   }
 
   if (error) {
     return (
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="text-center text-red-400 glass-card p-8 rounded-xl">
-          <p className="text-sm">Error: {error}</p>
-        </div>
-      </div>
+      <NonIdealState
+        icon={AlertCircle}
+        title="Git Error"
+        description={error}
+        variant="error"
+        action={
+          <Button onClick={handleRefresh} className="raycast-button-primary">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry
+          </Button>
+        }
+      />
     );
   }
 
   if (!diffData || diffData.files.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="text-center text-gray-400 glass-card p-8 rounded-xl">
-          <GitBranch className="h-16 w-16 mx-auto mb-4 opacity-50" />
-          <h3 className="text-lg font-semibold mb-2 text-gray-200">
-            No Changes
-          </h3>
-          <p className="text-sm">
-            Working directory is clean on branch {diffData?.branch || 'main'}
-          </p>
-        </div>
-      </div>
+      <NonIdealState
+        icon={GitBranch}
+        title="No Changes Found"
+        description="Your working directory is clean"
+        variant="info"
+      />
     );
   }
 
@@ -320,7 +317,8 @@ export default function GitDiffView({ selectedProject }: GitDiffViewProps) {
                 size="sm"
                 onClick={handleCommit}
                 disabled={!commitMessage.trim() || isCommitting}
-                className="w-full h-8 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                variant="success"
+                className="w-full h-8"
               >
                 <GitCommit className="h-3 w-3 mr-1" />
                 {isCommitting ? 'Committing...' : 'Commit All'}
@@ -407,7 +405,8 @@ export default function GitDiffView({ selectedProject }: GitDiffViewProps) {
                     <Button
                       size="sm"
                       onClick={handleEditMode}
-                      className="h-7 px-3 bg-blue-600 hover:bg-blue-700 text-white"
+                      variant="primary"
+                      className="h-7 px-3"
                     >
                       <Edit className="h-3 w-3 mr-1" />
                       Edit
@@ -418,7 +417,8 @@ export default function GitDiffView({ selectedProject }: GitDiffViewProps) {
                         size="sm"
                         onClick={handleSaveFile}
                         disabled={!hasUnsavedChanges}
-                        className="h-7 px-3 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
+                        variant="success"
+                        className="h-7 px-3"
                       >
                         <Save className="h-3 w-3 mr-1" />
                         Save
@@ -426,7 +426,8 @@ export default function GitDiffView({ selectedProject }: GitDiffViewProps) {
                       <Button
                         size="sm"
                         onClick={handleViewMode}
-                        className="h-7 px-3 bg-gray-600 hover:bg-gray-700 text-white"
+                        variant="outline"
+                        className="h-7 px-3"
                       >
                         <X className="h-3 w-3 mr-1" />
                         Cancel
