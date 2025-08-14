@@ -403,6 +403,12 @@
                 document.getElementById('project-detail').classList.remove('flex');
                 document.getElementById('projects-view').classList.remove('hidden');
                 
+                // Clean up terminal when leaving project view
+                if (this.terminal) {
+                    this.terminal.dispose();
+                    this.terminal = null;
+                }
+                
                 this.selectedProject = null;
             }
             
@@ -438,6 +444,12 @@
                             stateElement.textContent = 'Connected to session';
                             stateElement.className = 'text-sm text-green-400';
                         }
+                        // Ensure terminal is focused after successful connection
+                        setTimeout(() => {
+                            if (this.terminal) {
+                                this.terminal.focus();
+                            }
+                        }, 200);
                     } else {
                         if (stateElement) {
                             stateElement.textContent = 'Failed to connect';
@@ -464,6 +476,12 @@
                         if (status === 'ready') {
                             stateElement.textContent = 'Claude is ready';
                             stateElement.className = 'text-sm text-green-400';
+                            // Focus terminal when Claude is ready for input
+                            setTimeout(() => {
+                                if (this.terminal) {
+                                    this.terminal.focus();
+                                }
+                            }, 100);
                         } else if (status === 'working') {
                             stateElement.textContent = 'Claude is working...';
                             stateElement.className = 'text-sm text-yellow-400';
@@ -476,7 +494,13 @@
             }
             
             initializeTerminal() {
-                if (!this.terminal && window.Terminal && window.FitAddon) {
+                if (window.Terminal && window.FitAddon) {
+                    // Always dispose of existing terminal to ensure clean state
+                    if (this.terminal) {
+                        this.terminal.dispose();
+                        this.terminal = null;
+                    }
+                    
                     // Create terminal with theme matching the Electron app
                     this.terminal = new Terminal({
                         theme: {
@@ -496,8 +520,10 @@
                     this.fitAddon = new FitAddon.FitAddon();
                     this.terminal.loadAddon(this.fitAddon);
 
-                    // Open terminal in container
-                    this.terminal.open(document.getElementById('terminal-container'));
+                    // Clear the container and open terminal
+                    const container = document.getElementById('terminal-container');
+                    container.innerHTML = '';
+                    this.terminal.open(container);
                     
                     // Fit terminal to container
                     if (this.fitAddon) {
@@ -517,6 +543,13 @@
                             this.fitAddon.fit();
                         }
                     });
+                    
+                    // Focus the terminal after a short delay to ensure it's ready
+                    setTimeout(() => {
+                        if (this.terminal) {
+                            this.terminal.focus();
+                        }
+                    }, 100);
                 }
             }
             

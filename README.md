@@ -1,69 +1,52 @@
-# Test React + TypeScript + Vite
+<div align="center">
+    <img width="100" src="/public/icon.png" alt="Logo"/>
+</div>
+<div align="center">
+    A terminal multiplexer interface for Claude Code built with React and Electron.
+</div>
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Prerequisites 
 
-Currently, two official plugins are available:
+Vibe Term requires the following dependencies to be installed:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **tmux** - Terminal multiplexer for session management
+  ```bash
+  # macOS
+  brew install tmux
+  
+  # Ubuntu/Debian  
+  sudo apt-get install tmux
+  ```
 
-## Expanding the ESLint configuration
+- **claude** - Claude Code CLI tool
+  ```bash
+  curl -fsSL https://claude.ai/install.sh | sh
+  ```
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Usage
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Vibe Term provides a visual interface for managing multiple Claude Code sessions:
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+- **Project Management**: Add and organize your coding projects
+- **Terminal Sessions**: Each project runs in its own tmux session
+- **Visual Status**: See when Claude is working, ready, or completed
+- **Git Integration**: View and manage git changes directly in the interface
+- **Web Interface**: Access your projects remotely via the built-in web server
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Getting Started
+
+To run the project locally run the following command:
+
+```bash
+yarn dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+And to create a release build run the following command:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```bash
+# Mac
+yarn build --mac
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Linux
+yarn build --linux
 ```

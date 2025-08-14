@@ -9,15 +9,11 @@ import type { Project } from "../types";
 interface ProjectViewProps {
   selectedProject: Project | null;
   projects: Project[];
-  onClearOutput: (projectId: string) => void;
-  onStopProject: (projectId: string) => void;
 }
 
 export default function ProjectView({
   selectedProject,
   projects,
-  onClearOutput,
-  onStopProject,
 }: ProjectViewProps) {
   const [activeTab, setActiveTab] = useState("terminal");
   const [copied, setCopied] = useState(false);
@@ -102,8 +98,6 @@ export default function ProjectView({
             <XTermPanel
               selectedProject={selectedProject}
               projects={projects}
-              onClearOutput={onClearOutput}
-              onStopProject={onStopProject}
             />
           </div>
           

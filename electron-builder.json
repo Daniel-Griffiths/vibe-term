@@ -1,0 +1,21 @@
+{
+  "appId": "com.vibeterm.app",
+  "productName": "Vibe Term",
+  "directories": {
+    "output": "release/${version}"
+  },
+  "files": [
+    "dist", 
+    "dist-electron",
+    "public",
+    "web"
+  ],
+  "mac": {
+    "target": ["dmg"],
+    "artifactName": "${productName}-Mac-${version}-Installer.${ext}"
+  },
+  "linux": {
+    "target": ["AppImage", "deb"],
+    "artifactName": "${productName}-Linux-${version}.${ext}"
+  }
+}

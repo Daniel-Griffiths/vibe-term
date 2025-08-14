@@ -3,16 +3,28 @@ import ProjectList from './components/ProjectList';
 import ProjectView from './components/ProjectView';
 import ProjectModal from './components/ProjectModal';
 import SettingsModal from './components/SettingsModal';
+import DependenciesModal from './components/DependenciesModal';
+import ConfirmationModal from './components/ConfirmationModal';
 import type { Project, TerminalOutput, ProcessExit } from './types';
 
 function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [isElectron, setIsElectron] = useState(false);
-  const [manuallyStopped, setManuallyStopped] = useState<Set<string>>(new Set());
+  const [, setManuallyStopped] = useState<Set<string>>(new Set());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [missingDeps, setMissingDeps] = useState<string[]>([]);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    isOpen: boolean;
+    projectId: string | null;
+    projectName: string | null;
+  }>({
+    isOpen: false,
+    projectId: null,
+    projectName: null
+  });
 
   useEffect(() => {
     // Check if we're running in Electron
@@ -29,7 +41,8 @@ function App() {
             // Ensure all new fields are present with defaults if missing
             icon: p.icon || 'folder',
             runCommand: p.runCommand || undefined,
-            previewUrl: p.previewUrl || undefined
+            previewUrl: p.previewUrl || undefined,
+            restrictedBranches: p.restrictedBranches || undefined
           })));
           setSelectedProject(savedProjects[0].id);
         }
@@ -93,11 +106,17 @@ function App() {
         ));
       });
 
+      const unsubscribeMissingDeps = window.electronAPI.onMissingDependencies((deps: string[]) => {
+        console.log('App component received missing dependencies:', deps);
+        setMissingDeps(deps);
+      });
+
       return () => {
         unsubscribeOutput();
         unsubscribeExit();
         unsubscribeReady();
         unsubscribeWorking();
+        unsubscribeMissingDeps();
       };
     } else {
       console.log('Running in browser mode - Electron APIs not available');
@@ -115,6 +134,7 @@ function App() {
         icon: p.icon,
         runCommand: p.runCommand,
         previewUrl: p.previewUrl,
+        restrictedBranches: p.restrictedBranches,
         lastActivity: p.lastActivity
       }));
       window.electronAPI.saveProjects(projectsToSave);
@@ -128,6 +148,7 @@ function App() {
     runCommand?: string;
     previewUrl?: string;
     yoloMode?: boolean;
+    restrictedBranches?: string;
   }) => {
     if (editingProject) {
       // Update existing project
@@ -141,6 +162,7 @@ function App() {
               runCommand: projectData.runCommand,
               previewUrl: projectData.previewUrl,
               yoloMode: projectData.yoloMode,
+              restrictedBranches: projectData.restrictedBranches,
             }
           : p
       ));
@@ -155,6 +177,7 @@ function App() {
         runCommand: projectData.runCommand,
         previewUrl: projectData.previewUrl,
         yoloMode: projectData.yoloMode,
+        restrictedBranches: projectData.restrictedBranches,
         status: 'idle',
         lastActivity: new Date().toLocaleTimeString(),
         output: []
@@ -237,11 +260,37 @@ function App() {
     }
   };
 
-  const handleProjectDelete = (projectId: string) => {
-    setProjects(prev => prev.filter(project => project.id !== projectId));
-    if (selectedProject === projectId) {
-      setSelectedProject(null);
+  const handleProjectDeleteRequest = (projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      setDeleteConfirmation({
+        isOpen: true,
+        projectId: projectId,
+        projectName: project.name
+      });
     }
+  };
+
+  const handleProjectDeleteConfirm = () => {
+    if (deleteConfirmation.projectId) {
+      setProjects(prev => prev.filter(project => project.id !== deleteConfirmation.projectId));
+      if (selectedProject === deleteConfirmation.projectId) {
+        setSelectedProject(null);
+      }
+    }
+    setDeleteConfirmation({
+      isOpen: false,
+      projectId: null,
+      projectName: null
+    });
+  };
+
+  const handleProjectDeleteCancel = () => {
+    setDeleteConfirmation({
+      isOpen: false,
+      projectId: null,
+      projectName: null
+    });
   };
 
   const currentProject = selectedProject ? projects.find(p => p.id === selectedProject) : null;
@@ -251,21 +300,20 @@ function App() {
       {/* Custom Title Bar with Glass Effect */}
       <div 
         className="h-16 glass-titlebar flex items-center justify-center px-4 select-none"
-        style={{ WebkitAppRegion: 'drag' } as any}
+        style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       >
         <h1 className="text-lg font-medium text-gray-200">Vibe Term</h1>
       </div>
       
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className={`flex-1 flex overflow-hidden ${missingDeps.length > 0 ? 'pointer-events-none opacity-50' : ''}`}>
         <ProjectList
           projects={projects}
           selectedProject={selectedProject}
           onProjectSelect={handleProjectSelect}
-          onProjectAdd={handleProjectAdd}
           onProjectStart={handleProjectStart}
           onProjectStop={handleProjectStop}
-          onProjectDelete={handleProjectDelete}
+          onProjectDelete={handleProjectDeleteRequest}
           onProjectEdit={handleProjectEdit}
           onOpenModal={() => {
             setEditingProject(null);
@@ -276,26 +324,44 @@ function App() {
         <ProjectView
           selectedProject={currentProject || null}
           projects={projects}
-          onClearOutput={handleClearOutput}
-          onStopProject={handleProjectStop}
         />
       </div>
       
+      {/* Dependencies Modal - Blocks everything when dependencies are missing */}
+      {missingDeps.length > 0 && (
+        <DependenciesModal missingDeps={missingDeps} />
+      )}
+      
       {/* Project Creation/Edit Modal */}
-      <ProjectModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingProject(null);
-        }}
-        onSubmit={handleProjectAdd}
-        editingProject={editingProject}
-      />
+      {missingDeps.length === 0 && (
+        <ProjectModal
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setEditingProject(null);
+          }}
+          onSubmit={handleProjectAdd}
+          editingProject={editingProject}
+        />
+      )}
 
       {/* Settings Modal */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
+      {missingDeps.length === 0 && (
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={deleteConfirmation.isOpen}
+        onConfirm={handleProjectDeleteConfirm}
+        onCancel={handleProjectDeleteCancel}
+        title="Delete Project"
+        message={`Are you sure you want to delete "${deleteConfirmation.projectName}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
       />
     </div>
   );

@@ -38,7 +38,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [testingSending, setTestingSending] = useState(false);
-  const [actualWebPort, setActualWebPort] = useState<number | null>(null);
+  const [actualWebPort] = useState<number | null>(null);
 
   // Load settings when modal opens
   useEffect(() => {
@@ -121,8 +121,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 border border-gray-700 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} />
+      <div className="relative glass-card rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-white/10">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <SettingsIcon className="h-5 w-5 text-gray-400" />

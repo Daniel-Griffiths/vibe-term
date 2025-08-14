@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { DiffEditor, Editor } from "@monaco-editor/react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
-import { GitBranch, FileText, Plus, Minus, Edit, Save, Undo2, RefreshCw, X, GitCommit, Upload } from "lucide-react";
+import { GitBranch, FileText, Plus, Minus, Edit, Save, Undo2, RefreshCw, X, GitCommit } from "lucide-react";
 import type { Project } from "../types";
 
 interface GitDiffViewProps {
@@ -170,14 +170,24 @@ export default function GitDiffView({ selectedProject }: GitDiffViewProps) {
       const result = await window.electronAPI?.gitCommit(selectedProject.path, commitMessage.trim());
       if (result?.success) {
         setCommitMessage("");
-        // Ask user if they want to push
-        const shouldPush = window.confirm("Commit successful! Do you want to push to remote?");
-        if (shouldPush) {
-          const pushResult = await window.electronAPI?.gitPush(selectedProject.path);
-          if (pushResult?.success) {
-            alert("Successfully pushed to remote!");
-          } else {
-            alert(`Push failed: ${pushResult?.error || 'Unknown error'}`);
+        // Check if current branch is restricted before offering push
+        const currentBranch = diffData?.branch;
+        const restrictedBranches = selectedProject.restrictedBranches;
+        const isRestrictedBranch = restrictedBranches && currentBranch && 
+          restrictedBranches.split(',').map(b => b.trim()).includes(currentBranch);
+
+        if (isRestrictedBranch) {
+          alert(`Push is disabled for branch "${currentBranch}". This branch is listed in restricted branches.`);
+        } else {
+          // Ask user if they want to push
+          const shouldPush = window.confirm("Commit successful! Do you want to push to remote?");
+          if (shouldPush) {
+            const pushResult = await window.electronAPI?.gitPush(selectedProject.path);
+            if (pushResult?.success) {
+              alert("Successfully pushed to remote!");
+            } else {
+              alert(`Push failed: ${pushResult?.error || 'Unknown error'}`);
+            }
           }
         }
         // Refresh the diff data

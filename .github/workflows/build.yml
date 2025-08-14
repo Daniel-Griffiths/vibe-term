@@ -1,0 +1,59 @@
+name: Build/release
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - "**.md"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: "yarn"
+
+      - name: "Install Dependencies"
+        run: yarn install --prefer-offline --frozen-lockfile
+
+      - name: "Build Mac"
+        if: matrix.os == 'macos-latest'
+        run: |
+          yarn build --mac
+
+      - name: "Build Linux AppImage"
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          yarn build --linux
+
+      - name: "Get Package Version"
+        id: package-version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "current-version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          target_commitish: master
+          tag_name: ${{ steps.package-version.outputs.current-version}}
+          files: |
+            release/**/Vibe\ Term-*.AppImage
+            release/**/Vibe\ Term-*.deb
+            release/**/Vibe\ Term-*.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

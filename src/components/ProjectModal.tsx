@@ -46,6 +46,7 @@ interface ProjectModalProps {
     runCommand?: string;
     previewUrl?: string;
     yoloMode?: boolean;
+    restrictedBranches?: string;
   }) => void;
   editingProject?: {
     id: string;
@@ -55,6 +56,7 @@ interface ProjectModalProps {
     runCommand?: string;
     previewUrl?: string;
     yoloMode?: boolean;
+    restrictedBranches?: string;
   } | null;
 }
 
@@ -199,6 +201,7 @@ export default function ProjectModal({ isOpen, onClose, onSubmit, editingProject
   const [runCommand, setRunCommand] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
   const [yoloMode, setYoloMode] = useState(true);
+  const [restrictedBranches, setRestrictedBranches] = useState("");
   const [iconSearch, setIconSearch] = useState("");
   const [isIconDropdownOpen, setIsIconDropdownOpen] = useState(false);
   const iconDropdownRef = useRef<HTMLDivElement>(null);
@@ -214,6 +217,7 @@ export default function ProjectModal({ isOpen, onClose, onSubmit, editingProject
       setRunCommand(editingProject.runCommand || '');
       setPreviewUrl(editingProject.previewUrl || '');
       setYoloMode(editingProject.yoloMode || false);
+      setRestrictedBranches(editingProject.restrictedBranches || '');
     } else if (isOpen && !editingProject) {
       // Reset for new project
       setName("");
@@ -222,6 +226,7 @@ export default function ProjectModal({ isOpen, onClose, onSubmit, editingProject
       setRunCommand("");
       setPreviewUrl("");
       setYoloMode(true);
+      setRestrictedBranches("");
       setIconSearch("");
       setIsIconDropdownOpen(false);
     }
@@ -266,6 +271,7 @@ export default function ProjectModal({ isOpen, onClose, onSubmit, editingProject
       runCommand: runCommand.trim() || undefined,
       previewUrl: previewUrl.trim() || undefined,
       yoloMode,
+      restrictedBranches: restrictedBranches.trim() || undefined,
     });
 
     // Reset form
@@ -274,6 +280,7 @@ export default function ProjectModal({ isOpen, onClose, onSubmit, editingProject
     setSelectedIcon('code');
     setRunCommand("");
     setPreviewUrl("");
+    setRestrictedBranches("");
     setIconSearch("");
   };
 
@@ -292,8 +299,9 @@ export default function ProjectModal({ isOpen, onClose, onSubmit, editingProject
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 border border-gray-700 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative glass-card rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-white/10">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-200">
             {editingProject ? 'Edit Project' : 'Create New Project'}
@@ -438,6 +446,23 @@ export default function ProjectModal({ isOpen, onClose, onSubmit, editingProject
               placeholder="http://localhost:3000"
               className="w-full px-3 py-2 text-sm bg-gray-800 border border-gray-700 rounded text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gray-600"
             />
+          </div>
+
+          {/* Restricted Branches */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Restricted Branches (optional)
+            </label>
+            <input
+              type="text"
+              value={restrictedBranches}
+              onChange={(e) => setRestrictedBranches(e.target.value)}
+              placeholder="main, master, production"
+              className="w-full px-3 py-2 text-sm bg-gray-800 border border-gray-700 rounded text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gray-600"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Comma-separated list of branches where git push is disabled
+            </p>
           </div>
 
           {/* Yolo Mode Toggle */}

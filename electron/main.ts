@@ -13,6 +13,80 @@ import net from 'net';
 
 const execAsync = promisify(exec);
 
+// Test variable to force missing dependencies modal
+const FORCE_SHOW_DEPENDENCIES_MODAL = false; // Set to true for testing
+
+// Check for required dependencies
+async function checkDependencies() {
+  const missing = [];
+  
+  // Force missing dependencies for testing
+  if (FORCE_SHOW_DEPENDENCIES_MODAL) {
+    console.log('🧪 TESTING: Forcing missing dependencies modal');
+    return ['tmux', 'claude'];
+  }
+  
+  try {
+    await execAsync('tmux -V');
+    console.log('✅ tmux is installed');
+  } catch (error) {
+    missing.push('tmux');
+    console.log('❌ tmux is not installed');
+  }
+  
+  try {
+    // Try multiple ways to detect claude
+    let claudeFound = false;
+    
+    // First try direct command
+    try {
+      await execAsync('claude --version');
+      claudeFound = true;
+    } catch {
+      // Try through zsh with shell initialization
+      try {
+        await execAsync('zsh -l -c "claude --version"');
+        claudeFound = true;
+      } catch {
+        // Try common installation paths
+        try {
+          const homePath = process.env.HOME;
+          await execAsync(`${homePath}/.claude/local/claude --version`);
+          claudeFound = true;
+        } catch {
+          // Check if claude binary exists in common paths
+          try {
+            const { stdout } = await execAsync(`find /usr/local/bin ~/.claude /usr/bin -name "claude" -type f 2>/dev/null | head -1`);
+            if (stdout.trim()) {
+              claudeFound = true;
+            }
+          } catch {
+            // Final attempt with user shell
+            try {
+              await execAsync('zsh -c "source ~/.zshrc ~/.bashrc 2>/dev/null; claude --version"');
+              claudeFound = true;
+            } catch {
+              // Claude not found
+            }
+          }
+        }
+      }
+    }
+    
+    if (claudeFound) {
+      console.log('✅ claude is installed');
+    } else {
+      missing.push('claude');
+      console.log('❌ claude is not installed');
+    }
+  } catch (error) {
+    missing.push('claude');
+    console.log('❌ claude is not installed');
+  }
+  
+  return missing;
+}
+
 const DEFAULT_WEB_SERVER_PORT = 6969;
 
 // Safely import liquid glass with fallback
@@ -29,7 +103,8 @@ export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist');
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST;
 
 let win: BrowserWindow | null;
-const processes = new Map<string, ChildProcess>();
+const processes = new Map<string, ChildProcess>(); // Desktop processes
+const webProcesses = new Map<string, ChildProcess>(); // Web processes  
 const ptyProcesses = new Map<string, any>();
 
 // Track currently selected project for notifications
@@ -162,7 +237,8 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
   app.use(express.json());
   
   // Serve static files (we'll create a simple mobile-friendly interface)
-  app.use(express.static(path.join(__dirname, '..', 'web')));
+  const webStaticPath = path.join(__dirname, '..', 'web');
+  app.use(express.static(webStaticPath));
   
   // API Routes
   app.get('/api/projects', (req, res) => {
@@ -187,9 +263,9 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
         return res.json({ success: false, error: 'Project not found' });
       }
       
-      // Use the same logic as the Electron app
-      if (processes.has(id)) {
-        processes.get(id)?.kill();
+      // Clean up any existing web process for this project
+      if (webProcesses.has(id)) {
+        webProcesses.get(id)?.kill();
       }
 
       const sessionBase = projectName || id;
@@ -198,19 +274,25 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
       // Try to attach to existing session, or create new one if it doesn't exist
       const tmuxCommand = `tmux has-session -t "${tmuxSessionName}" 2>/dev/null && tmux attach-session -t "${tmuxSessionName}" || tmux new-session -s "${tmuxSessionName}" -c "${project.path}" \\; set-option status off`;
       
-      const proc = pty.spawn('/bin/bash', ['-c', tmuxCommand], {
+      const proc = pty.spawn('/bin/zsh', ['-l', '-c', tmuxCommand], {
         cwd: project.path,
         env: { 
           ...process.env,
+          PATH: `${process.env.PATH}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`,
           TERM: 'xterm-256color',
           FORCE_COLOR: '1',
-          CLICOLOR_FORCE: '1'
+          CLICOLOR_FORCE: '1',
+          COLORTERM: 'truecolor',
+          TERM_PROGRAM: 'vscode',
+          LANG: 'en_US.UTF-8',
+          LC_ALL: 'en_US.UTF-8',
+          LC_CTYPE: 'en_US.UTF-8'
         },
         cols: 80,
         rows: 24
       });
 
-      processes.set(id, proc);
+      webProcesses.set(id, proc);
       
       // Check if we're attaching to existing session or creating new one
       let isNewSession = true;
@@ -266,7 +348,7 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
           projectId: id,
           code: code
         });
-        processes.delete(id);
+        webProcesses.delete(id);
       });
       
       res.json({ success: true });
@@ -277,11 +359,11 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
   
   app.post('/api/projects/:id/stop', async (req, res) => {
     const { id } = req.params;
-    const proc = processes.get(id);
+    const proc = webProcesses.get(id);
     
     if (proc) {
       proc.kill();
-      processes.delete(id);
+      webProcesses.delete(id);
       broadcastToWebClients({ 
         type: 'project-stopped',
         projectId: id
@@ -295,7 +377,7 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
   app.post('/api/projects/:id/input', async (req, res) => {
     const { id } = req.params;
     const { input } = req.body;
-    const proc = processes.get(id);
+    const proc = webProcesses.get(id);
     
     if (proc) {
       proc.write(input);
@@ -396,7 +478,7 @@ function createWindow() {
   });
 
   // Set app icon in dock (macOS specific)
-  if (process.platform === 'darwin' && iconPath) {
+  if (process.platform === 'darwin' && iconPath && app.dock) {
     try {
       app.dock.setIcon(iconPath);
     } catch (error) {
@@ -412,9 +494,17 @@ function createWindow() {
   });
 
   if (VITE_DEV_SERVER_URL) {
+    console.log('Loading development server:', VITE_DEV_SERVER_URL);
     win.loadURL(VITE_DEV_SERVER_URL);
   } else {
-    win.loadFile(path.join(RENDERER_DIST, 'index.html'));
+    const indexPath = path.join(RENDERER_DIST, 'index.html');
+    console.log('App packaged:', app.isPackaged);
+    console.log('RENDERER_DIST:', RENDERER_DIST);
+    console.log('Loading index.html from:', indexPath);
+    console.log('Index file exists:', fs.existsSync(indexPath));
+    
+    // Use loadFile instead of loadURL for local files - it handles the protocol correctly
+    win.loadFile(indexPath);
   }
 
   // Log when content loads
@@ -428,6 +518,8 @@ app.on('window-all-closed', () => {
     app.quit();
     processes.forEach(proc => proc.kill());
     processes.clear();
+    webProcesses.forEach(proc => proc.kill());
+    webProcesses.clear();
     
     // Close web server
     if (webServer) {
@@ -447,6 +539,17 @@ app.on('activate', () => {
 
 app.whenReady().then(async () => {
   createWindow();
+  
+  // Check for required dependencies
+  const missingDeps = await checkDependencies();
+  console.log('Main process detected missing dependencies:', missingDeps);
+  if (missingDeps.length > 0) {
+    // Send missing dependencies to renderer for user notification
+    win?.webContents.once('did-finish-load', () => {
+      console.log('Sending missing dependencies to renderer:', missingDeps);
+      win?.webContents.send('missing-dependencies', missingDeps);
+    });
+  }
   
   // Start web server
   try {
@@ -479,6 +582,7 @@ ipcMain.handle('start-claude-process', async (event, projectId: string, projectP
     }
 
     // Create tmux session name from project name (if available) or project ID (sanitized)
+    // Desktop app uses no suffix to maintain compatibility with existing sessions
     const sessionBase = projectName || projectId;
     const tmuxSessionName = sessionBase.toLowerCase().replace(/[^a-z0-9]/g, '-');
     
@@ -487,13 +591,19 @@ ipcMain.handle('start-claude-process', async (event, projectId: string, projectP
     // Try to attach to existing session, or create new one if it doesn't exist
     const tmuxCommand = `tmux has-session -t "${tmuxSessionName}" 2>/dev/null && tmux attach-session -t "${tmuxSessionName}" || tmux new-session -s "${tmuxSessionName}" -c "${projectPath}" \\; set-option status off`;
     
-    const proc = pty.spawn('/bin/bash', ['-c', tmuxCommand], {
+    const proc = pty.spawn('/bin/zsh', ['-l', '-c', tmuxCommand], {
       cwd: projectPath,
       env: { 
         ...process.env,
+        PATH: `${process.env.PATH}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`,
         TERM: 'xterm-256color',
         FORCE_COLOR: '1',
-        CLICOLOR_FORCE: '1'
+        CLICOLOR_FORCE: '1',
+        COLORTERM: 'truecolor',
+        TERM_PROGRAM: 'vscode',
+        LANG: 'en_US.UTF-8',
+        LC_ALL: 'en_US.UTF-8',
+        LC_CTYPE: 'en_US.UTF-8'
       },
       cols: 80,
       rows: 24
@@ -612,8 +722,9 @@ ipcMain.handle('start-claude-process', async (event, projectId: string, projectP
         lastStateIndicator = 'finished';
         console.log(`[${projectId}] *** CLAUDE FINISHED (⏺ detected) ***`);
         
-        // Check if input box appears in the same data
-        if (data.includes('│') && data.includes('>')) {
+        // Check if input box appears in the same data - Updated for new Claude Code format
+        if ((data.includes('│') && data.includes('>')) || 
+            (data.includes('╭') && data.includes('╰'))) {
           console.log(`[${projectId}] *** CLAUDE IS READY FOR INPUT ***`);
           sendStatusChange('ready');
         } else {
@@ -631,8 +742,10 @@ ipcMain.handle('start-claude-process', async (event, projectId: string, projectP
           sendStatusChange('working');
         }
       }
-      // Check for input box (initial ready state)
-      else if (data.includes('│') && data.includes('>') && data.includes('⏵⏵')) {
+      // Check for input box (initial ready state) - Updated for new Claude Code format
+      else if ((data.includes('│') && data.includes('>')) || 
+               (data.includes('╭') && data.includes('╰')) ||
+               data.includes('⏵⏵')) {
         if (lastStateIndicator !== 'ready') {
           lastStateIndicator = 'ready';
           console.log(`[${projectId}] *** CLAUDE IS READY FOR INPUT (initial) ***`);
@@ -877,7 +990,7 @@ ipcMain.handle('git-commit', async (event, projectPath: string, message: string)
   try {
     // Add all changes and commit
     await execAsync('git add .', { cwd: projectPath });
-    await execAsync(`git commit -m "${message.replace(/"/g, '\\"')}"`, { cwd: projectPath });
+    await execAsync(`git commit --no-verify -m "${message.replace(/"/g, '\\"')}"`, { cwd: projectPath });
     
     return { success: true };
   } catch (error) {

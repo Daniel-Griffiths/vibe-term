@@ -9,15 +9,11 @@ import "@xterm/xterm/css/xterm.css";
 interface XTermPanelProps {
   selectedProject: Project | null;
   projects: Project[];
-  onClearOutput: (projectId: string) => void;
-  onStopProject: (projectId: string) => void;
 }
 
 export default function XTermPanel({
   selectedProject,
   projects,
-  onClearOutput,
-  onStopProject,
 }: XTermPanelProps) {
   const terminalsRef = useRef<
     Map<

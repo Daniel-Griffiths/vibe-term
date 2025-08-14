@@ -39,6 +39,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeAllListeners('claude-working');
   },
   
+  onMissingDependencies: (callback: (deps: string[]) => void) => {
+    ipcRenderer.on('missing-dependencies', (event, deps) => callback(deps));
+    return () => ipcRenderer.removeAllListeners('missing-dependencies');
+  },
+  
   getGitDiff: (projectPath: string) => 
     ipcRenderer.invoke('get-git-diff', projectPath),
   

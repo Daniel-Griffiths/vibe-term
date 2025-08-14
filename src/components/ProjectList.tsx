@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import {
@@ -19,15 +18,13 @@ import {
   ShoppingCart, CreditCard, DollarSign, TrendingUp,
   Users, MessageCircle, Mail, Phone,
   Book, GraduationCap, FileText, Bookmark,
-  Music, Video, Headphones, Radio,
+  Music, Video,
   Home, Building, Factory, Store,
-  Car, Plane, Ship, Bike,
   Heart, Star, Gift, Coffee,
   Settings, Wrench, Hammer,
-  Cloud, Sun, Moon, CloudRain,
   Lock, Shield, Key, Eye,
   Rocket, Target, Flag, Award,
-  PieChart, BarChart, Activity, TrendingDown
+  PieChart
 } from "lucide-react";
 import type { Project } from "../types";
 
@@ -35,13 +32,6 @@ interface ProjectListProps {
   projects: Project[];
   selectedProject: string | null;
   onProjectSelect: (projectId: string) => void;
-  onProjectAdd: (projectData: {
-    name: string;
-    path: string;
-    icon?: string;
-    runCommand?: string;
-    previewUrl?: string;
-  }) => void;
   onProjectStart: (projectId: string, command: string) => void;
   onProjectStop: (projectId: string) => void;
   onProjectDelete: (projectId: string) => void;
@@ -54,7 +44,6 @@ export default function ProjectList({
   projects,
   selectedProject,
   onProjectSelect,
-  onProjectAdd,
   onProjectStart,
   onProjectStop,
   onProjectDelete,

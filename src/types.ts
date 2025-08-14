@@ -9,6 +9,7 @@ export interface ElectronAPI {
   onProcessExit: (callback: (data: ProcessExit) => void) => () => void;
   onClaudeReady: (callback: (data: { projectId: string; timestamp: number }) => void) => () => void;
   onClaudeWorking: (callback: (data: { projectId: string; timestamp: number }) => void) => () => void;
+  onMissingDependencies: (callback: (deps: string[]) => void) => () => void;
   getGitDiff: (projectPath: string) => Promise<{ success: boolean; data?: any; error?: string }>;
   saveFile: (projectPath: string, filePath: string, content: string) => Promise<{ success: boolean; error?: string }>;
   revertFile: (projectPath: string, filePath: string) => Promise<{ success: boolean; error?: string }>;
@@ -40,6 +41,7 @@ export interface Project {
   runCommand?: string;
   previewUrl?: string;
   yoloMode?: boolean;
+  restrictedBranches?: string;
   status: 'idle' | 'running' | 'ready' | 'working' | 'completed' | 'error';
   lastActivity: string;
   output: string[];

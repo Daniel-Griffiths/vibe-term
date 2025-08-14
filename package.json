@@ -2,17 +2,20 @@
   "name": "vibe-term",
   "private": true,
   "version": "0.0.0",
+  "author": "Daniel Griffiths <contact@danielgriffiths.dev>",
+  "description": "A terminal multiplexer interface for Claude Code",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && electron-builder",
+    "build:dist": "tsc && vite build",
+    "build": "npm run build:dist && electron-builder --publish never",
     "lint": "eslint .",
     "preview": "vite preview",
     "electron": "electron .",
     "electron:dev": "concurrently \"npm run dev\" \"electron .\"",
-    "electron:run": "open dist/mac-arm64/vibe-term.app",
-    "dist": "electron-builder"
+    "electron:run": "open release/0.0.0/mac-arm64/Vibe\\ Term.app",
+    "release": "npm run build && npm run electron:run"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
