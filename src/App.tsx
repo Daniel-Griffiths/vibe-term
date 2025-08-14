@@ -134,6 +134,7 @@ function App() {
         icon: p.icon,
         runCommand: p.runCommand,
         previewUrl: p.previewUrl,
+        yoloMode: p.yoloMode,
         restrictedBranches: p.restrictedBranches,
         lastActivity: p.lastActivity
       }));
@@ -161,7 +162,7 @@ function App() {
               icon: projectData.icon,
               runCommand: projectData.runCommand,
               previewUrl: projectData.previewUrl,
-              yoloMode: projectData.yoloMode,
+              yoloMode: projectData.yoloMode ?? true,
               restrictedBranches: projectData.restrictedBranches,
             }
           : p
@@ -176,7 +177,7 @@ function App() {
         icon: projectData.icon,
         runCommand: projectData.runCommand,
         previewUrl: projectData.previewUrl,
-        yoloMode: projectData.yoloMode,
+        yoloMode: projectData.yoloMode ?? true,
         restrictedBranches: projectData.restrictedBranches,
         status: 'idle',
         lastActivity: new Date().toLocaleTimeString(),
@@ -197,6 +198,10 @@ function App() {
   const handleProjectStart = async (projectId: string, command: string) => {
     const project = projects.find(p => p.id === projectId);
     if (!project) return;
+
+    // Select the project when starting it
+    setSelectedProject(projectId);
+    window.electronAPI?.setSelectedProject(projectId);
 
     setProjects(prev => prev.map(p => 
       p.id === projectId 

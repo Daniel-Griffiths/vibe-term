@@ -297,7 +297,7 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
       // Check if we're attaching to existing session or creating new one
       let isNewSession = true;
       try {
-        const { stdout } = await execAsync(`tmux has-session -t "${tmuxSessionName}" 2>/dev/null && echo "exists" || echo "new"`);
+        const { stdout } = await execAsync(`/bin/zsh -c 'tmux has-session -t "${tmuxSessionName}" 2>/dev/null && echo "exists" || echo "new"'`);
         isNewSession = stdout.trim() === 'new';
       } catch (e) {
         // Error checking, assume new session
@@ -614,7 +614,7 @@ ipcMain.handle('start-claude-process', async (event, projectId: string, projectP
     // Check if we're attaching to existing session or creating new one
     let isNewSession = true;
     try {
-      const { stdout } = await execAsync(`tmux has-session -t "${tmuxSessionName}" 2>/dev/null && echo "exists" || echo "new"`);
+      const { stdout } = await execAsync(`/bin/zsh -c 'tmux has-session -t "${tmuxSessionName}" 2>/dev/null && echo "exists" || echo "new"'`);
       isNewSession = stdout.trim() === 'new';
     } catch (e) {
       // Error checking, assume new session
@@ -665,8 +665,12 @@ ipcMain.handle('start-claude-process', async (event, projectId: string, projectP
           });
           
           // Send desktop notification if this project is not currently selected
+          console.log(`[${projectId}] Notification check: currentlySelectedProject="${currentlySelectedProject}", projectId="${projectId}"`);
           if (currentlySelectedProject !== projectId) {
-            const projectName = projectId; // Could be enhanced to get actual project name
+            // Get the actual project name from saved projects
+            const projects = loadProjects();
+            const project = projects.find((p: any) => p.id === projectId);
+            const projectName = project?.name || projectId;
             const notification = new Notification({
               title: `${projectName} finished`,
               body: '',
@@ -1010,6 +1014,7 @@ ipcMain.handle('git-push', async (event, projectPath: string) => {
 });
 
 ipcMain.handle('set-selected-project', async (event, projectId: string | null) => {
+  console.log(`Setting currently selected project to: "${projectId}"`);
   currentlySelectedProject = projectId;
   return { success: true };
 });
