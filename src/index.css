@@ -1,0 +1,245 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  background: linear-gradient(135deg, 
+    rgba(10, 10, 25, 1) 0%, 
+    rgba(5, 5, 15, 1) 100%);
+  color: #e5e5e5;
+  min-height: 100vh;
+}
+
+html {
+  background: linear-gradient(135deg, 
+    rgba(10, 10, 25, 1) 0%, 
+    rgba(5, 5, 15, 1) 100%);
+}
+
+/* Ensure interactive elements are not draggable in Electron */
+button,
+input,
+select,
+textarea {
+  -webkit-app-region: no-drag;
+}
+
+/* Dark scrollbars for the entire app */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #374151 #1f1f1f;
+}
+
+/* Webkit scrollbars for Chrome/Safari/Electron */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #1f1f1f;
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 4px;
+  border: 1px solid #1f1f1f;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #4b5563;
+}
+
+*::-webkit-scrollbar-corner {
+  background: #1f1f1f;
+}
+
+/* Raycast-inspired premium dark theme */
+.glass-sidebar {
+  background: linear-gradient(180deg, 
+    rgba(20, 20, 30, 0.95) 0%, 
+    rgba(10, 10, 20, 0.98) 100%);
+  backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.05);
+}
+
+.glass-card {
+  background: linear-gradient(135deg, 
+    rgba(30, 30, 40, 0.4) 0%, 
+    rgba(20, 20, 30, 0.6) 100%);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 2px 8px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.glass-titlebar {
+  background: linear-gradient(180deg, 
+    rgba(25, 25, 35, 0.9) 0%, 
+    rgba(15, 15, 25, 0.95) 100%);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Enhanced terminal styling with Raycast feel */
+.terminal-glass {
+  background: linear-gradient(135deg, 
+    rgba(5, 5, 15, 0.9) 0%, 
+    rgba(10, 10, 20, 0.95) 100%);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  border-radius: 12px;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 0 20px rgba(34, 197, 94, 0.06),
+    inset 0 1px 0 rgba(34, 197, 94, 0.1);
+}
+
+/* Apple Intelligence inspired rainbow glow animation */
+@keyframes rainbow-glow {
+  0% {
+    box-shadow: 
+      0 0 20px rgba(255, 0, 150, 0.3),
+      0 0 40px rgba(255, 0, 150, 0.2),
+      0 0 60px rgba(255, 0, 150, 0.1),
+      inset 0 1px 0 rgba(255, 0, 150, 0.2);
+    border-color: rgba(255, 0, 150, 0.5);
+  }
+  16.66% {
+    box-shadow: 
+      0 0 20px rgba(255, 100, 0, 0.3),
+      0 0 40px rgba(255, 100, 0, 0.2),
+      0 0 60px rgba(255, 100, 0, 0.1),
+      inset 0 1px 0 rgba(255, 100, 0, 0.2);
+    border-color: rgba(255, 100, 0, 0.5);
+  }
+  33.33% {
+    box-shadow: 
+      0 0 20px rgba(255, 255, 0, 0.3),
+      0 0 40px rgba(255, 255, 0, 0.2),
+      0 0 60px rgba(255, 255, 0, 0.1),
+      inset 0 1px 0 rgba(255, 255, 0, 0.2);
+    border-color: rgba(255, 255, 0, 0.5);
+  }
+  50% {
+    box-shadow: 
+      0 0 20px rgba(0, 255, 0, 0.3),
+      0 0 40px rgba(0, 255, 0, 0.2),
+      0 0 60px rgba(0, 255, 0, 0.1),
+      inset 0 1px 0 rgba(0, 255, 0, 0.2);
+    border-color: rgba(0, 255, 0, 0.5);
+  }
+  66.66% {
+    box-shadow: 
+      0 0 20px rgba(0, 150, 255, 0.3),
+      0 0 40px rgba(0, 150, 255, 0.2),
+      0 0 60px rgba(0, 150, 255, 0.1),
+      inset 0 1px 0 rgba(0, 150, 255, 0.2);
+    border-color: rgba(0, 150, 255, 0.5);
+  }
+  83.33% {
+    box-shadow: 
+      0 0 20px rgba(150, 0, 255, 0.3),
+      0 0 40px rgba(150, 0, 255, 0.2),
+      0 0 60px rgba(150, 0, 255, 0.1),
+      inset 0 1px 0 rgba(150, 0, 255, 0.2);
+    border-color: rgba(150, 0, 255, 0.5);
+  }
+  100% {
+    box-shadow: 
+      0 0 20px rgba(255, 0, 150, 0.3),
+      0 0 40px rgba(255, 0, 150, 0.2),
+      0 0 60px rgba(255, 0, 150, 0.1),
+      inset 0 1px 0 rgba(255, 0, 150, 0.2);
+    border-color: rgba(255, 0, 150, 0.5);
+  }
+}
+
+.rainbow-glow {
+  animation: rainbow-glow 3s ease-in-out infinite;
+  background: linear-gradient(135deg, 
+    rgba(255, 0, 150, 0.05) 0%, 
+    rgba(255, 100, 0, 0.05) 16.66%, 
+    rgba(255, 255, 0, 0.05) 33.33%, 
+    rgba(0, 255, 0, 0.05) 50%, 
+    rgba(0, 150, 255, 0.05) 66.66%, 
+    rgba(150, 0, 255, 0.05) 83.33%, 
+    rgba(255, 0, 150, 0.05) 100%
+  );
+  background-size: 200% 200%;
+}
+
+/* Raycast-style buttons */
+.raycast-button {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.1) 0%, 
+    rgba(255, 255, 255, 0.05) 100%);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.raycast-button:hover {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.15) 0%, 
+    rgba(255, 255, 255, 0.08) 100%);
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.raycast-button-primary {
+  background: linear-gradient(135deg, 
+    rgba(99, 102, 241, 0.8) 0%, 
+    rgba(79, 70, 229, 0.9) 100%);
+  border: 1px solid rgba(99, 102, 241, 0.6);
+  color: white;
+}
+
+.raycast-button-primary:hover {
+  background: linear-gradient(135deg, 
+    rgba(99, 102, 241, 0.9) 0%, 
+    rgba(79, 70, 229, 1) 100%);
+  border-color: rgba(99, 102, 241, 0.8);
+}
+
+/* Enhanced project cards */
+.project-card-raycast {
+  background: linear-gradient(135deg, 
+    rgba(40, 40, 60, 0.3) 0%, 
+    rgba(25, 25, 40, 0.5) 100%);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.project-card-raycast:hover {
+  background: linear-gradient(135deg, 
+    rgba(45, 45, 70, 0.4) 0%, 
+    rgba(30, 30, 50, 0.6) 100%);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
