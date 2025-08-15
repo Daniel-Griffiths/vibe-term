@@ -238,6 +238,20 @@ export class StorageService {
   }
 
   /**
+   * Load panels from storage
+   */
+  static loadPanels(): StorageResult<any[]> {
+    return this.load('panels.json', []);
+  }
+
+  /**
+   * Save panels to storage
+   */
+  static savePanels(panels: any[]): StorageResult<void> {
+    return this.save('panels.json', panels);
+  }
+
+  /**
    * Load settings from storage
    */
   static loadSettings(): StorageResult<any> {
@@ -270,4 +284,40 @@ export class StorageService {
   static saveWindowState(state: any): StorageResult<void> {
     return this.save('window-state.json', state);
   }
+
+  /**
+   * Load unified app config from storage
+   */
+  static loadAppConfig(): StorageResult<any> {
+    const defaultConfig = {
+      projects: [],
+      panels: [],
+      settings: {
+        editor: {
+          theme: 'vibe-term'
+        },
+        desktop: {
+          notifications: true
+        },
+        webServer: {
+          enabled: true,
+          port: 6969
+        },
+        discord: {
+          enabled: false,
+          username: 'Vibe Term',
+          webhookUrl: ''
+        }
+      }
+    };
+    return this.load('app-config.json', defaultConfig);
+  }
+
+  /**
+   * Save unified app config to storage
+   */
+  static saveAppConfig(config: any): StorageResult<void> {
+    return this.save('app-config.json', config);
+  }
+
 }

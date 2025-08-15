@@ -17,7 +17,7 @@ export default function XTermPanel({
   projects,
 }: XTermPanelProps) {
   const prevProjectsRef = useRef<Project[]>([]);
-  
+
   // Use the terminal manager hook with Claude configuration
   const { containerRef, showTerminal, clearTerminal } = useTerminalManager(
     projects,
@@ -39,15 +39,21 @@ export default function XTermPanel({
   useEffect(() => {
     // Clear terminal when project transitions from running/working to idle
     projects.forEach((project) => {
-      const prevProject = prevProjectsRef.current.find(p => p.id === project.id);
-      const wasRunning = prevProject && (prevProject.status === 'running' || prevProject.status === 'working' || prevProject.status === 'ready');
-      const nowIdle = project.status === 'idle';
-      
+      const prevProject = prevProjectsRef.current.find(
+        (p) => p.id === project.id
+      );
+      const wasRunning =
+        prevProject &&
+        (prevProject.status === "running" ||
+          prevProject.status === "working" ||
+          prevProject.status === "ready");
+      const nowIdle = project.status === "idle";
+
       if (wasRunning && nowIdle) {
         clearTerminal(project.id);
       }
     });
-    
+
     prevProjectsRef.current = [...projects];
   }, [projects, clearTerminal]);
 
@@ -64,10 +70,10 @@ export default function XTermPanel({
   return (
     <div className="h-full flex flex-col">
       <Card
-        className="flex-1 m-4 flex flex-col glass-card overflow-hidden"
+        className="flex-1 m-4 mt-0 flex flex-col glass-card overflow-hidden"
         style={{ width: "calc(100vw - 350px)" }}
       >
-        <CardHeader className="flex-shrink-0 pb-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800 rounded-t-lg">
+        <CardHeader className="flex-shrink-0 py-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800 rounded-t-lg">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-gray-200 font-semibold">
               <TerminalIcon className="h-5 w-5 text-green-400" />

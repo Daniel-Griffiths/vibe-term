@@ -59,8 +59,8 @@ export default function TerminalPanel({
 
   return (
     <div className="flex-1 flex flex-col" style={{ background: "transparent" }}>
-      <Card className="flex-1 m-4 flex flex-col glass-card">
-        <CardHeader className="flex-shrink-0 pb-3">
+      <Card className="flex-1 m-4 mt-0 flex flex-col glass-card">
+        <CardHeader className="flex-shrink-0 py-3">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <Terminal className="h-5 w-5" />

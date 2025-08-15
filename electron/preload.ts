@@ -13,11 +13,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectDirectory: () => 
     ipcRenderer.invoke('select-directory'),
   
-  loadProjects: () => 
-    ipcRenderer.invoke('load-projects'),
-  
-  saveProjects: (projects: any[]) => 
-    ipcRenderer.invoke('save-projects', projects),
+  loadAppConfig: () => 
+    ipcRenderer.invoke('load-app-config'),
+
+  saveAppConfig: (config: any) => 
+    ipcRenderer.invoke('save-app-config', config),
   
   onTerminalOutput: (callback: (data: any) => void) => {
     ipcRenderer.on('terminal-output', (event, data) => callback(data));
@@ -83,7 +83,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('send-discord-notification', discordSettings, message),
 
   testCommand: (projectPath: string, command: string) => 
-    ipcRenderer.invoke('test-command', projectPath, command)
+    ipcRenderer.invoke('test-command', projectPath, command),
+  
+  getProjectFiles: (projectPath: string) => 
+    ipcRenderer.invoke('get-project-files', projectPath),
+  
+  readProjectFile: (projectPath: string, filePath: string) => 
+    ipcRenderer.invoke('read-project-file', projectPath, filePath)
 });
 
 export {};

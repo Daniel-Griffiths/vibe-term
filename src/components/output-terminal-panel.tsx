@@ -62,12 +62,14 @@ export default function OutputTerminalPanel({
     });
 
     // Set up background output listener
-    const unsubscribe = window.electronAPI?.onBackgroundOutput?.((output: any) => {
-      const instance = terminalsRef.current.get(output.projectId);
-      if (instance) {
-        instance.terminal.write(output.data);
+    const unsubscribe = window.electronAPI?.onBackgroundOutput?.(
+      (output: any) => {
+        const instance = terminalsRef.current.get(output.projectId);
+        if (instance) {
+          instance.terminal.write(output.data);
+        }
       }
-    });
+    );
 
     const handleResize = () => {
       terminalsRef.current.forEach((instance) => {
@@ -100,13 +102,19 @@ export default function OutputTerminalPanel({
 
   // Track previous project statuses to clear terminal when stopped
   const prevProjectsRef = useRef<Project[]>([]);
-  
+
   useEffect(() => {
     projects.forEach((project) => {
-      const prevProject = prevProjectsRef.current.find(p => p.id === project.id);
-      const wasRunning = prevProject && (prevProject.status === 'running' || prevProject.status === 'working' || prevProject.status === 'ready');
-      const nowIdle = project.status === 'idle';
-      
+      const prevProject = prevProjectsRef.current.find(
+        (p) => p.id === project.id
+      );
+      const wasRunning =
+        prevProject &&
+        (prevProject.status === "running" ||
+          prevProject.status === "working" ||
+          prevProject.status === "ready");
+      const nowIdle = project.status === "idle";
+
       if (wasRunning && nowIdle) {
         const instance = terminalsRef.current.get(project.id);
         if (instance) {
@@ -116,7 +124,7 @@ export default function OutputTerminalPanel({
         }
       }
     });
-    
+
     prevProjectsRef.current = [...projects];
   }, [projects]);
 
@@ -139,10 +147,10 @@ export default function OutputTerminalPanel({
   return (
     <div className="h-full flex flex-col">
       <Card
-        className="flex-1 m-4 flex flex-col glass-card overflow-hidden"
+        className="flex-1 m-4 mt-0 flex flex-col glass-card overflow-hidden"
         style={{ width: "calc(100vw - 350px)" }}
       >
-        <CardHeader className="flex-shrink-0 pb-3 bg-gradient-to-r from-gray-900 to-black border-b border-gray-800 rounded-t-lg">
+        <CardHeader className="flex-shrink-0 py-3 bg-gradient-to-r from-gray-900 to-black border-b border-gray-800 rounded-t-lg">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-gray-200 font-semibold">
               <FileCode className="h-5 w-5 text-blue-400" />

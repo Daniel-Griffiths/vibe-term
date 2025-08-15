@@ -60,11 +60,13 @@ import {
   PieChart,
 } from "lucide-react";
 import { NonIdealState } from "./non-ideal-state";
-import type { Project } from "../types";
+import type { Project, Panel } from "../types";
 
 interface ProjectListProps {
   projects: Project[];
   selectedProject: string | null;
+  panels: Panel[];
+  selectedPanel: string | null;
   onProjectSelect: (projectId: string) => void;
   onProjectStart: (projectId: string, command: string) => void;
   onProjectStop: (projectId: string) => void;
@@ -72,11 +74,17 @@ interface ProjectListProps {
   onProjectEdit: (projectId: string) => void;
   onOpenModal: () => void;
   onOpenSettings: () => void;
+  onPanelSelect: (panelId: string) => void;
+  onPanelAdd: () => void;
+  onPanelEdit: (panelId: string) => void;
+  onPanelDelete: (panelId: string) => void;
 }
 
 export default function ProjectList({
   projects,
   selectedProject,
+  panels,
+  selectedPanel,
   onProjectSelect,
   onProjectStart,
   onProjectStop,
@@ -84,6 +92,10 @@ export default function ProjectList({
   onProjectEdit,
   onOpenModal,
   onOpenSettings,
+  onPanelSelect,
+  onPanelAdd,
+  onPanelEdit,
+  onPanelDelete,
 }: ProjectListProps) {
   const getProjectIcon = (iconId?: string) => {
     switch (iconId) {
@@ -356,13 +368,125 @@ export default function ProjectList({
           title="No Projects Found"
           description="Add your first project to get started"
           action={
-            <Button onClick={onOpenModal} variant="primary">
+            <Button onClick={onOpenModal} variant="outline">
               <Plus className="h-4 w-4 mr-2" />
               Add Project
             </Button>
           }
         />
       )}
+
+      {/* Separator */}
+      <div className="border-t border-gray-800 my-6"></div>
+
+      {/* Panels Section */}
+      <div className="mt-0">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-200">Panels</h2>
+          <Button
+            size="icon"
+            variant="outline"
+            onClick={onPanelAdd}
+            title="Add Panel"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="space-y-2">
+          {(panels || []).map((panel) => (
+            <Card
+              key={panel.id}
+              className={`cursor-pointer project-card-raycast ${
+                selectedPanel === panel.id ? "rainbow-glow" : ""
+              }`}
+              onClick={() => onPanelSelect(panel.id)}
+            >
+              <CardHeader className="p-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {(() => {
+                      const IconComponent = getProjectIcon(panel.icon);
+                      return (
+                        <IconComponent
+                          className={`h-4 w-4 ${
+                            selectedPanel === panel.id
+                              ? "text-white"
+                              : "text-gray-400"
+                          }`}
+                        />
+                      );
+                    })()}
+                    <CardTitle
+                      className={`text-sm font-medium ${
+                        selectedPanel === panel.id
+                          ? "text-white font-semibold"
+                          : "text-gray-200"
+                      }`}
+                    >
+                      {panel.name}
+                    </CardTitle>
+                  </div>
+                  <Globe className="h-4 w-4 text-gray-400" />
+                </div>
+                <p
+                  className={`text-xs truncate ${
+                    selectedPanel === panel.id
+                      ? "text-gray-300"
+                      : "text-gray-500"
+                  }`}
+                >
+                  {panel.url}
+                </p>
+              </CardHeader>
+              <CardContent className="p-3 pt-0">
+                <div className="flex items-center justify-end">
+                  <div className="flex gap-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onPanelEdit(panel.id);
+                      }}
+                      className="h-6 px-2 text-xs"
+                      title="Edit panel"
+                    >
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onPanelDelete(panel.id);
+                      }}
+                      className="h-6 px-2 text-xs"
+                      title="Delete panel"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {(panels || []).length === 0 && (
+          <NonIdealState
+            icon={Globe}
+            title="No Panels"
+            description="Add panels to quickly access your favorite tools and dashboards."
+            action={
+              <Button onClick={onPanelAdd} variant="outline">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Panel
+              </Button>
+            }
+          />
+        )}
+      </div>
     </div>
   );
 }

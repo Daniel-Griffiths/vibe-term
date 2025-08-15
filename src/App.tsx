@@ -1,20 +1,26 @@
 import { useState, useEffect } from 'react';
 import ProjectList from './components/project-list';
 import ProjectView from './components/project-view';
+import PanelView from './components/panel-view';
 import ProjectModal from './components/project-modal';
+import PanelModal from './components/panel-modal';
 import SettingsModal from './components/settings-modal';
 import DependenciesModal from './components/dependencies-modal';
 import ConfirmationModal from './components/confirmation-modal';
-import type { Project, TerminalOutput, ProcessExit } from './types';
+import type { Project, Panel, TerminalOutput, ProcessExit } from './types';
 
 function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
+  const [panels, setPanels] = useState<Panel[]>([]);
+  const [selectedPanel, setSelectedPanel] = useState<string | null>(null);
   const [isElectron, setIsElectron] = useState(false);
   const [, setManuallyStopped] = useState<Set<string>>(new Set());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isPanelModalOpen, setIsPanelModalOpen] = useState(false);
+  const [editingPanel, setEditingPanel] = useState<Panel | null>(null);
   const [missingDeps, setMissingDeps] = useState<string[]>([]);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     isOpen: boolean;
@@ -31,10 +37,11 @@ function App() {
     if (typeof window !== 'undefined' && window.electronAPI) {
       setIsElectron(true);
       
-      // Load saved projects
-      window.electronAPI.loadProjects().then((savedProjects: Project[]) => {
-        if (savedProjects.length > 0) {
-          setProjects(savedProjects.map(p => ({ 
+      // Load app config
+      window.electronAPI.loadAppConfig().then((config) => {
+        // Load projects
+        if (config.data?.projects?.length > 0) {
+          setProjects(config.data.projects.map((p: any) => ({ 
             ...p, 
             status: 'idle' as const, 
             output: [],
@@ -44,9 +51,13 @@ function App() {
             previewUrl: p.previewUrl || undefined,
             restrictedBranches: p.restrictedBranches || undefined
           })));
-          setSelectedProject(savedProjects[0].id);
+          setSelectedProject(config.data.projects[0].id);
         }
-        // No demo project - start with empty project list
+        
+        // Load panels
+        if (config.data?.panels?.length > 0) {
+          setPanels(config.data.panels);
+        }
       });
       
       const unsubscribeOutput = window.electronAPI.onTerminalOutput((output: TerminalOutput) => {
@@ -123,24 +134,32 @@ function App() {
     }
   }, []);
 
-  // Save projects whenever they change
+  // Save app config whenever projects or panels change
   useEffect(() => {
-    if (isElectron && projects.length > 0 && window.electronAPI) {
-      // Only save the basic project info, not runtime data like output
-      const projectsToSave = projects.map(p => ({
-        id: p.id,
-        name: p.name,
-        path: p.path,
-        icon: p.icon,
-        runCommand: p.runCommand,
-        previewUrl: p.previewUrl,
-        yoloMode: p.yoloMode,
-        restrictedBranches: p.restrictedBranches,
-        lastActivity: p.lastActivity
-      }));
-      window.electronAPI.saveProjects(projectsToSave);
+    if (isElectron && window.electronAPI) {
+      window.electronAPI.loadAppConfig().then((config) => {
+        const projectsToSave = projects.map(p => ({
+          id: p.id,
+          name: p.name,
+          path: p.path,
+          icon: p.icon,
+          runCommand: p.runCommand,
+          previewUrl: p.previewUrl,
+          yoloMode: p.yoloMode,
+          restrictedBranches: p.restrictedBranches,
+          lastActivity: p.lastActivity
+        }));
+        
+        const updatedConfig = {
+          ...config.data,
+          projects: projectsToSave,
+          panels: panels
+        };
+        
+        window.electronAPI.saveAppConfig(updatedConfig);
+      });
     }
-  }, [projects, isElectron]);
+  }, [projects, panels, isElectron]);
 
   const handleProjectAdd = (projectData: {
     name: string;
@@ -191,6 +210,7 @@ function App() {
 
   const handleProjectSelect = (projectId: string) => {
     setSelectedProject(projectId);
+    setSelectedPanel(null); // Clear panel selection when selecting project
     // Notify Electron about the project selection for notifications
     window.electronAPI.setSelectedProject(projectId);
   };
@@ -299,6 +319,54 @@ function App() {
   };
 
   const currentProject = selectedProject ? projects.find(p => p.id === selectedProject) : null;
+  const currentPanel = selectedPanel ? panels.find(p => p.id === selectedPanel) : null;
+
+  // Panel handlers
+  const handlePanelSelect = (panelId: string) => {
+    setSelectedPanel(panelId);
+    setSelectedProject(null); // Clear project selection when selecting panel
+  };
+
+  const handlePanelAdd = () => {
+    setEditingPanel(null);
+    setIsPanelModalOpen(true);
+  };
+
+  const handlePanelEdit = (panelId: string) => {
+    const panel = panels.find(p => p.id === panelId);
+    if (panel) {
+      setEditingPanel(panel);
+      setIsPanelModalOpen(true);
+    }
+  };
+
+  const handlePanelSubmit = (panelData: { name: string; url: string; icon?: string }) => {
+    if (editingPanel) {
+      // Update existing panel
+      setPanels(prev => prev.map(p => 
+        p.id === editingPanel.id 
+          ? { ...p, ...panelData }
+          : p
+      ));
+    } else {
+      // Create new panel
+      const newPanel: Panel = {
+        id: Date.now().toString(),
+        ...panelData
+      };
+      setPanels(prev => [...prev, newPanel]);
+      setSelectedPanel(newPanel.id);
+    }
+    setIsPanelModalOpen(false);
+    setEditingPanel(null);
+  };
+
+  const handlePanelDelete = (panelId: string) => {
+    setPanels(prev => prev.filter(panel => panel.id !== panelId));
+    if (selectedPanel === panelId) {
+      setSelectedPanel(null);
+    }
+  };
 
   return (
     <div className="h-screen flex flex-col bg-gray-950 text-gray-100 overflow-hidden">
@@ -315,6 +383,8 @@ function App() {
         <ProjectList
           projects={projects}
           selectedProject={selectedProject}
+          panels={panels}
+          selectedPanel={selectedPanel}
           onProjectSelect={handleProjectSelect}
           onProjectStart={handleProjectStart}
           onProjectStop={handleProjectStop}
@@ -325,11 +395,33 @@ function App() {
             setIsModalOpen(true);
           }}
           onOpenSettings={() => setIsSettingsOpen(true)}
+          onPanelSelect={handlePanelSelect}
+          onPanelAdd={handlePanelAdd}
+          onPanelEdit={handlePanelEdit}
+          onPanelDelete={handlePanelDelete}
         />
-        <ProjectView
-          selectedProject={currentProject || null}
-          projects={projects}
-        />
+        {/* Keep both views mounted, only show the selected one */}
+        <div className="flex-1 relative">
+          <div
+            className="absolute inset-0"
+            style={{
+              display: selectedPanel ? "flex" : "none",
+            }}
+          >
+            <PanelView panels={panels} selectedPanel={currentPanel} />
+          </div>
+          <div
+            className="absolute inset-0"
+            style={{
+              display: selectedPanel ? "none" : "flex",
+            }}
+          >
+            <ProjectView
+              selectedProject={currentProject || null}
+              projects={projects}
+            />
+          </div>
+        </div>
       </div>
       
       {/* Dependencies Modal - Blocks everything when dependencies are missing */}
@@ -355,6 +447,19 @@ function App() {
         <SettingsModal
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
+        />
+      )}
+
+      {/* Panel Modal */}
+      {missingDeps.length === 0 && (
+        <PanelModal
+          isOpen={isPanelModalOpen}
+          onClose={() => {
+            setIsPanelModalOpen(false);
+            setEditingPanel(null);
+          }}
+          onSubmit={handlePanelSubmit}
+          editingPanel={editingPanel}
         />
       )}
 

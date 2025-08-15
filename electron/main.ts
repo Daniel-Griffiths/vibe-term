@@ -80,11 +80,10 @@ let webServer: any = null;
 let webSocketServer: WebSocketServer | null = null;
 const webClients = new Set<any>();
 
-// Storage functions using StorageService
-const loadProjects = () => StorageService.loadProjects().data || [];
-const saveProjects = (projects: any[]) => StorageService.saveProjects(projects);
-const loadSettings = () => StorageService.loadSettings().data;
-const saveSettings = (settings: any) => StorageService.saveSettings(settings);
+// Storage functions using unified app config
+const loadAppConfig = () => StorageService.loadAppConfig().data;
+const saveAppConfig = (config: any) => StorageService.saveAppConfig(config);
+
 
 // Setup IPC handlers using IPCService
 function setupIPCHandlers() {
@@ -120,20 +119,49 @@ function setupIPCHandlers() {
     return { success: false, error: 'Process not found' };
   });
 
-  // Storage operations
-  IPCService.handle('load-projects', () => loadProjects());
-  IPCService.handle('save-projects', (projects: any[]) => {
-    saveProjects(projects);
-    return undefined; // Simple success
-  });
-  
-  IPCService.handle('load-settings', () => loadSettings());
-  IPCService.handle('save-settings', (settings: any) => {
-    saveSettings(settings);
-    return undefined; // Simple success
+  // Unified app config storage
+  IPCService.handle('load-app-config', () => loadAppConfig());
+  IPCService.handle('save-app-config', async (config: any) => {
+    try {
+      const oldConfig = loadAppConfig();
+      saveAppConfig(config);
+      
+      // Check if web server settings changed
+      const webServerChanged = 
+        !oldConfig?.settings?.webServer ||
+        oldConfig.settings.webServer.enabled !== config.settings?.webServer?.enabled ||
+        oldConfig.settings.webServer.port !== config.settings?.webServer?.port;
+      
+      if (webServerChanged) {
+        // Restart web server with new settings
+        if (webServer) {
+          webServer.close();
+          webServer = null;
+        }
+        
+        if (webSocketServer) {
+          webSocketServer.close();
+          webSocketServer = null;
+        }
+        
+        if (config.settings?.webServer?.enabled !== false) {
+          try {
+            const result = await createWebServer(config.settings.webServer?.port || DEFAULT_WEB_SERVER_PORT);
+            webServer = result.server;
+            console.log(`Web server restarted on port ${result.port}`);
+          } catch (error) {
+            console.error('Failed to restart web server:', error);
+          }
+        }
+      }
+      
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
   });
 
-  // Command testing
+
   IPCService.handle('test-command', async (projectPath: string, command: string) => {
     console.log(`[Test] Testing command "${command}" in ${projectPath}`);
     
@@ -148,18 +176,21 @@ function setupIPCHandlers() {
       error: result.error || ''
     };
   });
+  
 
-  // Directory selection
-  IPCService.handle('select-directory', async () => {
-    const result = await dialog.showOpenDialog(win!, {
-      properties: ['openDirectory']
-    });
-    
-    return result.canceled ? null : result.filePaths[0];
-  });
 
   console.log('[IPC] Registered handlers:', IPCService.getRegisteredChannels());
 }
+
+// Directory selection - using direct ipcMain to maintain original string return format
+ipcMain.handle('select-directory', async () => {
+  const result = await dialog.showOpenDialog(win!, {
+    properties: ['openDirectory']
+  });
+  
+  return result.canceled ? null : result.filePaths[0];
+});
+
 
 // Discord notification function
 const sendDiscordNotification = async (webhookUrl: string, username: string, content: string) => {
@@ -239,12 +270,12 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
   
   // API Routes
   app.get('/api/projects', (req, res) => {
-    const projects = loadProjects();
+    const projects = loadAppConfig().projects;
     res.json({ success: true, data: projects });
   });
   
   app.get('/api/settings', (req, res) => {
-    const settings = loadSettings();
+    const settings = loadAppConfig().settings;
     res.json({ success: true, data: settings });
   });
   
@@ -253,7 +284,7 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
     const { command, projectName, yoloMode } = req.body;
     
     try {
-      const projects = loadProjects();
+      const projects = loadAppConfig().projects;
       const project = projects.find((p: any) => p.id === id);
       
       if (!project) {
@@ -354,7 +385,7 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
     webClients.add(ws);
     
     // Send current projects state
-    const projects = loadProjects();
+    const projects = loadAppConfig().projects;
     ws.send(JSON.stringify({ 
       type: 'projects-state',
       data: projects
@@ -594,7 +625,7 @@ async function getOrCreateSharedPty(projectId: string, projectPath: string, proj
           });
           
           // Send desktop notification if window is not focused and notifications are enabled
-          const settings = loadSettings();
+          const settings = loadAppConfig().settings;
           const desktopNotificationsEnabled = settings?.desktop?.notifications !== false; // Default to true
           const windowFocused = win && !win.isDestroyed() && win.isFocused();
           
@@ -602,7 +633,7 @@ async function getOrCreateSharedPty(projectId: string, projectPath: string, proj
           
           if (!windowFocused && desktopNotificationsEnabled) {
             // Get the actual project name from saved projects
-            const projects = loadProjects();
+            const projects = loadAppConfig().projects;
             const project = projects.find((p: any) => p.id === projectId);
             const projectDisplayName = project?.name || projectId;
             const notification = new Notification({
@@ -622,7 +653,7 @@ async function getOrCreateSharedPty(projectId: string, projectPath: string, proj
             });
 
             // Also send Discord notification if configured
-            const settings = loadSettings();
+            const settings = loadAppConfig().settings;
             if (settings?.discord?.enabled && settings?.discord?.webhookUrl) {
               const discordMessage = `🎯 **Project Finished**\n\n**${projectDisplayName}** has completed successfully and is ready for input.`;
               sendDiscordNotification(
@@ -751,12 +782,12 @@ async function getOrCreateSharedPty(projectId: string, projectPath: string, proj
       
       // Send desktop notification for non-zero exit codes if window is not focused
       if (code !== 0) {
-        const settings = loadSettings();
+        const settings = loadAppConfig().settings;
         const desktopNotificationsEnabled = settings?.desktop?.notifications !== false; // Default to true
         const windowFocused = win && !win.isDestroyed() && win.isFocused();
         
         if (!windowFocused && desktopNotificationsEnabled) {
-          const projects = loadProjects();
+          const projects = loadAppConfig().projects;
           const project = projects.find((p: any) => p.id === projectId);
           const projectDisplayName = project?.name || projectId;
           const notification = new Notification({
@@ -794,12 +825,12 @@ async function getOrCreateSharedPty(projectId: string, projectPath: string, proj
       }
       
       // Send desktop notification for errors if window is not focused
-      const settings = loadSettings();
+      const settings = loadAppConfig().settings;
       const desktopNotificationsEnabled = settings?.desktop?.notifications !== false; // Default to true
       const windowFocused = win && !win.isDestroyed() && win.isFocused();
       
       if (!windowFocused && desktopNotificationsEnabled) {
-        const projects = loadProjects();
+        const projects = loadAppConfig().projects;
         const project = projects.find((p: any) => p.id === projectId);
         const projectDisplayName = project?.name || projectId;
         const notification = new Notification({
@@ -863,6 +894,8 @@ function createWindow() {
   win = new BrowserWindow({
     width: 1400,
     height: 900,
+    minWidth: 1200,
+    minHeight: 800,
     ...(iconPath && { icon: iconPath }),
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
@@ -965,7 +998,7 @@ app.whenReady().then(async () => {
   
   // Start web server
   try {
-    const settings = loadSettings();
+    const settings = loadAppConfig().settings;
     const port = settings?.webServer?.port || DEFAULT_WEB_SERVER_PORT;
     const enabled = settings?.webServer?.enabled !== false; // Default to enabled
     
@@ -985,66 +1018,7 @@ app.whenReady().then(async () => {
   }
 });
 
-ipcMain.handle('start-claude-process', async (event, projectId: string, projectPath: string, command: string, projectName?: string, yoloMode?: boolean) => {
-  return await getOrCreateSharedPty(projectId, projectPath, projectName, yoloMode, command);
-});
-
-ipcMain.handle('stop-claude-process', async (event, projectId: string) => {
-  const proc = sharedPtyProcesses.get(projectId);
-  const backgroundProc = backgroundProcesses.get(projectId);
-  
-  // Kill both PTY and background processes
-  if (proc) {
-    proc.kill();
-    sharedPtyProcesses.delete(projectId);
-  }
-  
-  if (backgroundProc) {
-    console.log(`[${projectId}] Stopping background process`);
-    backgroundProc.kill('SIGTERM');
-    backgroundProcesses.delete(projectId);
-  }
-  
-  // Clean up terminal buffer
-  terminalBuffers.delete(projectId);
-  
-  if (proc || backgroundProc) {
-    return { success: true };
-  }
-  return { success: false, error: 'Process not found' };
-});
-
-ipcMain.handle('send-input', async (event, projectId: string, input: string) => {
-  const proc = sharedPtyProcesses.get(projectId);
-  if (proc) {
-    console.log(`[${projectId}] Sending raw input to PTY:`, JSON.stringify(input));
-    // Send raw input directly to PTY - let Claude handle its own input processing
-    proc.write(input);
-    return { success: true };
-  }
-  return { success: false, error: 'PTY process not found' };
-});
-
-ipcMain.handle('select-directory', async () => {
-  const { dialog } = await import('electron');
-  const result = await dialog.showOpenDialog(win!, {
-    properties: ['openDirectory']
-  });
-  
-  if (!result.canceled && result.filePaths.length > 0) {
-    return result.filePaths[0];
-  }
-  return null;
-});
-
-ipcMain.handle('load-projects', async () => {
-  return loadProjects();
-});
-
-ipcMain.handle('save-projects', async (event, projects) => {
-  saveProjects(projects);
-  return { success: true };
-});
+// Note: IPC handlers are now managed through IPCService in setupIPCHandlers()
 
 ipcMain.handle('get-git-diff', async (event, projectPath: string) => {
   try {
@@ -1196,6 +1170,81 @@ ipcMain.handle('revert-file', async (event, projectPath: string, filePath: strin
   }
 });
 
+// Get project file tree
+ipcMain.handle('get-project-files', async (event, projectPath: string) => {
+  try {
+    const getFileTree = async (dirPath: string, relativePath: string = ''): Promise<any[]> => {
+      const items = [];
+      const files = fs.readdirSync(dirPath);
+      
+      for (const file of files) {
+        // Skip common ignore patterns
+        if (file.startsWith('.') && !file.startsWith('.env') && file !== '.gitignore') continue;
+        if (file === 'node_modules' || file === '.git' || file === 'dist' || file === 'build') continue;
+        
+        const fullPath = path.join(dirPath, file);
+        const relativeFilePath = relativePath ? path.join(relativePath, file) : file;
+        const stats = fs.statSync(fullPath);
+        
+        if (stats.isDirectory()) {
+          const children = await getFileTree(fullPath, relativeFilePath);
+          items.push({
+            name: file,
+            path: relativeFilePath,
+            isDirectory: true,
+            children: children.length > 0 ? children : undefined,
+            isExpanded: false
+          });
+        } else {
+          items.push({
+            name: file,
+            path: relativeFilePath,
+            isDirectory: false
+          });
+        }
+      }
+      
+      // Sort: directories first, then files, both alphabetically
+      return items.sort((a, b) => {
+        if (a.isDirectory && !b.isDirectory) return -1;
+        if (!a.isDirectory && b.isDirectory) return 1;
+        return a.name.localeCompare(b.name);
+      });
+    };
+    
+    const fileTree = await getFileTree(projectPath);
+    return { success: true, data: fileTree };
+  } catch (error) {
+    console.error('Get project files error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Read file content
+ipcMain.handle('read-project-file', async (event, projectPath: string, filePath: string) => {
+  try {
+    const fullPath = path.join(projectPath, filePath);
+    
+    // Check if file exists
+    if (!fs.existsSync(fullPath)) {
+      return { success: false, error: 'File not found' };
+    }
+    
+    // Check if it's actually a file and not a directory
+    const stats = fs.statSync(fullPath);
+    if (!stats.isFile()) {
+      return { success: false, error: 'Path is not a file' };
+    }
+    
+    // Read file content
+    const content = fs.readFileSync(fullPath, 'utf8');
+    return { success: true, data: content };
+  } catch (error) {
+    console.error('Read project file error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('git-commit', async (event, projectPath: string, message: string) => {
   try {
     // Add all changes and commit
@@ -1225,19 +1274,25 @@ ipcMain.handle('set-selected-project', async (event, projectId: string | null) =
   return { success: true };
 });
 
-// Settings IPC handlers
-ipcMain.handle('load-settings', async () => {
-  return loadSettings();
-});
 
 ipcMain.handle('get-local-ip', async () => {
   const interfaces = os.networkInterfaces();
   
   console.log('All network interfaces:', Object.keys(interfaces));
   
-  // On macOS, en0 is typically the primary network interface (WiFi or Ethernet)
-  // On Windows, it might be "Wi-Fi" or "Ethernet"
-  // On Linux, it might be "eth0" or "wlan0"
+  let localIp = 'localhost';
+  let tailscaleRunning = false;
+  
+  // Simple check: just see if tailscale status command works
+  try {
+    await execAsync('tailscale status');
+    tailscaleRunning = true;
+    console.log('Tailscale is running');
+  } catch (error) {
+    console.log('Tailscale not running or not installed');
+  }
+  
+  // Get local network IP
   const priorityInterfaces = ['en0', 'en1', 'eth0', 'wlan0', 'Wi-Fi', 'Ethernet'];
   
   // Try priority interfaces first
@@ -1245,78 +1300,36 @@ ipcMain.handle('get-local-ip', async () => {
     if (interfaces[name]) {
       console.log(`Checking interface ${name}:`, interfaces[name]);
       for (const iface of interfaces[name]) {
-        // Look for IPv4 addresses that are not internal
         if (iface.family === 'IPv4' && !iface.internal) {
-          console.log(`Found IP on ${name}: ${iface.address}`);
-          return iface.address;
+          console.log(`Found local IP on ${name}: ${iface.address}`);
+          localIp = iface.address;
+          break;
         }
       }
+      if (localIp !== 'localhost') break;
     }
   }
   
-  // Fallback: Look for any 192.168.x.x address (common for home networks)
-  for (const name of Object.keys(interfaces)) {
-    for (const iface of interfaces[name]) {
-      if (iface.family === 'IPv4' && !iface.internal && iface.address.startsWith('192.168.')) {
-        console.log(`Found IP on ${name}: ${iface.address}`);
-        return iface.address;
+  // Fallback: Look for any 192.168.x.x address
+  if (localIp === 'localhost') {
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name]) {
+        if (iface.family === 'IPv4' && !iface.internal && iface.address.startsWith('192.168.')) {
+          console.log(`Found local IP on ${name}: ${iface.address}`);
+          localIp = iface.address;
+          break;
+        }
       }
+      if (localIp !== 'localhost') break;
     }
   }
   
-  // Fallback: Look for any non-internal IPv4 address
-  for (const name of Object.keys(interfaces)) {
-    for (const iface of interfaces[name]) {
-      if (iface.family === 'IPv4' && !iface.internal) {
-        console.log(`Found IP on ${name}: ${iface.address}`);
-        return iface.address;
-      }
-    }
-  }
-  
-  console.log('No external IP found, using localhost');
-  return 'localhost';
+  return {
+    localIp,
+    hasTailscale: tailscaleRunning
+  };
 });
 
-ipcMain.handle('save-settings', async (event, settings) => {
-  try {
-    const oldSettings = loadSettings();
-    saveSettings(settings);
-    
-    // Check if web server settings changed
-    const webServerChanged = 
-      !oldSettings?.webServer ||
-      oldSettings.webServer.enabled !== settings.webServer?.enabled ||
-      oldSettings.webServer.port !== settings.webServer?.port;
-    
-    if (webServerChanged) {
-      // Restart web server with new settings
-      if (webServer) {
-        webServer.close();
-        webServer = null;
-      }
-      
-      if (webSocketServer) {
-        webSocketServer.close();
-        webSocketServer = null;
-      }
-      
-      if (settings.webServer?.enabled !== false) {
-        try {
-          const result = await createWebServer(settings.webServer?.port || DEFAULT_WEB_SERVER_PORT);
-          webServer = result.server;
-          console.log(`Web server restarted on port ${result.port}`);
-        } catch (error) {
-          console.error('Failed to restart web server:', error);
-        }
-      }
-    }
-    
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-});
 
 // Discord notification handlers
 ipcMain.handle('test-discord-notification', async (event, discordSettings) => {
@@ -1355,22 +1368,3 @@ ipcMain.handle('send-discord-notification', async (event, discordSettings, messa
   }
 });
 
-ipcMain.handle('test-command', async (event, projectPath: string, command: string) => {
-  try {
-    console.log(`[Test] Testing command "${command}" in ${projectPath}`);
-    
-    const result = await ShellUtils.execute(command, {
-      cwd: projectPath,
-      timeout: 30000
-    });
-
-    return {
-      success: result.success,
-      output: result.output || '',
-      error: result.error || ''
-    };
-  } catch (error: any) {
-    console.log(`[Test] Exception:`, error);
-    return { success: false, error: error.message };
-  }
-});
