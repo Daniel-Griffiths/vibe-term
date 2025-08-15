@@ -24,7 +24,6 @@ export class IPCService {
   ): void {
     const wrappedHandler: IPCHandler<TArgs, IPCResult<TReturn>> = async (event, ...args) => {
       try {
-        console.log(`[IPC] Handling ${channel}`, args.length > 0 ? args : '');
         const result = await handler(...args);
         return { success: true, data: result };
       } catch (error) {
@@ -136,7 +135,6 @@ export class IPCService {
 
         // Log if description provided
         if (description) {
-          console.log(`[IPC] ${description}`, args.length > 0 ? args : '');
         }
 
         return await handler(...args);
@@ -223,7 +221,6 @@ export class IPCService {
       try {
         const result = await handler(...args);
         const duration = Date.now() - startTime;
-        console.log(`[IPC] ${channel} completed in ${duration}ms`);
         return result;
       } catch (error) {
         const duration = Date.now() - startTime;

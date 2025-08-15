@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import ProjectList from './components/project-list';
 import ProjectView from './components/project-view';
 import PanelView from './components/panel-view';
@@ -37,8 +39,11 @@ function App() {
     if (typeof window !== 'undefined' && window.electronAPI) {
       setIsElectron(true);
       
-      // Load app config
-      window.electronAPI.loadAppConfig().then((config) => {
+      // Wait for main process to be ready before loading config
+      const unsubscribeMainReady = window.electronAPI.onMainProcessReady(() => {
+        // Load app config
+        window.electronAPI.loadAppConfig().then((config) => {
+        
         // Load projects
         if (config.data?.projects?.length > 0) {
           setProjects(config.data.projects.map((p: any) => ({ 
@@ -58,7 +63,13 @@ function App() {
         if (config.data?.panels?.length > 0) {
           setPanels(config.data.panels);
         }
+      }).catch((error) => {
+        console.error('Failed to load app config:', error);
+        // Initialize with empty arrays if config loading fails
+        setProjects([]);
+        setPanels([]);
       });
+      }); // Close onMainProcessReady callback
       
       const unsubscribeOutput = window.electronAPI.onTerminalOutput((output: TerminalOutput) => {
         setProjects(prev => prev.map(project => 
@@ -118,7 +129,6 @@ function App() {
       });
 
       const unsubscribeMissingDeps = window.electronAPI.onMissingDependencies((deps: string[]) => {
-        console.log('App component received missing dependencies:', deps);
         setMissingDeps(deps);
       });
 
@@ -128,15 +138,14 @@ function App() {
         unsubscribeReady();
         unsubscribeWorking();
         unsubscribeMissingDeps();
+        unsubscribeMainReady();
       };
-    } else {
-      console.log('Running in browser mode - Electron APIs not available');
     }
   }, []);
 
   // Save app config whenever projects or panels change
   useEffect(() => {
-    if (isElectron && window.electronAPI) {
+    if (isElectron && window.electronAPI && projects.length > 0) {
       window.electronAPI.loadAppConfig().then((config) => {
         const projectsToSave = projects.map(p => ({
           id: p.id,
@@ -157,6 +166,9 @@ function App() {
         };
         
         window.electronAPI.saveAppConfig(updatedConfig);
+      }).catch((error) => {
+        console.error('Failed to save app config:', error);
+        toast.error('Failed to save configuration changes.');
       });
     }
   }, [projects, panels, isElectron]);
@@ -237,6 +249,7 @@ function App() {
             ? { ...p, status: 'error', output: [`Error: ${result.error}`] }
             : p
         ));
+        toast.error(`Failed to start ${project.name}: ${result.error}`);
       }
     } else {
       // Mock behavior for browser
@@ -318,6 +331,21 @@ function App() {
     });
   };
 
+  // Reordering handlers
+  const handleProjectReorder = (startIndex: number, endIndex: number) => {
+    const result = Array.from(projects);
+    const [removed] = result.splice(startIndex, 1);
+    result.splice(endIndex, 0, removed);
+    setProjects(result);
+  };
+
+  const handlePanelReorder = (startIndex: number, endIndex: number) => {
+    const result = Array.from(panels);
+    const [removed] = result.splice(startIndex, 1);
+    result.splice(endIndex, 0, removed);
+    setPanels(result);
+  };
+
   const currentProject = selectedProject ? projects.find(p => p.id === selectedProject) : null;
   const currentPanel = selectedPanel ? panels.find(p => p.id === selectedPanel) : null;
 
@@ -390,6 +418,8 @@ function App() {
           onProjectStop={handleProjectStop}
           onProjectDelete={handleProjectDeleteRequest}
           onProjectEdit={handleProjectEdit}
+          onProjectReorder={handleProjectReorder}
+          onPanelReorder={handlePanelReorder}
           onOpenModal={() => {
             setEditingProject(null);
             setIsModalOpen(true);
@@ -472,6 +502,20 @@ function App() {
         message={`Are you sure you want to delete "${deleteConfirmation.projectName}"? This action cannot be undone.`}
         confirmText="Delete"
         cancelText="Cancel"
+      />
+      
+      {/* Toast Container */}
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="dark"
       />
     </div>
   );

@@ -31,8 +31,6 @@ const getInstallCommand = (dep: string) => {
 export default function DependenciesModal({
   missingDeps,
 }: DependenciesModalProps) {
-  // Debug logging
-  console.log("DependenciesModal received missingDeps:", missingDeps);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);

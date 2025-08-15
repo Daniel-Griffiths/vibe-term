@@ -238,7 +238,6 @@
                     this.ws = new WebSocket(wsUrl);
                     
                     this.ws.onopen = () => {
-                        console.log('Connected to WebSocket');
                         this.updateConnectionStatus('ready', 'Connected');
                         this.reconnectAttempts = 0;
                     };
@@ -253,7 +252,6 @@
                     };
                     
                     this.ws.onclose = () => {
-                        console.log('WebSocket connection closed');
                         this.updateConnectionStatus('error', 'Disconnected');
                         this.attemptReconnect();
                     };
@@ -710,7 +708,6 @@
                     if (result.success && result.data) {
                         // Write the historical terminal output
                         this.terminal.write(result.data);
-                        console.log(`[WEB] Loaded ${result.data.length} characters of terminal history`);
                     }
                 } catch (error) {
                     console.error('Failed to load terminal history:', error);

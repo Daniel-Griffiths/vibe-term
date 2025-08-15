@@ -20,7 +20,6 @@ export function useEditorTheme() {
             ? config.data.settings.editor.theme 
             : 'vibe-term';
             
-          console.log('Loading theme from settings:', config.data.settings.editor.theme, '-> using:', themeToUse);
           setEditorTheme(themeToUse);
         }
       } catch (err) {

@@ -83,11 +83,9 @@ function getLanguageFromPath(path: string): string {
 function defineCustomThemes(monacoInstance?: typeof monaco) {
   const monacoToUse = monacoInstance || monaco;
   if (!monacoToUse?.editor) {
-    console.log('Monaco editor not available for theme registration');
     return;
   }
 
-  console.log('Registering custom themes...');
 
   try {
     // Vibe Term Custom Theme (matches app design)
@@ -123,7 +121,6 @@ function defineCustomThemes(monacoInstance?: typeof monaco) {
         'editorBracketMatch.border': '#22C55E',
       }
     });
-    console.log('Defined vibe-term theme');
 
     // One Dark Pro (VS Code default dark theme)
     monacoToUse.editor.defineTheme('one-dark-pro', {
@@ -147,7 +144,6 @@ function defineCustomThemes(monacoInstance?: typeof monaco) {
         'editorCursor.foreground': '#528BFF',
       }
     });
-    console.log('Defined one-dark-pro theme');
 
     // Monokai Pro
     monacoToUse.editor.defineTheme('monokai-pro', {
@@ -169,7 +165,6 @@ function defineCustomThemes(monacoInstance?: typeof monaco) {
         'editorCursor.foreground': '#FCFCFA',
       }
     });
-    console.log('Defined monokai-pro theme');
 
     // VS Code Default Dark (Dark+)
     monacoToUse.editor.defineTheme('vscode-dark', {
@@ -196,7 +191,6 @@ function defineCustomThemes(monacoInstance?: typeof monaco) {
         'editorLineNumber.foreground': '#858585',
       }
     });
-    console.log('Defined vscode-dark theme');
 
     // GitHub Dark
     monacoToUse.editor.defineTheme('github-dark', {
@@ -220,7 +214,6 @@ function defineCustomThemes(monacoInstance?: typeof monaco) {
         'editorCursor.foreground': '#C9D1D9',
       }
     });
-    console.log('Defined github-dark theme');
 
     // Dracula
     monacoToUse.editor.defineTheme('dracula', {
@@ -244,7 +237,6 @@ function defineCustomThemes(monacoInstance?: typeof monaco) {
         'editorCursor.foreground': '#F8F8F2',
       }
     });
-    console.log('Defined dracula theme');
 
     // Solarized Dark
     monacoToUse.editor.defineTheme('solarized-dark', {
@@ -268,7 +260,6 @@ function defineCustomThemes(monacoInstance?: typeof monaco) {
         'editorCursor.foreground': '#839496',
       }
     });
-    console.log('Defined solarized-dark theme');
 
     // Ayu Dark
     monacoToUse.editor.defineTheme('ayu-dark', {
@@ -292,10 +283,8 @@ function defineCustomThemes(monacoInstance?: typeof monaco) {
         'editorCursor.foreground': '#E6B450',
       }
     });
-    console.log('Defined ayu-dark theme');
 
   
-  console.log('Successfully registered all custom themes');
   } catch (error) {
     console.error('Failed to define custom themes:', error);
   }
@@ -322,10 +311,8 @@ export function SharedEditor({
   // Watch for theme changes and apply them
   React.useEffect(() => {
     if (monacoInstance && theme) {
-      console.log('Theme changed to:', theme, 'applying to editor');
       try {
         monacoInstance.editor.setTheme(theme);
-        console.log('Successfully applied new theme:', theme);
       } catch (err) {
         console.error('Failed to apply new theme:', theme, err);
       }
@@ -333,19 +320,16 @@ export function SharedEditor({
   }, [theme, monacoInstance]);
 
   const handleEditorBeforeMount = (monaco: any) => {
-    console.log('Monaco Editor before mount, registering themes...');
     defineCustomThemes(monaco);
     setMonacoInstance(monaco);
   };
 
   const handleEditorDidMount = (editor: any, monaco: any) => {
-    console.log('Monaco Editor mounted, current theme:', theme);
     setEditorInstance(editor);
     
     // Set the theme immediately after defining themes
     try {
       monaco.editor.setTheme(theme);
-      console.log('Applied initial theme:', theme);
     } catch (err) {
       console.error('Failed to apply initial theme:', theme, err);
       // Fallback to vs-dark if theme fails
@@ -388,10 +372,8 @@ export function SharedDiffEditor({
   // Watch for theme changes and apply them
   React.useEffect(() => {
     if (monacoInstance && theme) {
-      console.log('Diff theme changed to:', theme, 'applying to diff editor');
       try {
         monacoInstance.editor.setTheme(theme);
-        console.log('Successfully applied new diff theme:', theme);
       } catch (err) {
         console.error('Failed to apply new diff theme:', theme, err);
       }
@@ -399,19 +381,16 @@ export function SharedDiffEditor({
   }, [theme, monacoInstance]);
 
   const handleDiffEditorBeforeMount = (monaco: any) => {
-    console.log('Monaco DiffEditor before mount, registering themes...');
     defineCustomThemes(monaco);
     setMonacoInstance(monaco);
   };
 
   const handleDiffEditorDidMount = (editor: any, monaco: any) => {
-    console.log('Monaco DiffEditor mounted, current theme:', theme);
     setEditorInstance(editor);
     
     // Set the theme immediately after defining themes
     try {
       monaco.editor.setTheme(theme);
-      console.log('Applied initial diff theme:', theme);
     } catch (err) {
       console.error('Failed to apply initial diff theme:', theme, err);
       // Fallback to vs-dark if theme fails

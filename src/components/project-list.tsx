@@ -1,6 +1,22 @@
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { useSortable } from "@dnd-kit/sortable";
+import {
   Plus,
   Play,
   Square,
@@ -72,12 +88,258 @@ interface ProjectListProps {
   onProjectStop: (projectId: string) => void;
   onProjectDelete: (projectId: string) => void;
   onProjectEdit: (projectId: string) => void;
+  onProjectReorder: (startIndex: number, endIndex: number) => void;
+  onPanelReorder: (startIndex: number, endIndex: number) => void;
   onOpenModal: () => void;
   onOpenSettings: () => void;
   onPanelSelect: (panelId: string) => void;
   onPanelAdd: () => void;
   onPanelEdit: (panelId: string) => void;
   onPanelDelete: (panelId: string) => void;
+}
+
+interface SortableProjectCardProps {
+  project: Project;
+  selectedProject: string | null;
+  onProjectSelect: (projectId: string) => void;
+  onProjectStart: (projectId: string, command: string) => void;
+  onProjectStop: (projectId: string) => void;
+  onProjectDelete: (projectId: string) => void;
+  onProjectEdit: (projectId: string) => void;
+  getProjectIcon: (iconId?: string) => any;
+  getStatusIcon: (status: Project["status"]) => JSX.Element;
+}
+
+function SortableProjectCard({
+  project,
+  selectedProject,
+  onProjectSelect,
+  onProjectStart,
+  onProjectStop,
+  onProjectDelete,
+  onProjectEdit,
+  getProjectIcon,
+  getStatusIcon,
+}: SortableProjectCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id: project.id });
+
+  const style = {
+    transform: transform ? `translate3d(0, ${transform.y}px, 0)` : undefined,
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Card
+        className={`cursor-pointer project-card-raycast ${
+          selectedProject === project.id ? "rainbow-glow" : ""
+        }`}
+        onClick={() => onProjectSelect(project.id)}
+      >
+        <CardHeader className="p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {(() => {
+                const IconComponent = getProjectIcon(project.icon);
+                return (
+                  <IconComponent
+                    className={`h-4 w-4 ${
+                      selectedProject === project.id
+                        ? "text-white"
+                        : "text-gray-400"
+                    }`}
+                  />
+                );
+              })()}
+              <CardTitle
+                {...attributes}
+                {...listeners}
+                className={`text-sm font-medium cursor-grab active:cursor-grabbing touch-none ${
+                  selectedProject === project.id
+                    ? "text-white font-semibold"
+                    : "text-gray-200"
+                }`}
+                title="Drag to reorder"
+              >
+                {project.name}
+              </CardTitle>
+            </div>
+            {getStatusIcon(project.status)}
+          </div>
+          <p
+            className={`text-xs truncate ${
+              selectedProject === project.id ? "text-gray-300" : "text-gray-500"
+            }`}
+          >
+            {project.path}
+          </p>
+        </CardHeader>
+        <CardContent className="p-3 pt-0">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500">
+              {project.lastActivity}
+            </span>
+            <div className="flex gap-1">
+              {["running", "working", "ready"].includes(project.status) ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 px-2 text-xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onProjectStop(project.id);
+                  }}
+                >
+                  <Square className="h-3 w-3" />
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="primary"
+                  className="h-6 px-2 text-xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onProjectStart(project.id, project.runCommand || "");
+                  }}
+                >
+                  <Play className="h-3 w-3" />
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 px-2 text-xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onProjectEdit(project.id);
+                }}
+              >
+                <Edit className="h-3 w-3" />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 px-2 text-xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onProjectDelete(project.id);
+                }}
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+interface SortablePanelCardProps {
+  panel: Panel;
+  selectedPanel: string | null;
+  onPanelSelect: (panelId: string) => void;
+  onPanelEdit: (panelId: string) => void;
+  onPanelDelete: (panelId: string) => void;
+  getProjectIcon: (iconId?: string) => any;
+}
+
+function SortablePanelCard({
+  panel,
+  selectedPanel,
+  onPanelSelect,
+  onPanelEdit,
+  onPanelDelete,
+  getProjectIcon,
+}: SortablePanelCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id: panel.id });
+
+  const style = {
+    transform: transform ? `translate3d(0, ${transform.y}px, 0)` : undefined,
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Card
+        className={`cursor-pointer project-card-raycast ${
+          selectedPanel === panel.id ? "rainbow-glow" : ""
+        }`}
+        onClick={() => onPanelSelect(panel.id)}
+      >
+        <CardHeader className="p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {(() => {
+                const IconComponent = getProjectIcon(panel.icon);
+                return (
+                  <IconComponent
+                    className={`h-4 w-4 ${
+                      selectedPanel === panel.id
+                        ? "text-white"
+                        : "text-gray-400"
+                    }`}
+                  />
+                );
+              })()}
+              <CardTitle
+                {...attributes}
+                {...listeners}
+                className={`text-sm font-medium cursor-grab active:cursor-grabbing touch-none ${
+                  selectedPanel === panel.id
+                    ? "text-white font-semibold"
+                    : "text-gray-200"
+                }`}
+                title="Drag to reorder"
+              >
+                {panel.name}
+              </CardTitle>
+            </div>
+            <Globe className="h-4 w-4 text-gray-400" />
+          </div>
+          <p
+            className={`text-xs truncate ${
+              selectedPanel === panel.id ? "text-gray-300" : "text-gray-500"
+            }`}
+          >
+            {panel.url}
+          </p>
+        </CardHeader>
+        <CardContent className="p-3 pt-0">
+          <div className="flex items-center justify-end">
+            <div className="flex gap-1">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPanelEdit(panel.id);
+                }}
+                className="h-6 px-2 text-xs"
+                title="Edit panel"
+              >
+                <Edit className="h-3 w-3" />
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPanelDelete(panel.id);
+                }}
+                className="h-6 px-2 text-xs"
+                title="Delete panel"
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
 export default function ProjectList({
@@ -90,6 +352,8 @@ export default function ProjectList({
   onProjectStop,
   onProjectDelete,
   onProjectEdit,
+  onProjectReorder,
+  onPanelReorder,
   onOpenModal,
   onOpenSettings,
   onPanelSelect,
@@ -97,6 +361,36 @@ export default function ProjectList({
   onPanelEdit,
   onPanelDelete,
 }: ProjectListProps) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleProjectDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = projects.findIndex((p) => p.id === active.id);
+      const newIndex = projects.findIndex((p) => p.id === over.id);
+      onProjectReorder(oldIndex, newIndex);
+    }
+  };
+
+  const handlePanelDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = panels.findIndex((p) => p.id === active.id);
+      const newIndex = panels.findIndex((p) => p.id === over.id);
+      onPanelReorder(oldIndex, newIndex);
+    }
+  };
   const getProjectIcon = (iconId?: string) => {
     switch (iconId) {
       case "code":
@@ -256,111 +550,33 @@ export default function ProjectList({
         </div>
       </div>
 
-      <div className="space-y-2">
-        {projects.map((project) => (
-          <Card
-            key={project.id}
-            className={`cursor-pointer project-card-raycast ${
-              selectedProject === project.id ? "rainbow-glow" : ""
-            }`}
-            onClick={() => onProjectSelect(project.id)}
-          >
-            <CardHeader className="p-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {(() => {
-                    const IconComponent = getProjectIcon(project.icon);
-                    return (
-                      <IconComponent
-                        className={`h-4 w-4 ${
-                          selectedProject === project.id
-                            ? "text-white"
-                            : "text-gray-400"
-                        }`}
-                      />
-                    );
-                  })()}
-                  <CardTitle
-                    className={`text-sm font-medium ${
-                      selectedProject === project.id
-                        ? "text-white font-semibold"
-                        : "text-gray-200"
-                    }`}
-                  >
-                    {project.name}
-                  </CardTitle>
-                </div>
-                {getStatusIcon(project.status)}
-              </div>
-              <p
-                className={`text-xs truncate ${
-                  selectedProject === project.id
-                    ? "text-gray-300"
-                    : "text-gray-500"
-                }`}
-              >
-                {project.path}
-              </p>
-            </CardHeader>
-            <CardContent className="p-3 pt-0">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">
-                  {project.lastActivity}
-                </span>
-                <div className="flex gap-1">
-                  {["running", "working", "ready"].includes(project.status) ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-6 px-2 text-xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onProjectStop(project.id);
-                      }}
-                    >
-                      <Square className="h-3 w-3" />
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      className="h-6 px-2 text-xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onProjectStart(project.id, project.runCommand || "");
-                      }}
-                    >
-                      <Play className="h-3 w-3" />
-                    </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-6 px-2 text-xs"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onProjectEdit(project.id);
-                    }}
-                  >
-                    <Edit className="h-3 w-3" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-6 px-2 text-xs"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onProjectDelete(project.id);
-                    }}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleProjectDragEnd}
+      >
+        <SortableContext
+          items={projects.map((p) => p.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="space-y-2">
+            {projects.map((project) => (
+              <SortableProjectCard
+                key={project.id}
+                project={project}
+                selectedProject={selectedProject}
+                onProjectSelect={onProjectSelect}
+                onProjectStart={onProjectStart}
+                onProjectStop={onProjectStop}
+                onProjectDelete={onProjectDelete}
+                onProjectEdit={onProjectEdit}
+                getProjectIcon={getProjectIcon}
+                getStatusIcon={getStatusIcon}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       {projects.length === 0 && (
         <NonIdealState
@@ -393,85 +609,30 @@ export default function ProjectList({
           </Button>
         </div>
 
-        <div className="space-y-2">
-          {(panels || []).map((panel) => (
-            <Card
-              key={panel.id}
-              className={`cursor-pointer project-card-raycast ${
-                selectedPanel === panel.id ? "rainbow-glow" : ""
-              }`}
-              onClick={() => onPanelSelect(panel.id)}
-            >
-              <CardHeader className="p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {(() => {
-                      const IconComponent = getProjectIcon(panel.icon);
-                      return (
-                        <IconComponent
-                          className={`h-4 w-4 ${
-                            selectedPanel === panel.id
-                              ? "text-white"
-                              : "text-gray-400"
-                          }`}
-                        />
-                      );
-                    })()}
-                    <CardTitle
-                      className={`text-sm font-medium ${
-                        selectedPanel === panel.id
-                          ? "text-white font-semibold"
-                          : "text-gray-200"
-                      }`}
-                    >
-                      {panel.name}
-                    </CardTitle>
-                  </div>
-                  <Globe className="h-4 w-4 text-gray-400" />
-                </div>
-                <p
-                  className={`text-xs truncate ${
-                    selectedPanel === panel.id
-                      ? "text-gray-300"
-                      : "text-gray-500"
-                  }`}
-                >
-                  {panel.url}
-                </p>
-              </CardHeader>
-              <CardContent className="p-3 pt-0">
-                <div className="flex items-center justify-end">
-                  <div className="flex gap-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onPanelEdit(panel.id);
-                      }}
-                      className="h-6 px-2 text-xs"
-                      title="Edit panel"
-                    >
-                      <Edit className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onPanelDelete(panel.id);
-                      }}
-                      className="h-6 px-2 text-xs"
-                      title="Delete panel"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handlePanelDragEnd}
+        >
+          <SortableContext
+            items={(panels || []).map((p) => p.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-2">
+              {(panels || []).map((panel) => (
+                <SortablePanelCard
+                  key={panel.id}
+                  panel={panel}
+                  selectedPanel={selectedPanel}
+                  onPanelSelect={onPanelSelect}
+                  onPanelEdit={onPanelEdit}
+                  onPanelDelete={onPanelDelete}
+                  getProjectIcon={getProjectIcon}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
 
         {(panels || []).length === 0 && (
           <NonIdealState
