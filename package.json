@@ -30,7 +30,6 @@
     "ansi-to-html": "^0.7.2",
     "bufferutil": "^4.0.9",
     "cors": "^2.8.5",
-    "electron-liquid-glass": "^1.0.1",
     "express": "^5.1.0",
     "lucide-react": "^0.539.0",
     "monaco-editor": "^0.52.2",
