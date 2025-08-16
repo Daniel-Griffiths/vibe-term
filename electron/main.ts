@@ -10,7 +10,7 @@ import fs from "fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import os from "node:os";
-import { ChildProcess, exec } from "child_process";
+import { ChildProcess, exec, spawn } from "child_process";
 import { promisify } from "util";
 import * as pty from "node-pty";
 import express from "express";
@@ -76,6 +76,7 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
 let win: BrowserWindow | null;
 const processes = new Map<string, ChildProcess>(); // Legacy - kept for compatibility
 const sharedPtyProcesses = new Map<string, any>(); // Shared PTY processes for both desktop and web
+const backgroundProcesses = new Map<string, ChildProcess>(); // Background processes for runCommand
 const terminalBuffers = new Map<string, string>(); // Store terminal history for each project
 
 // Track currently selected project for notifications
@@ -103,7 +104,8 @@ function setupIPCHandlers() {
         projectId,
         projectPath,
         projectName,
-        yoloMode
+        yoloMode,
+        command
       );
     }
   );
@@ -115,6 +117,14 @@ function setupIPCHandlers() {
     if (proc) {
       proc.kill();
       sharedPtyProcesses.delete(projectId);
+    }
+
+    // Kill background process if running
+    const backgroundProc = backgroundProcesses.get(projectId);
+    if (backgroundProc) {
+      console.log(`[${projectId}] Killing background process`);
+      backgroundProc.kill('SIGTERM');
+      backgroundProcesses.delete(projectId);
     }
 
     // Kill the tmux session (silently fails if not running)
@@ -329,12 +339,14 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
       }
 
       // Use the start command from the request, or fall back to project's runCommand
+      const runCommand = command || project.runCommand;
       // Use or create shared PTY process
       const result = await getOrCreateSharedPty(
         id,
         project.path,
         projectName,
-        yoloMode
+        yoloMode,
+        runCommand
       );
       if (result.success) {
         res.json({ success: true });
@@ -503,7 +515,8 @@ async function getOrCreateSharedPty(
   projectId: string,
   projectPath: string,
   projectName?: string,
-  yoloMode?: boolean
+  yoloMode?: boolean,
+  runCommand?: string
 ) {
   try {
     // If PTY already exists, send current buffer and return success
@@ -633,6 +646,52 @@ async function getOrCreateSharedPty(
         console.log(`[${projectId}] Sending Claude command: ${claudeCommand.trim()}`);
         proc.write(claudeCommand);
       }, 500);
+
+      // Start background runCommand if provided
+      if (runCommand && runCommand.trim()) {
+        setTimeout(() => {
+          console.log(`[${projectId}] Starting background command: ${runCommand}`);
+          try {
+            const backgroundProc = spawn(
+              ShellUtils.getPreferredShell(),
+              ["-l", "-c", runCommand],
+              {
+                cwd: projectPath,
+                env: {
+                  ...process.env,
+                  PATH: `${process.env.PATH}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`,
+                },
+                detached: false,
+                stdio: ['ignore', 'pipe', 'pipe']
+              }
+            );
+
+            backgroundProcesses.set(projectId, backgroundProc);
+
+            // Log background process output for debugging
+            backgroundProc.stdout?.on('data', (data) => {
+              console.log(`[${projectId}] Background stdout:`, data.toString().substring(0, 100));
+            });
+
+            backgroundProc.stderr?.on('data', (data) => {
+              console.log(`[${projectId}] Background stderr:`, data.toString().substring(0, 100));
+            });
+
+            backgroundProc.on('exit', (code) => {
+              console.log(`[${projectId}] Background process exited with code:`, code);
+              backgroundProcesses.delete(projectId);
+            });
+
+            backgroundProc.on('error', (error) => {
+              console.error(`[${projectId}] Background process error:`, error);
+              backgroundProcesses.delete(projectId);
+            });
+
+          } catch (error) {
+            console.error(`[${projectId}] Failed to start background command:`, error);
+          }
+        }, 1000); // Start background command after Claude
+      }
     } else {
       console.log(`[${projectId}] Attached to existing tmux session`);
     }
@@ -1009,6 +1068,13 @@ app.on("before-quit", async (event) => {
   // Clean up shared PTY processes
   sharedPtyProcesses.forEach((proc) => proc.kill());
   sharedPtyProcesses.clear();
+
+  // Clean up background processes
+  backgroundProcesses.forEach((proc, projectId) => {
+    console.log(`[${projectId}] Killing background process on app exit`);
+    proc.kill('SIGTERM');
+  });
+  backgroundProcesses.clear();
 
   // Close web server
   if (webServer) {
