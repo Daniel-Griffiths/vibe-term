@@ -51,19 +51,17 @@ export function NonIdealState({
   const sizeStyle = sizeStyles[size];
 
   return (
-    <div className="flex-1 flex items-center justify-center">
-      <div
-        className={`text-center ${variantClass} glass-card ${sizeStyle.container} rounded-xl ${className}`}
-      >
-        <Icon className={`${sizeStyle.icon} mx-auto mb-4 opacity-50`} />
-        <h3 className={`${sizeStyle.title} font-semibold mb-2 text-gray-200`}>
-          {title}
-        </h3>
-        {description && (
-          <p className={`${sizeStyle.description}`}>{description}</p>
-        )}
-        {action && <div className="mt-4">{action}</div>}
-      </div>
+    <div
+      className={`text-center ${variantClass} glass-card ${sizeStyle.container} rounded-xl ${className}`}
+    >
+      <Icon className={`${sizeStyle.icon} mx-auto mb-4 opacity-50`} />
+      <h3 className={`${sizeStyle.title} font-semibold mb-2 text-gray-200`}>
+        {title}
+      </h3>
+      {description && (
+        <p className={`${sizeStyle.description}`}>{description}</p>
+      )}
+      {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }

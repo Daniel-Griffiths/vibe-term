@@ -3,7 +3,7 @@ import { Editor, DiffEditor } from "@monaco-editor/react";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
 import { useEditorTheme } from "../hooks/use-editor-theme";
 
-interface ISharedEditorProps {
+interface ICodeEditorProps {
   value: string;
   onChange?: (value: string | undefined) => void;
   language?: string;
@@ -287,14 +287,14 @@ function defineCustomThemes(monacoInstance?: typeof monaco) {
   }
 }
 
-export function MonacoEditor({
+export function CodeEditor({
   value,
   onChange,
   language,
   readOnly = false,
   height = "100%",
   options = {},
-}: ISharedEditorProps) {
+}: ICodeEditorProps) {
   const theme = useEditorTheme();
   const [monacoInstance, setMonacoInstance] = React.useState<any>(null);
   const [editorInstance, setEditorInstance] = React.useState<any>(null);

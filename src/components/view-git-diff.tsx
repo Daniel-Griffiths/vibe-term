@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import {
-  MonacoEditor,
+  CodeEditor,
   SharedDiffEditor,
   getLanguageFromPath,
-} from "./monaco-editor";
+} from "./code-editor";
 import { Card, CardContent, CardHeader, CardTitle } from "./card";
 import { Button } from "./button";
 import {
@@ -286,28 +286,34 @@ export default function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
 
   if (!selectedProject) {
     return (
-      <NonIdealState
-        icon={GitBranch}
-        title="No Project Selected"
-        description="Select a project from the sidebar to view its git diff"
-      />
+      <div className="flex-1 h-full flex items-center justify-center">
+        <NonIdealState
+          icon={GitBranch}
+          title="No Project Selected"
+          description="Select a project from the sidebar to view its git diff"
+          className="min-w-80 max-w-2xl"
+        />
+      </div>
     );
   }
 
   if (error) {
     return (
-      <NonIdealState
-        icon={AlertCircle}
-        title="Git Error"
-        description={error}
-        variant="error"
-        action={
-          <Button onClick={handleRefresh} className="raycast-button-primary">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Retry
-          </Button>
-        }
-      />
+      <div className="flex-1 h-full flex items-center justify-center">
+        <NonIdealState
+          icon={AlertCircle}
+          title="Git Error"
+          description={error}
+          variant="error"
+          className="min-w-80 max-w-2xl"
+          action={
+            <Button onClick={handleRefresh} className="raycast-button-primary">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          }
+        />
+      </div>
     );
   }
 
@@ -446,7 +452,7 @@ export default function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
       </div>
 
       {/* Diff Editor */}
-      <div className="flex-1 flex flex-col h-full p-4">
+      <div className="flex-1 flex flex-col h-full p-4 pt-0">
         <Card className="flex-1 flex flex-col glass-card overflow-hidden">
           <CardHeader className="flex-shrink-0 py-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800 rounded-t-lg">
             <div className="flex items-center justify-between">
@@ -522,7 +528,7 @@ export default function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
                     language={getLanguageFromPath(selectedFile.path)}
                   />
                 ) : (
-                  <MonacoEditor
+                  <CodeEditor
                     value={editContent}
                     onChange={handleContentChange}
                     language={getLanguageFromPath(selectedFile.path)}

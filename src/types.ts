@@ -21,6 +21,7 @@ export interface ElectronAPI {
   sendDiscordNotification: (discordSettings: any, message: string) => Promise<{ success: boolean; error?: string }>;
   getProjectFiles: (projectPath: string) => Promise<{ success: boolean; data?: any[]; error?: string }>;
   readProjectFile: (projectPath: string, filePath: string) => Promise<{ success: boolean; data?: string; error?: string }>;
+  readImageFile: (projectPath: string, filePath: string) => Promise<{ success: boolean; data?: string; mimeType?: string; error?: string }>;
 }
 
 export interface TerminalOutput {

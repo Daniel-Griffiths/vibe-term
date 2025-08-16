@@ -10,7 +10,6 @@ import {
 } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
@@ -176,10 +175,7 @@ function SortableProjectCard({
           </p>
         </CardHeader>
         <CardContent className="p-3 pt-0">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-500">
-              {project.lastActivity}
-            </span>
+          <div className="flex items-center justify-end">
             <div className="flex gap-1">
               {["running", "working", "ready"].includes(project.status) ? (
                 <Button

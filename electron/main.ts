@@ -5,6 +5,7 @@ import {
   shell,
   Notification,
   dialog,
+  powerSaveBlocker,
 } from "electron";
 import fs from "fs";
 import { fileURLToPath } from "node:url";
@@ -78,6 +79,9 @@ const processes = new Map<string, ChildProcess>(); // Legacy - kept for compatib
 const sharedPtyProcesses = new Map<string, any>(); // Shared PTY processes for both desktop and web
 const backgroundProcesses = new Map<string, ChildProcess>(); // Background processes for runCommand
 const terminalBuffers = new Map<string, string>(); // Store terminal history for each project
+
+// Power save blocker to keep PC awake
+let powerSaveBlockerId: number | null = null;
 
 // Track currently selected project for notifications
 let currentlySelectedProject: string | null = null;
@@ -1054,6 +1058,12 @@ app.on("before-quit", async (event) => {
   // Prevent default quit to allow cleanup
   event.preventDefault();
 
+  // Stop power save blocker
+  if (powerSaveBlockerId !== null && powerSaveBlocker.isStarted(powerSaveBlockerId)) {
+    powerSaveBlocker.stop(powerSaveBlockerId);
+    console.log('✅ Power save blocker stopped');
+  }
+
   // Kill all tmux sessions associated with projects (silently fail if not running)
   const state = readStateFile();
   const projects =
@@ -1101,6 +1111,10 @@ app.on("activate", () => {
 });
 
 app.whenReady().then(async () => {
+  // Start power save blocker to keep PC awake while app is running
+  powerSaveBlockerId = powerSaveBlocker.start('prevent-app-suspension');
+  console.log('✅ Power save blocker started - PC will stay awake');
+  
   // Register IPC handlers first, before creating window
   setupIPCHandlers();
 
@@ -1402,6 +1416,53 @@ ipcMain.handle(
       return { success: true, data: content };
     } catch (error) {
       console.error("Read project file error:", error);
+      return { success: false, error: error.message };
+    }
+  }
+);
+
+// Read image file as base64
+ipcMain.handle(
+  "read-image-file",
+  async (event, projectPath: string, filePath: string) => {
+    try {
+      const fullPath = path.join(projectPath, filePath);
+
+      // Check if file exists
+      if (!fs.existsSync(fullPath)) {
+        return { success: false, error: "File not found" };
+      }
+
+      // Check if it's actually a file and not a directory
+      const stats = fs.statSync(fullPath);
+      if (!stats.isFile()) {
+        return { success: false, error: "Path is not a file" };
+      }
+
+      // Read file as base64
+      const buffer = fs.readFileSync(fullPath);
+      const base64 = buffer.toString('base64');
+      
+      // Determine MIME type based on extension
+      const ext = path.extname(fullPath).toLowerCase();
+      const mimeTypes: Record<string, string> = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.bmp': 'image/bmp',
+        '.svg': 'image/svg+xml',
+        '.webp': 'image/webp',
+        '.ico': 'image/x-icon',
+        '.tiff': 'image/tiff',
+        '.tif': 'image/tiff',
+        '.avif': 'image/avif',
+      };
+      const mimeType = mimeTypes[ext] || 'image/jpeg';
+
+      return { success: true, data: base64, mimeType };
+    } catch (error) {
+      console.error("Read image file error:", error);
       return { success: false, error: error.message };
     }
   }

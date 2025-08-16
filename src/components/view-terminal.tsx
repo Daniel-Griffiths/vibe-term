@@ -70,11 +70,14 @@ export default function ViewTerminal({
 
   if (!selectedProject) {
     return (
-      <NonIdealState
-        icon={TerminalIcon}
-        title="No Project Selected"
-        description="Select a project from the sidebar to view its terminal"
-      />
+      <div className="flex-1 h-full flex items-center justify-center">
+        <NonIdealState
+          icon={TerminalIcon}
+          title="No Project Selected"
+          description="Select a project from the sidebar to view its terminal"
+          className="min-w-80 max-w-2xl"
+        />
+      </div>
     );
   }
 

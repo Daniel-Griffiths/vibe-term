@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
-import { MonacoEditor, getLanguageFromPath } from "./monaco-editor";
+import { CodeEditor, getLanguageFromPath } from "./code-editor";
+import { CodeEditorImageViewer } from "./code-editor-image-viewer";
 import { Card, CardContent, CardHeader, CardTitle } from "./card";
 import { Button } from "./button";
 import {
@@ -15,6 +16,8 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { NonIdealState } from "./non-ideal-state";
+import { ContextMenu, ContextMenuItem } from "./context-menu";
+import Modal from "./modal";
 import type { UnifiedItem } from "../types";
 
 interface IViewFileEditorProps {
@@ -45,27 +48,25 @@ export default function ViewFileEditor({
   const [activeFile, setActiveFile] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    isOpen: boolean;
+    position: { x: number; y: number };
+    targetFile: string | null;
+  }>({ isOpen: false, position: { x: 0, y: 0 }, targetFile: null });
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    fileName: string;
+    onConfirm: () => void;
+  }>({ isOpen: false, fileName: "", onConfirm: () => {} });
 
-  // Load file tree when project changes
-  useEffect(() => {
-    if (!selectedProject) {
-      setFileTree([]);
-      setOpenFiles([]);
-      setActiveFile(null);
-      return;
-    }
-
-    loadFileTree();
-  }, [selectedProject]);
-
-  const loadFileTree = async () => {
+  const loadFileTree = useCallback(async () => {
     if (!selectedProject) return;
 
     setLoading(true);
     setError(null);
     try {
       const result = await window.electronAPI?.getProjectFiles(
-        selectedProject.path
+        selectedProject.path!
       );
       if (result?.success) {
         setFileTree(result.data || []);
@@ -78,7 +79,19 @@ export default function ViewFileEditor({
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedProject]);
+
+  // Load file tree when project changes
+  useEffect(() => {
+    if (!selectedProject) {
+      setFileTree([]);
+      setOpenFiles([]);
+      setActiveFile(null);
+      return;
+    }
+
+    loadFileTree();
+  }, [selectedProject, loadFileTree]);
 
   const toggleDirectory = (path: string) => {
     const updateNode = (nodes: FileNode[]): FileNode[] => {
@@ -106,9 +119,34 @@ export default function ViewFileEditor({
 
     if (!selectedProject) return;
 
+    // Check if current active file is unchanged and can be replaced
+    const currentFile = activeFile ? openFiles.find((f) => f.path === activeFile) : null;
+    const shouldReplaceCurrentFile = currentFile && !currentFile.isDirty;
+
+    // For image files, we don't need to read the content as text
+    if (isImageFile(filePath)) {
+      const newFile: OpenFile = {
+        path: filePath,
+        name: fileName,
+        content: "", // Empty content for images
+        originalContent: "",
+        isDirty: false,
+      };
+
+      if (shouldReplaceCurrentFile && currentFile) {
+        // Replace the current file
+        setOpenFiles((prev) => prev.map((f) => f.path === currentFile.path ? newFile : f));
+      } else {
+        // Add as new tab
+        setOpenFiles((prev) => [...prev, newFile]);
+      }
+      setActiveFile(filePath);
+      return;
+    }
+
     try {
       const result = await window.electronAPI?.readProjectFile(
-        selectedProject.path,
+        selectedProject.path!,
         filePath
       );
       if (result?.success) {
@@ -121,7 +159,13 @@ export default function ViewFileEditor({
           isDirty: false,
         };
 
-        setOpenFiles((prev) => [...prev, newFile]);
+        if (shouldReplaceCurrentFile && currentFile) {
+          // Replace the current file
+          setOpenFiles((prev) => prev.map((f) => f.path === currentFile.path ? newFile : f));
+        } else {
+          // Add as new tab
+          setOpenFiles((prev) => [...prev, newFile]);
+        }
         setActiveFile(filePath);
       } else {
         setError(result?.error || `Failed to open file: ${fileName}`);
@@ -132,7 +176,22 @@ export default function ViewFileEditor({
     }
   };
 
-  const closeFile = (filePath: string) => {
+  const closeFile = (filePath: string, skipConfirmation = false) => {
+    const fileToClose = openFiles.find((f) => f.path === filePath);
+    
+    // If file has unsaved changes and we haven't skipped confirmation, show dialog
+    if (fileToClose?.isDirty && !skipConfirmation) {
+      setConfirmDialog({
+        isOpen: true,
+        fileName: fileToClose.name,
+        onConfirm: () => {
+          setConfirmDialog({ isOpen: false, fileName: "", onConfirm: () => {} });
+          closeFile(filePath, true); // Skip confirmation on recursive call
+        },
+      });
+      return;
+    }
+
     setOpenFiles((prev) => prev.filter((f) => f.path !== filePath));
 
     // If this was the active file, switch to another or none
@@ -140,6 +199,83 @@ export default function ViewFileEditor({
       const remainingFiles = openFiles.filter((f) => f.path !== filePath);
       setActiveFile(remainingFiles.length > 0 ? remainingFiles[0].path : null);
     }
+  };
+
+  const closeFilesToRight = (filePath: string) => {
+    const fileIndex = openFiles.findIndex((f) => f.path === filePath);
+    if (fileIndex === -1) return;
+
+    const filesToClose = openFiles.slice(fileIndex + 1);
+    const hasUnsavedChanges = filesToClose.some((f) => f.isDirty);
+    
+    if (hasUnsavedChanges) {
+      const unsavedFiles = filesToClose.filter((f) => f.isDirty);
+      setConfirmDialog({
+        isOpen: true,
+        fileName: `${unsavedFiles.length} file${unsavedFiles.length > 1 ? 's' : ''}`,
+        onConfirm: () => {
+          setConfirmDialog({ isOpen: false, fileName: "", onConfirm: () => {} });
+          const remainingFiles = openFiles.slice(0, fileIndex + 1);
+          setOpenFiles(remainingFiles);
+          
+          // If the active file was closed, switch to the target file
+          if (filesToClose.some((f) => f.path === activeFile)) {
+            setActiveFile(filePath);
+          }
+        },
+      });
+      return;
+    }
+
+    const remainingFiles = openFiles.slice(0, fileIndex + 1);
+    setOpenFiles(remainingFiles);
+    
+    // If the active file was closed, switch to the target file
+    if (filesToClose.some((f) => f.path === activeFile)) {
+      setActiveFile(filePath);
+    }
+  };
+
+  const closeOtherFiles = (filePath: string) => {
+    const targetFile = openFiles.find((f) => f.path === filePath);
+    if (!targetFile) return;
+
+    const otherFiles = openFiles.filter((f) => f.path !== filePath);
+    const hasUnsavedChanges = otherFiles.some((f) => f.isDirty);
+    
+    if (hasUnsavedChanges) {
+      const unsavedFiles = otherFiles.filter((f) => f.isDirty);
+      setConfirmDialog({
+        isOpen: true,
+        fileName: `${unsavedFiles.length} file${unsavedFiles.length > 1 ? 's' : ''}`,
+        onConfirm: () => {
+          setConfirmDialog({ isOpen: false, fileName: "", onConfirm: () => {} });
+          setOpenFiles([targetFile]);
+          setActiveFile(filePath);
+        },
+      });
+      return;
+    }
+
+    setOpenFiles([targetFile]);
+    setActiveFile(filePath);
+  };
+
+  const handleTabRightClick = (event: React.MouseEvent, filePath: string) => {
+    event.preventDefault();
+    setContextMenu({
+      isOpen: true,
+      position: { x: event.clientX, y: event.clientY },
+      targetFile: filePath,
+    });
+  };
+
+  const closeContextMenu = () => {
+    setContextMenu({ isOpen: false, position: { x: 0, y: 0 }, targetFile: null });
+  };
+
+  const closeConfirmDialog = () => {
+    setConfirmDialog({ isOpen: false, fileName: "", onConfirm: () => {} });
   };
 
   const handleContentChange = (value: string | undefined, filePath: string) => {
@@ -166,7 +302,7 @@ export default function ViewFileEditor({
 
       try {
         const result = await window.electronAPI?.saveFile(
-          selectedProject.path,
+          selectedProject.path!,
           filePath,
           file.content
         );
@@ -257,65 +393,46 @@ export default function ViewFileEditor({
     ));
   };
 
-  const getLanguageFromPath = (path: string): string => {
+  const isImageFile = (path: string): boolean => {
     const ext = path.split(".").pop()?.toLowerCase();
-    const languageMap: Record<string, string> = {
-      ts: "typescript",
-      tsx: "typescript",
-      js: "javascript",
-      jsx: "javascript",
-      json: "json",
-      html: "html",
-      css: "css",
-      scss: "scss",
-      md: "markdown",
-      py: "python",
-      rs: "rust",
-      go: "go",
-      java: "java",
-      cpp: "cpp",
-      c: "c",
-      h: "c",
-      hpp: "cpp",
-      cs: "csharp",
-      rb: "ruby",
-      php: "php",
-      swift: "swift",
-      kt: "kotlin",
-      yaml: "yaml",
-      yml: "yaml",
-      toml: "toml",
-      xml: "xml",
-      sh: "shell",
-      bash: "shell",
-    };
-    return languageMap[ext || ""] || "plaintext";
+    const imageExtensions = [
+      "jpg", "jpeg", "png", "gif", "bmp", "svg", 
+      "webp", "ico", "tiff", "tif", "avif"
+    ];
+    return imageExtensions.includes(ext || "");
   };
+
 
   if (!selectedProject) {
     return (
-      <NonIdealState
-        icon={FileText}
-        title="No Project Selected"
-        description="Select a project from the sidebar to browse and edit files"
-      />
+      <div className="flex-1 h-full flex items-center justify-center">
+        <NonIdealState
+          icon={FileText}
+          title="No Project Selected"
+          description="Select a project from the sidebar to browse and edit files"
+          className="min-w-80 max-w-2xl"
+        />
+      </div>
     );
   }
 
   if (error) {
     return (
-      <NonIdealState
-        icon={AlertCircle}
-        title="Error Loading Files"
-        description={error}
-        variant="error"
-        action={
-          <Button onClick={loadFileTree} className="raycast-button-primary">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Retry
-          </Button>
-        }
-      />
+      <div className="flex-1 h-full flex items-center justify-center">
+        <NonIdealState
+          icon={AlertCircle}
+          title="Error Loading Files"
+          description={error}
+          variant="error"
+          className="min-w-80 max-w-2xl"
+          action={
+            <Button onClick={loadFileTree} className="raycast-button-primary">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          }
+        />
+      </div>
     );
   }
 
@@ -374,8 +491,8 @@ export default function ViewFileEditor({
               {openFiles.length > 0 ? (
                 <div className="flex items-center gap-1 flex-1 min-w-0">
                   <FileText className="h-5 w-5 text-blue-400 flex-shrink-0" />
-                  <div className="flex items-center gap-1 overflow-x-auto flex-1 min-w-0">
-                    {openFiles.map((file, index) => (
+                  <div className="flex items-center gap-1 overflow-x-auto flex-1 min-w-0 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
+                    {openFiles.map((file) => (
                       <div
                         key={file.path}
                         className={`flex items-center gap-1 px-2 py-1 rounded text-sm cursor-pointer whitespace-nowrap ${
@@ -384,6 +501,7 @@ export default function ViewFileEditor({
                             : "hover:bg-gray-700/50 text-gray-400 hover:text-gray-300"
                         }`}
                         onClick={() => setActiveFile(file.path)}
+                        onContextMenu={(e) => handleTabRightClick(e, file.path)}
                       >
                         <span className="truncate max-w-32">{file.name}</span>
                         {file.isDirty && (
@@ -427,13 +545,21 @@ export default function ViewFileEditor({
 
           <CardContent className="flex-1 p-0 overflow-hidden">
             {currentFile ? (
-              <MonacoEditor
-                value={currentFile.content}
-                onChange={(value) =>
-                  handleContentChange(value, currentFile.path)
-                }
-                language={getLanguageFromPath(currentFile.path)}
-              />
+              isImageFile(currentFile.path) ? (
+                <CodeEditorImageViewer
+                  filePath={currentFile.path}
+                  projectPath={selectedProject.path!}
+                  fileName={currentFile.name}
+                />
+              ) : (
+                <CodeEditor
+                  value={currentFile.content}
+                  onChange={(value) =>
+                    handleContentChange(value, currentFile.path)
+                  }
+                  language={getLanguageFromPath(currentFile.path)}
+                />
+              )
             ) : (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
@@ -450,6 +576,79 @@ export default function ViewFileEditor({
           </CardContent>
         </Card>
       </div>
+      
+      {/* Context Menu */}
+      <ContextMenu
+        isOpen={contextMenu.isOpen}
+        position={contextMenu.position}
+        onClose={closeContextMenu}
+      >
+        <ContextMenuItem
+          onClick={() => {
+            if (contextMenu.targetFile) {
+              closeFile(contextMenu.targetFile);
+            }
+            closeContextMenu();
+          }}
+        >
+          Close
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => {
+            if (contextMenu.targetFile) {
+              closeOtherFiles(contextMenu.targetFile);
+            }
+            closeContextMenu();
+          }}
+          disabled={openFiles.length <= 1}
+        >
+          Close Others
+        </ContextMenuItem>
+        <ContextMenuItem
+          onClick={() => {
+            if (contextMenu.targetFile) {
+              closeFilesToRight(contextMenu.targetFile);
+            }
+            closeContextMenu();
+          }}
+          disabled={
+            !contextMenu.targetFile ||
+            openFiles.findIndex((f) => f.path === contextMenu.targetFile) >= openFiles.length - 1
+          }
+        >
+          Close to the Right
+        </ContextMenuItem>
+      </ContextMenu>
+      
+      {/* Confirmation Dialog */}
+      <Modal
+        isOpen={confirmDialog.isOpen}
+        onClose={closeConfirmDialog}
+        title="Unsaved Changes"
+        intent="warning"
+        maxWidth="md"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-300 leading-relaxed">
+            {confirmDialog.fileName} has unsaved changes. Are you sure you want to close without saving?
+          </p>
+          
+          <div className="flex justify-end gap-3 pt-2">
+            <Button
+              onClick={closeConfirmDialog}
+              className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-gray-200"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmDialog.onConfirm}
+              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              Close Without Saving
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

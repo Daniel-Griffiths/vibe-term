@@ -103,6 +103,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readProjectFile: (projectPath: string, filePath: string) => 
     ipcRenderer.invoke('read-project-file', projectPath, filePath),
   
+  readImageFile: (projectPath: string, filePath: string) => 
+    ipcRenderer.invoke('read-image-file', projectPath, filePath),
+  
   writeStateFile: (state: any) => 
     ipcRenderer.invoke('write-state-file', state)
 });

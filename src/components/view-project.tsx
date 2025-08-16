@@ -5,6 +5,7 @@ import ViewTerminal from "./view-terminal";
 import ViewGitDiff from "./view-git-diff";
 import ViewFileEditor from "./view-file-editor";
 import ViewWebview from "./view-webview";
+import { NonIdealState } from "./non-ideal-state";
 import {
   Terminal,
   GitBranch,
@@ -49,28 +50,24 @@ export default function ViewProject({
     }
   };
 
-  // Shared component for no URL state
+  // Shared component for no URL state  
   const NoUrlConfigured = ({ itemType }: { itemType: "panel" | "project" }) => (
-    <div className="flex-1 flex flex-col glass-card overflow-hidden">
-      <div className="flex-1 flex items-center justify-center p-8 text-center">
-        <div className="max-w-md">
-          <Globe className="h-16 w-16 text-gray-600 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-300 mb-2">
-            No {itemType === "panel" ? "URL" : "Preview URL"} Configured
-          </h3>
-          <p className="text-gray-500 mb-4">
-            Configure a {itemType === "panel" ? "URL" : "preview URL"} in your{" "}
-            {itemType} settings to view
-            {itemType === "panel" ? " content" : " your application"} here.
-          </p>
+    <NonIdealState
+      icon={Globe}
+      title={`No ${itemType === "panel" ? "URL" : "Preview URL"} Configured`}
+      description={
+        <>
+          Configure a {itemType === "panel" ? "URL" : "preview URL"} in your{" "}
+          {itemType} settings to view
+          {itemType === "panel" ? " content" : " your application"} here.
           {itemType === "project" && (
-            <p className="text-sm text-gray-600">
+            <span className="block mt-2 text-xs text-gray-600">
               Example: http://localhost:3000
-            </p>
+            </span>
           )}
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    />
   );
 
   // Shared WebView component
