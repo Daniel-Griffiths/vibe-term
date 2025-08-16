@@ -130,6 +130,18 @@ export class TerminalService {
   }
 
   /**
+   * Focus a terminal instance
+   */
+  static focusTerminal(instance: TerminalInstance): void {
+    try {
+      instance.terminal.focus();
+      console.log(`[Terminal Debug] Terminal focused`);
+    } catch (error) {
+      console.error(`[Terminal Debug] Error focusing terminal:`, error);
+    }
+  }
+
+  /**
    * Hide a terminal
    */
   static hideTerminal(instance: TerminalInstance): void {
@@ -244,6 +256,13 @@ export class TerminalService {
         const instance = terminals.get(projectId);
         if (instance) {
           this.showTerminal(instance, delay);
+        }
+      },
+
+      focusTerminal: (projectId: string): void => {
+        const instance = terminals.get(projectId);
+        if (instance) {
+          this.focusTerminal(instance);
         }
       },
       

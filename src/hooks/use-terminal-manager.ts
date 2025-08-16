@@ -6,6 +6,7 @@ import type { Project } from '../types';
 export interface TerminalManagerHook {
   containerRef: React.RefObject<HTMLDivElement>;
   showTerminal: (projectId: string) => void;
+  focusTerminal: (projectId: string) => void;
   hideAllTerminals: () => void;
   clearTerminal: (projectId: string) => void;
   writeToTerminal: (projectId: string, data: string) => void;
@@ -135,6 +136,10 @@ export function useTerminalManager(
     manager.showTerminal(projectId, 50);
   }, [createTerminalIfNeeded]);
 
+  const focusTerminal = useCallback((projectId: string) => {
+    managerRef.current.focusTerminal(projectId);
+  }, []);
+
   const hideAllTerminals = useCallback(() => {
     managerRef.current.hideAllTerminals();
   }, []);
@@ -170,6 +175,7 @@ export function useTerminalManager(
   return {
     containerRef,
     showTerminal,
+    focusTerminal,
     hideAllTerminals,
     clearTerminal,
     writeToTerminal,

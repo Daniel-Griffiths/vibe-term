@@ -552,7 +552,7 @@ async function getOrCreateSharedPty(
     // Build tmux command - create session if needed, then attach
     let tmuxCommand;
     if (!sessionExists) {
-      // Create new session with a basic shell and immediately attach
+      // Create new session without command first (to avoid immediate exit)
       tmuxCommand = ShellUtils.tmuxCommand({
         action: "new-attach",
         sessionName: tmuxSessionName,
@@ -592,7 +592,7 @@ async function getOrCreateSharedPty(
 
     // Send initial message to both desktop and web
     const initialMessage = !sessionExists
-      ? `Creating new tmux session "${tmuxSessionName}" in ${projectPath}\r\n`
+      ? `Creating new tmux session "${tmuxSessionName}" and starting Claude ${yoloMode ? '(yolo mode) ' : ''}in ${projectPath}\r\n`
       : `Attaching to existing tmux session "${tmuxSessionName}"\r\n`;
 
     // Add a small delay to ensure UI handlers are ready
@@ -626,6 +626,13 @@ async function getOrCreateSharedPty(
     // Session established successfully
     if (!sessionExists) {
       console.log(`[${projectId}] New tmux session created`);
+      
+      // Send Claude command after a short delay to ensure session is ready
+      setTimeout(() => {
+        const claudeCommand = yoloMode ? "claude --dangerously-skip-permissions\r" : "claude\r";
+        console.log(`[${projectId}] Sending Claude command: ${claudeCommand.trim()}`);
+        proc.write(claudeCommand);
+      }, 500);
     } else {
       console.log(`[${projectId}] Attached to existing tmux session`);
     }

@@ -19,7 +19,7 @@ export default function ViewTerminal({
   const prevProjectsRef = useRef<UnifiedItem[]>([]);
 
   // Use the terminal manager hook with Claude configuration
-  const { containerRef, showTerminal, clearTerminal } = useTerminalManager(
+  const { containerRef, showTerminal, focusTerminal, clearTerminal } = useTerminalManager(
     projects,
     TerminalService.getClaudeConfig(),
     (output) => {
@@ -34,6 +34,16 @@ export default function ViewTerminal({
       showTerminal(selectedProject.id);
     }
   }, [selectedProject, showTerminal]);
+
+  // Auto-focus terminal when Claude becomes ready
+  useEffect(() => {
+    if (selectedProject && selectedProject.status === "ready") {
+      // Small delay to ensure terminal is fully shown before focusing
+      setTimeout(() => {
+        focusTerminal(selectedProject.id);
+      }, 100);
+    }
+  }, [selectedProject?.status, selectedProject?.id, focusTerminal]);
 
   // Track previous project statuses to detect when a project is stopped
   useEffect(() => {
