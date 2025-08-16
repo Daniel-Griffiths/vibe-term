@@ -225,6 +225,16 @@
                 this.init();
             }
             
+            // Helper method to call IPC endpoints
+            async callIPC(handlerName, args = []) {
+                const response = await fetch(`/api/ipc/${handlerName}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ args })
+                });
+                return await response.json();
+            }
+            
             init() {
                 this.connectWebSocket();
                 this.setupEventListeners();
@@ -434,17 +444,16 @@
                 await this.loadTerminalHistory();
                 
                 try {
-                    // Try to start/attach to the project session
-                    const response = await fetch(`/api/projects/${this.selectedProject.id}/start`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            projectName: this.selectedProject.name,
-                            yoloMode: this.selectedProject.yoloMode || false
-                        })
-                    });
+                    // Use the new IPC endpoint to start Claude process
+                    const runCommand = this.selectedProject.runCommand;
+                    const result = await this.callIPC('start-claude-process', [
+                        this.selectedProject.id,
+                        this.selectedProject.path,
+                        runCommand,
+                        this.selectedProject.name,
+                        this.selectedProject.yoloMode || false
+                    ]);
                     
-                    const result = await response.json();
                     if (result.success) {
                         this.isProjectRunning = true;
                         this.updateToggleButton();
@@ -477,11 +486,11 @@
                 if (!this.selectedProject) return;
                 
                 try {
-                    const response = await fetch(`/api/projects/${this.selectedProject.id}/stop`, {
-                        method: 'POST'
-                    });
+                    // Use the new IPC endpoint to stop Claude process
+                    const result = await this.callIPC('stop-claude-process', [
+                        this.selectedProject.id
+                    ]);
                     
-                    const result = await response.json();
                     if (result.success) {
                         this.isProjectRunning = false;
                         this.updateToggleButton();
@@ -690,13 +699,12 @@
                 if (!this.selectedProject) return;
                 
                 try {
-                    const response = await fetch(`/api/projects/${this.selectedProject.id}/input`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ input: data })
-                    });
+                    // Use the new IPC endpoint to send input
+                    const result = await this.callIPC('send-input', [
+                        this.selectedProject.id,
+                        data
+                    ]);
                     
-                    const result = await response.json();
                     if (!result.success) {
                         console.error('Failed to send input:', result.error);
                     }
