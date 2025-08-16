@@ -24,15 +24,15 @@ export default function ViewProject({
   selectedItem,
   items,
 }: IViewProjectProps) {
-  const isPanel = selectedItem?.type === 'panel';
+  const isPanel = selectedItem?.type === "panel";
   const [activeTab, setActiveTab] = useState(isPanel ? "preview" : "terminal");
   const [copied, setCopied] = useState(false);
-  
+
   const currentItem = selectedItem;
   const previewUrl = currentItem?.url;
 
   const handleCopyTmuxCommand = async () => {
-    if (!currentItem || currentItem.type !== 'project') return;
+    if (!currentItem || currentItem.type !== "project") return;
 
     // Match the tmux session name format used in the Electron main process
     const sessionBase = currentItem.name || currentItem.id;
@@ -50,19 +50,20 @@ export default function ViewProject({
   };
 
   // Shared component for no URL state
-  const NoUrlConfigured = ({ itemType }: { itemType: 'panel' | 'project' }) => (
+  const NoUrlConfigured = ({ itemType }: { itemType: "panel" | "project" }) => (
     <div className="flex-1 flex flex-col glass-card overflow-hidden">
       <div className="flex-1 flex items-center justify-center p-8 text-center">
         <div className="max-w-md">
           <Globe className="h-16 w-16 text-gray-600 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-300 mb-2">
-            No {itemType === 'panel' ? 'URL' : 'Preview URL'} Configured
+            No {itemType === "panel" ? "URL" : "Preview URL"} Configured
           </h3>
           <p className="text-gray-500 mb-4">
-            Configure a {itemType === 'panel' ? 'URL' : 'preview URL'} in your {itemType} settings to view
-            {itemType === 'panel' ? ' content' : ' your application'} here.
+            Configure a {itemType === "panel" ? "URL" : "preview URL"} in your{" "}
+            {itemType} settings to view
+            {itemType === "panel" ? " content" : " your application"} here.
           </p>
-          {itemType === 'project' && (
+          {itemType === "project" && (
             <p className="text-sm text-gray-600">
               Example: http://localhost:3000
             </p>
@@ -75,33 +76,39 @@ export default function ViewProject({
   // Shared WebView component
   const WebViewContent = () => {
     if (!previewUrl) {
-      return <NoUrlConfigured itemType={currentItem?.type || 'project'} />;
+      return <NoUrlConfigured itemType={currentItem?.type || "project"} />;
     }
-    
-    const title = isPanel 
-      ? currentItem?.name || ''
-      : `Preview for ${currentItem?.name || ''}`;
-    
+
+    const title = isPanel
+      ? currentItem?.name || ""
+      : `Preview for ${currentItem?.name || ""}`;
+
     return <ViewWebview url={previewUrl} title={title} />;
   };
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="h-full flex-1 flex flex-col">
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}
         className="flex-1 flex flex-col"
       >
         {/* Tab bar - only show for projects */}
-        {!isPanel && currentItem?.type === 'project' && (
+        {!isPanel && currentItem?.type === "project" && (
           <div className="px-4 pt-4">
             <div className="flex items-start justify-between">
               <TabsList className="bg-gray-900/50 border border-gray-800 mb-4">
-                <TabsTrigger value="terminal" className="flex items-center gap-2">
+                <TabsTrigger
+                  value="terminal"
+                  className="flex items-center gap-2"
+                >
                   <Terminal className="h-4 w-4" />
                   Terminal
                 </TabsTrigger>
-                <TabsTrigger value="git-diff" className="flex items-center gap-2">
+                <TabsTrigger
+                  value="git-diff"
+                  className="flex items-center gap-2"
+                >
                   <GitBranch className="h-4 w-4" />
                   Git Diff
                 </TabsTrigger>
@@ -145,10 +152,10 @@ export default function ViewProject({
         )}
 
         {/* Content area */}
-        <div className="flex-1 flex flex-col">
+        <div className="h-full flex-1 flex flex-col">
           {isPanel ? (
             /* Panel mode - show preview directly */
-            <div className="flex-1 flex flex-col p-4">
+            <div className="h-full flex-1 flex flex-col p-4">
               <WebViewContent />
             </div>
           ) : (
@@ -161,7 +168,10 @@ export default function ViewProject({
                   display: activeTab === "terminal" ? "block" : "none",
                 }}
               >
-                <ViewTerminal selectedProject={currentItem} projects={items.filter(item => item.type === 'project')} />
+                <ViewTerminal
+                  selectedProject={currentItem}
+                  projects={items.filter((item) => item.type === "project")}
+                />
               </div>
 
               {/* Git diff tab */}

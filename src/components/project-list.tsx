@@ -527,7 +527,7 @@ export default function ProjectList({
   };
 
   return (
-    <div className="w-80 min-w-80 max-w-80 h-full glass-sidebar p-4 overflow-y-auto flex-shrink-0 flex flex-col">
+    <div className="w-80 min-w-80 max-w-80 h-full glass-sidebar p-4 flex-shrink-0 flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-200">Projects</h2>
         <div className="flex gap-2">
@@ -609,7 +609,7 @@ export default function ProjectList({
           </Button>
         </div>
 
-        <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="flex-1 min-h-0">
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
