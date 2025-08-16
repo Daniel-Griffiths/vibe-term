@@ -10,7 +10,7 @@ import fs from "fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import os from "node:os";
-import { spawn, ChildProcess, exec } from "child_process";
+import { ChildProcess, exec } from "child_process";
 import { promisify } from "util";
 import * as pty from "node-pty";
 import express from "express";
@@ -77,7 +77,6 @@ let win: BrowserWindow | null;
 const processes = new Map<string, ChildProcess>(); // Legacy - kept for compatibility
 const sharedPtyProcesses = new Map<string, any>(); // Shared PTY processes for both desktop and web
 const terminalBuffers = new Map<string, string>(); // Store terminal history for each project
-const backgroundProcesses = new Map<string, any>(); // Background start command processes
 
 // Track currently selected project for notifications
 let currentlySelectedProject: string | null = null;
@@ -86,7 +85,6 @@ let currentlySelectedProject: string | null = null;
 let webServer: any = null;
 let webSocketServer: WebSocketServer | null = null;
 const webClients = new Set<any>();
-
 
 // Setup IPC handlers using IPCService
 function setupIPCHandlers() {
@@ -105,39 +103,46 @@ function setupIPCHandlers() {
         projectId,
         projectPath,
         projectName,
-        yoloMode,
-        command
+        yoloMode
       );
     }
   );
 
   ipcMain.handle("stop-claude-process", async (_event, projectId: string) => {
     const proc = sharedPtyProcesses.get(projectId);
-    const backgroundProc = backgroundProcesses.get(projectId);
 
-    // Kill both PTY and background processes
+    // Kill PTY process
     if (proc) {
       proc.kill();
       sharedPtyProcesses.delete(projectId);
     }
 
-    if (backgroundProc) {
-      backgroundProc.kill("SIGTERM");
-      backgroundProcesses.delete(projectId);
+    // Kill the tmux session (silently fails if not running)
+    const state = readStateFile();
+    const projects =
+      state.storedItems?.filter((item: any) => item.type === "project") || [];
+    const project = projects.find((p: any) => p.id === projectId);
+
+    if (project) {
+      const sessionBase = project.name || projectId;
+      const tmuxSessionName = ShellUtils.generateTmuxSessionName(sessionBase);
+      ShellUtils.killTmuxSession(tmuxSessionName);
     }
 
     return { success: true };
   });
 
-  ipcMain.handle("send-input", async (_event, projectId: string, input: string) => {
-    const proc = sharedPtyProcesses.get(projectId);
-    if (proc) {
-      proc.write(input);
-      return { success: true };
+  ipcMain.handle(
+    "send-input",
+    async (_event, projectId: string, input: string) => {
+      const proc = sharedPtyProcesses.get(projectId);
+      if (proc) {
+        proc.write(input);
+        return { success: true };
+      }
+      return { success: false, error: "Process not found" };
     }
-    return { success: false, error: "Process not found" };
-  });
-
+  );
 
   ipcMain.handle(
     "test-command",
@@ -160,15 +165,21 @@ function setupIPCHandlers() {
   // Write state file for web server access
   ipcMain.handle("write-state-file", async (_event, state) => {
     try {
-      const stateFilePath = path.join(app.getPath('userData'), 'web-server-state.json');
-      await fs.promises.writeFile(stateFilePath, JSON.stringify(state, null, 2), 'utf8');
+      const stateFilePath = path.join(
+        app.getPath("userData"),
+        "web-server-state.json"
+      );
+      await fs.promises.writeFile(
+        stateFilePath,
+        JSON.stringify(state, null, 2),
+        "utf8"
+      );
       return { success: true };
     } catch (error: any) {
-      console.error('Error writing state file:', error);
+      console.error("Error writing state file:", error);
       return { success: false, error: error.message };
     }
   });
-
 }
 
 // Directory selection - using direct ipcMain to maintain original string return format
@@ -256,13 +267,16 @@ async function checkPortAvailable(port: number) {
 // Helper function to read state from file (outside web server to avoid app naming conflict)
 const readStateFile = () => {
   try {
-    const stateFilePath = path.join(app.getPath('userData'), 'web-server-state.json');
+    const stateFilePath = path.join(
+      app.getPath("userData"),
+      "web-server-state.json"
+    );
     if (fs.existsSync(stateFilePath)) {
-      const data = fs.readFileSync(stateFilePath, 'utf8');
+      const data = fs.readFileSync(stateFilePath, "utf8");
       return JSON.parse(data);
     }
   } catch (error) {
-    console.error('Error reading state file:', error);
+    console.error("Error reading state file:", error);
   }
   return { settings: {}, storedItems: [] };
 };
@@ -283,13 +297,15 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
   // API Routes
   expressApp.get("/api/projects", (req, res) => {
     const state = readStateFile();
-    const projects = state.storedItems?.filter((item: any) => item.type === 'project') || [];
+    const projects =
+      state.storedItems?.filter((item: any) => item.type === "project") || [];
     res.json({ success: true, data: projects });
   });
 
   expressApp.get("/api/panels", (req, res) => {
     const state = readStateFile();
-    const panels = state.storedItems?.filter((item: any) => item.type === 'panel') || [];
+    const panels =
+      state.storedItems?.filter((item: any) => item.type === "panel") || [];
     res.json({ success: true, data: panels });
   });
 
@@ -304,7 +320,8 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
 
     try {
       const state = readStateFile();
-      const projects = state.storedItems?.filter((item: any) => item.type === 'project') || [];
+      const projects =
+        state.storedItems?.filter((item: any) => item.type === "project") || [];
       const project = projects.find((p: any) => p.id === id);
 
       if (!project) {
@@ -312,15 +329,12 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
       }
 
       // Use the start command from the request, or fall back to project's runCommand
-      const startCommand = command || project.runCommand;
-
       // Use or create shared PTY process
       const result = await getOrCreateSharedPty(
         id,
         project.path,
         projectName,
-        yoloMode,
-        startCommand
+        yoloMode
       );
       if (result.success) {
         res.json({ success: true });
@@ -335,21 +349,27 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
   expressApp.post("/api/projects/:id/stop", async (req, res) => {
     const { id } = req.params;
     const proc = sharedPtyProcesses.get(id);
-    const backgroundProc = backgroundProcesses.get(id);
 
-    // Kill both PTY and background processes
+    // Kill PTY process
     if (proc) {
       proc.kill();
       sharedPtyProcesses.delete(id);
     }
 
-    if (backgroundProc) {
-      backgroundProc.kill("SIGTERM");
-      backgroundProcesses.delete(id);
-    }
-
     // Clean up terminal buffer
     terminalBuffers.delete(id);
+
+    // Kill the tmux session (silently fails if not running)
+    const state = readStateFile();
+    const projects =
+      state.storedItems?.filter((item: any) => item.type === "project") || [];
+    const project = projects.find((p: any) => p.id === id);
+
+    if (project) {
+      const sessionBase = project.name || id;
+      const tmuxSessionName = ShellUtils.generateTmuxSessionName(sessionBase);
+      ShellUtils.killTmuxSession(tmuxSessionName);
+    }
 
     broadcastToWebClients({
       type: "project-stopped",
@@ -357,6 +377,42 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
     });
 
     res.json({ success: true });
+  });
+
+  expressApp.get("/api/projects/:id/status", async (req, res) => {
+    const { id } = req.params;
+
+    try {
+      const state = readStateFile();
+      const projects =
+        state.storedItems?.filter((item: any) => item.type === "project") || [];
+      const project = projects.find((p: any) => p.id === id);
+
+      if (!project) {
+        return res
+          .status(404)
+          .json({ success: false, error: "Project not found" });
+      }
+
+      // Check if PTY process exists (session is running)
+      const hasProcess = sharedPtyProcesses.has(id);
+
+      // Also check if tmux session exists
+      const sessionBase = project.name || id;
+      const tmuxSessionName = ShellUtils.generateTmuxSessionName(sessionBase);
+      const tmuxSessionExists = await ShellUtils.checkTmuxSession(
+        tmuxSessionName
+      );
+
+      res.json({
+        success: true,
+        sessionExists: hasProcess || tmuxSessionExists,
+        hasProcess,
+        tmuxSessionExists,
+      });
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: error.message });
+    }
   });
 
   expressApp.post("/api/projects/:id/input", async (req, res) => {
@@ -410,7 +466,8 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
 
     // Send current projects state
     const state = readStateFile();
-    const projects = state.storedItems?.filter((item: any) => item.type === 'project') || [];
+    const projects =
+      state.storedItems?.filter((item: any) => item.type === "project") || [];
     ws.send(
       JSON.stringify({
         type: "projects-state",
@@ -446,8 +503,7 @@ async function getOrCreateSharedPty(
   projectId: string,
   projectPath: string,
   projectName?: string,
-  yoloMode?: boolean,
-  startCommand?: string
+  yoloMode?: boolean
 ) {
   try {
     // If PTY already exists, just return success
@@ -463,15 +519,25 @@ async function getOrCreateSharedPty(
       `[${projectId}] Creating shared PTY for tmux session: ${tmuxSessionName}`
     );
 
-    // Try to attach to existing session, or create new one if it doesn't exist
-    const attachCommand = ShellUtils.attachTmuxSessionCommand(tmuxSessionName);
-    const createCommand = ShellUtils.createTmuxSessionCommand(
-      tmuxSessionName,
-      projectPath
-    );
-    const tmuxCommand = `${ShellUtils.checkTmuxSessionCommand(
-      tmuxSessionName
-    )} 2>/dev/null && ${attachCommand} || ${createCommand} \\; set-option status off`;
+    // Check if tmux session exists
+    const sessionExists = await ShellUtils.checkTmuxSession(tmuxSessionName);
+    console.log(`[${projectId}] Session exists: ${sessionExists}`);
+
+    // Build tmux command - create session if needed, then attach
+    let tmuxCommand;
+    if (!sessionExists) {
+      // Create new session with a basic shell and immediately attach
+      tmuxCommand = ShellUtils.newAndAttachTmuxSessionCommand(
+        tmuxSessionName,
+        projectPath,
+        ["set-option status off"]
+      );
+    } else {
+      // Attach to existing session
+      tmuxCommand = ShellUtils.attachTmuxSessionCommand(tmuxSessionName, [
+        "set-option status off",
+      ]);
+    }
 
     const proc = pty.spawn(
       ShellUtils.getPreferredShell(),
@@ -497,124 +563,8 @@ async function getOrCreateSharedPty(
 
     sharedPtyProcesses.set(projectId, proc);
 
-    // Check if we're attaching to existing session or creating new one
-    let isNewSession = true;
-    try {
-      const result = await ShellUtils.execute(
-        ShellUtils.checkTmuxSessionCommand(tmuxSessionName)
-      );
-      isNewSession = !result.success;
-    } catch (e) {
-      // Error checking, assume new session
-    }
-
-    // Start background process if provided (regardless of session state)
-    if (startCommand) {
-      console.log(
-        `[${projectId}] Starting background process: ${startCommand} (isNewSession: ${isNewSession})`
-      );
-
-      const backgroundProc = spawn("/bin/zsh", ["-l", "-c", startCommand], {
-        cwd: projectPath,
-        env: {
-          ...process.env,
-          PATH: `${process.env.PATH}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`,
-        },
-        stdio: "pipe",
-      });
-
-      backgroundProcesses.set(projectId, backgroundProc);
-
-      // Send background process output to output terminal
-      backgroundProc.stdout?.on("data", (data) => {
-        const output = data.toString();
-
-        // Send to desktop output terminal
-        if (win && !win.isDestroyed()) {
-          win.webContents.send("background-output", {
-            projectId,
-            data: output,
-            type: "stdout",
-          });
-        }
-
-        // Send to web output terminal
-        broadcastToWebClients({
-          type: "background-output",
-          projectId: projectId,
-          data: output,
-        });
-      });
-
-      backgroundProc.stderr?.on("data", (data) => {
-        const output = data.toString();
-
-        // Send to desktop output terminal
-        if (win && !win.isDestroyed()) {
-          win.webContents.send("background-output", {
-            projectId,
-            data: `\x1b[31m${output}\x1b[0m`, // Red text for errors
-            type: "stderr",
-          });
-        }
-
-        // Send to web output terminal
-        broadcastToWebClients({
-          type: "background-output",
-          projectId: projectId,
-          data: `\x1b[31m${output}\x1b[0m`, // Red text for errors
-        });
-      });
-
-      backgroundProc.on("exit", (code) => {
-        console.log(
-          `[${projectId}] Background process exited with code:`,
-          code
-        );
-        const exitMessage = `\x1b[33m[Process exited with code ${code}]\x1b[0m\r\n`; // Yellow text
-
-        // Send to desktop output terminal
-        if (win && !win.isDestroyed()) {
-          win.webContents.send("background-output", {
-            projectId,
-            data: exitMessage,
-            type: "system",
-          });
-        }
-
-        // Send to web output terminal
-        broadcastToWebClients({
-          type: "background-output",
-          projectId: projectId,
-          data: exitMessage,
-        });
-
-        backgroundProcesses.delete(projectId);
-      });
-
-      backgroundProc.on("error", (error) => {
-        const errorMessage = `\x1b[31m[Error: ${error.message}]\x1b[0m\r\n`; // Red text
-
-        // Send to desktop output terminal
-        if (win && !win.isDestroyed()) {
-          win.webContents.send("background-output", {
-            projectId,
-            data: errorMessage,
-            type: "error",
-          });
-        }
-
-        // Send to web output terminal
-        broadcastToWebClients({
-          type: "background-output",
-          projectId: projectId,
-          data: errorMessage,
-        });
-      });
-    }
-
     // Send initial message to both desktop and web
-    const initialMessage = isNewSession
+    const initialMessage = !sessionExists
       ? `Creating new tmux session "${tmuxSessionName}" in ${projectPath}\r\n`
       : `Attaching to existing tmux session "${tmuxSessionName}"\r\n`;
 
@@ -623,7 +573,7 @@ async function getOrCreateSharedPty(
       console.log(`[Main Process] Sending initial message to renderer:`, {
         projectId,
         message: initialMessage.trim(),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       win.webContents.send("terminal-output", {
         projectId,
@@ -631,7 +581,9 @@ async function getOrCreateSharedPty(
         type: "system",
       });
     } else {
-      console.warn(`[Main Process] Cannot send initial message - window destroyed or missing`);
+      console.warn(
+        `[Main Process] Cannot send initial message - window destroyed or missing`
+      );
     }
 
     // Send to web clients
@@ -641,19 +593,11 @@ async function getOrCreateSharedPty(
       data: initialMessage,
     });
 
-    // Auto-start Claude Code if this is a new session
-    if (isNewSession) {
-      setTimeout(() => {
-        if (proc && sharedPtyProcesses.has(projectId)) {
-          const claudeCommand = yoloMode
-            ? "claude --dangerously-skip-permissions\r"
-            : "claude\r";
-          console.log(
-            `[${projectId}] Auto-starting Claude Code in new tmux session with command: ${claudeCommand.trim()}`
-          );
-          proc.write(claudeCommand);
-        }
-      }, 200);
+    // Session established successfully
+    if (!sessionExists) {
+      console.log(`[${projectId}] New tmux session created`);
+    } else {
+      console.log(`[${projectId}] Attached to existing tmux session`);
     }
 
     // Track the most recent state indicator
@@ -738,7 +682,6 @@ async function getOrCreateSharedPty(
 
     // Handle PTY output - send to both desktop and web
     proc.onData((data) => {
-
       // Check if process still exists before handling data
       if (!sharedPtyProcesses.has(projectId)) {
         return;
@@ -797,7 +740,7 @@ async function getOrCreateSharedPty(
             projectId,
             dataLength: data?.length,
             dataPreview: data?.substring(0, 50),
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
           win.webContents.send("terminal-output", {
             projectId,
@@ -805,7 +748,9 @@ async function getOrCreateSharedPty(
             type: "stdout",
           });
         } else {
-          console.warn(`[Main Process] Cannot send terminal output - window destroyed or missing`);
+          console.warn(
+            `[Main Process] Cannot send terminal output - window destroyed or missing`
+          );
         }
 
         // Send to web clients
@@ -826,7 +771,6 @@ async function getOrCreateSharedPty(
     });
 
     proc.on("exit", (code) => {
-
       // Send to desktop
       if (win && !win.isDestroyed()) {
         win.webContents.send("process-exit", { projectId, code });
@@ -876,7 +820,6 @@ async function getOrCreateSharedPty(
     });
 
     proc.on("error", (error) => {
-
       // Send to desktop
       if (win && !win.isDestroyed()) {
         win.webContents.send("terminal-output", {
@@ -956,7 +899,6 @@ function createWindow() {
     }
   }
 
-
   win = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -1008,30 +950,44 @@ function createWindow() {
   }
 
   // Log when content loads
-  win.webContents.once("did-finish-load", () => {
-  });
+  win.webContents.once("did-finish-load", () => {});
 }
+
+// Clean up all tmux sessions and processes before quitting
+app.on("before-quit", async (event) => {
+  // Prevent default quit to allow cleanup
+  event.preventDefault();
+
+  // Kill all tmux sessions associated with projects (silently fail if not running)
+  const state = readStateFile();
+  const projects =
+    state.storedItems?.filter((item: any) => item.type === "project") || [];
+
+  for (const project of projects) {
+    const sessionBase = project.name || project.id;
+    const tmuxSessionName = ShellUtils.generateTmuxSessionName(sessionBase);
+    ShellUtils.killTmuxSession(tmuxSessionName);
+  }
+
+  // Clean up shared PTY processes
+  sharedPtyProcesses.forEach((proc) => proc.kill());
+  sharedPtyProcesses.clear();
+
+  // Close web server
+  if (webServer) {
+    webServer.close();
+  }
+  if (webSocketServer) {
+    webSocketServer.close();
+  }
+
+  // Now actually quit
+  app.exit(0);
+});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
-    // Clean up shared PTY processes
-    sharedPtyProcesses.forEach((proc) => proc.kill());
-    sharedPtyProcesses.clear();
-
-    // Clean up background processes
-    backgroundProcesses.forEach((proc, projectId) => {
-      proc.kill("SIGTERM");
-    });
-    backgroundProcesses.clear();
-
-    // Close web server
-    if (webServer) {
-      webServer.close();
-    }
-    if (webSocketServer) {
-      webSocketServer.close();
-    }
   }
 });
 
@@ -1044,7 +1000,7 @@ app.on("activate", () => {
 app.whenReady().then(async () => {
   // Register IPC handlers first, before creating window
   setupIPCHandlers();
-  
+
   createWindow();
 
   // Check for required dependencies
@@ -1388,7 +1344,6 @@ ipcMain.handle(
 ipcMain.handle("get-local-ip", async () => {
   const interfaces = os.networkInterfaces();
 
-
   let localIp = "localhost";
   let tailscaleRunning = false;
 
@@ -1396,8 +1351,7 @@ ipcMain.handle("get-local-ip", async () => {
   try {
     await execAsync("tailscale status");
     tailscaleRunning = true;
-  } catch (error) {
-  }
+  } catch (error) {}
 
   // Get local network IP
   const priorityInterfaces = [

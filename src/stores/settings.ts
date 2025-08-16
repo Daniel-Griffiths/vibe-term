@@ -146,6 +146,17 @@ export const useAppStore = create<AppState>()(
           }));
         },
         deleteItem: (id) => {
+          // Find the item to check if it's a project
+          const state = get();
+          const item = state.storedItems.find(i => i.id === id);
+          
+          // If it's a project, stop the process and kill tmux session
+          if (item && item.type === 'project' && window.electronAPI) {
+            window.electronAPI.stopClaudeProcess(id).catch((error: any) => {
+              console.error('Failed to stop project and kill tmux session:', error);
+            });
+          }
+          
           set((state) => ({
             storedItems: state.storedItems.filter((item) => item.id !== id),
             selectedItem: state.selectedItem === id ? null : state.selectedItem,

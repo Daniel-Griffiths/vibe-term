@@ -196,8 +196,8 @@
                     <div class="flex items-center gap-2">
                         <span id="connection-state" class="text-sm text-gray-400">Connecting...</span>
                     </div>
-                    <button id="clear-button" class="px-3 py-1 raycast-button text-white text-xs font-medium rounded">
-                        Clear
+                    <button id="toggle-button" class="px-3 py-1 raycast-button text-white text-xs font-medium rounded">
+                        Start
                     </button>
                 </div>
             </div>
@@ -220,6 +220,7 @@
                 this.reconnectDelay = 1000;
                 this.terminal = null;
                 this.fitAddon = null;
+                this.isProjectRunning = false;
                 
                 this.init();
             }
@@ -308,9 +309,13 @@
                     case 'project-started':
                         this.updateProjectStatus(message.projectId, 'running');
                         this.appendTerminalOutput(message.projectId, message.data);
+                        this.isProjectRunning = true;
+                        this.updateToggleButton();
                         break;
                     case 'project-stopped':
                         this.updateProjectStatus(message.projectId, 'idle');
+                        this.isProjectRunning = false;
+                        this.updateToggleButton();
                         break;
                     case 'process-exit':
                         this.updateProjectStatus(message.projectId, 'idle');
@@ -377,10 +382,8 @@
                 this.showProjectDetail();
                 this.updateProjectControls();
                 
-                // Auto-connect to the project
-                setTimeout(() => {
-                    this.connectToProject();
-                }, 100);
+                // Check if session is already running and auto-join
+                this.checkAndAutoJoinSession();
             }
             
             showProjectDetail() {
@@ -421,7 +424,7 @@
                 }
             }
             
-            async connectToProject() {
+            async startProject() {
                 if (!this.selectedProject) return;
                 
                 const stateElement = document.getElementById('connection-state');
@@ -436,7 +439,6 @@
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            command: this.selectedProject.runCommand || '',
                             projectName: this.selectedProject.name,
                             yoloMode: this.selectedProject.yoloMode || false
                         })
@@ -444,6 +446,8 @@
                     
                     const result = await response.json();
                     if (result.success) {
+                        this.isProjectRunning = true;
+                        this.updateToggleButton();
                         if (stateElement) {
                             stateElement.textContent = 'Connected to session';
                             stateElement.className = 'text-sm text-green-400';
@@ -461,11 +465,37 @@
                         }
                     }
                 } catch (error) {
-                    console.error('Failed to connect to project:', error);
+                    console.error('Failed to start project:', error);
                     if (stateElement) {
                         stateElement.textContent = 'Connection error';
                         stateElement.className = 'text-sm text-red-400';
                     }
+                }
+            }
+            
+            async stopProject() {
+                if (!this.selectedProject) return;
+                
+                try {
+                    const response = await fetch(`/api/projects/${this.selectedProject.id}/stop`, {
+                        method: 'POST'
+                    });
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        this.isProjectRunning = false;
+                        this.updateToggleButton();
+                        const stateElement = document.getElementById('connection-state');
+                        if (stateElement) {
+                            stateElement.textContent = 'Session stopped';
+                            stateElement.className = 'text-sm text-gray-400';
+                        }
+                    } else {
+                        alert('Failed to stop project: ' + result.error);
+                    }
+                } catch (error) {
+                    console.error('Failed to stop project:', error);
+                    alert('Failed to stop project');
                 }
             }
             
@@ -616,47 +646,43 @@
                 }
             }
             
-            async startProject() {
+            async checkAndAutoJoinSession() {
                 if (!this.selectedProject) return;
                 
-                this.clearOutput();
-                
                 try {
-                    const response = await fetch(`/api/projects/${this.selectedProject.id}/start`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            command: this.selectedProject.runCommand || '',
-                            projectName: this.selectedProject.name,
-                            yoloMode: this.selectedProject.yoloMode || false
-                        })
-                    });
-                    
+                    // Check if session exists by querying the server
+                    const response = await fetch(`/api/projects/${this.selectedProject.id}/status`);
                     const result = await response.json();
-                    if (!result.success) {
-                        alert('Failed to start project: ' + result.error);
+                    
+                    // If we get a 404 or the session doesn't exist, just update the button
+                    if (!response.ok || !result.sessionExists) {
+                        this.isProjectRunning = false;
+                        this.updateToggleButton();
+                        return;
+                    }
+                    
+                    // If session exists, auto-join it
+                    if (result.sessionExists) {
+                        await this.startProject();
                     }
                 } catch (error) {
-                    console.error('Failed to start project:', error);
-                    alert('Failed to start project');
+                    // If we can't check status, assume session doesn't exist
+                    console.log('Could not check session status, assuming not running');
+                    this.isProjectRunning = false;
+                    this.updateToggleButton();
                 }
             }
             
-            async stopProject() {
-                if (!this.selectedProject) return;
-                
-                try {
-                    const response = await fetch(`/api/projects/${this.selectedProject.id}/stop`, {
-                        method: 'POST'
-                    });
-                    
-                    const result = await response.json();
-                    if (!result.success) {
-                        alert('Failed to stop project: ' + result.error);
+            updateToggleButton() {
+                const button = document.getElementById('toggle-button');
+                if (button) {
+                    if (this.isProjectRunning) {
+                        button.textContent = 'Stop';
+                        button.className = 'px-3 py-1 text-white text-xs font-medium rounded bg-red-600 hover:bg-red-700';
+                    } else {
+                        button.textContent = 'Start';
+                        button.className = 'px-3 py-1 raycast-button text-white text-xs font-medium rounded';
                     }
-                } catch (error) {
-                    console.error('Failed to stop project:', error);
-                    alert('Failed to stop project');
                 }
             }
             
@@ -720,9 +746,13 @@
                     this.showProjectsList();
                 });
                 
-                // Clear button
-                document.getElementById('clear-button').addEventListener('click', () => {
-                    this.clearOutput();
+                // Toggle button (Start/Stop)
+                document.getElementById('toggle-button').addEventListener('click', () => {
+                    if (this.isProjectRunning) {
+                        this.stopProject();
+                    } else {
+                        this.startProject();
+                    }
                 });
                 
                 // Handle viewport changes for mobile
