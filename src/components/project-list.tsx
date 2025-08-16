@@ -1,5 +1,5 @@
-import { Button } from "./ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Button } from "./button";
+import { Card, CardContent, CardHeader, CardTitle } from "./card";
 import {
   DndContext,
   closestCenter,
@@ -78,7 +78,7 @@ import {
 import { NonIdealState } from "./non-ideal-state";
 import type { Project, Panel } from "../types";
 
-interface ProjectListProps {
+interface IProjectListProps {
   projects: Project[];
   selectedProject: string | null;
   panels: Panel[];
@@ -98,7 +98,7 @@ interface ProjectListProps {
   onPanelDelete: (panelId: string) => void;
 }
 
-interface SortableProjectCardProps {
+interface ISortableProjectCardProps {
   project: Project;
   selectedProject: string | null;
   onProjectSelect: (projectId: string) => void;
@@ -120,7 +120,7 @@ function SortableProjectCard({
   onProjectEdit,
   getProjectIcon,
   getStatusIcon,
-}: SortableProjectCardProps) {
+}: ISortableProjectCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: project.id });
 
@@ -236,7 +236,7 @@ function SortableProjectCard({
   );
 }
 
-interface SortablePanelCardProps {
+interface ISortablePanelCardProps {
   panel: Panel;
   selectedPanel: string | null;
   onPanelSelect: (panelId: string) => void;
@@ -252,7 +252,7 @@ function SortablePanelCard({
   onPanelEdit,
   onPanelDelete,
   getProjectIcon,
-}: SortablePanelCardProps) {
+}: ISortablePanelCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: panel.id });
 
@@ -360,7 +360,7 @@ export default function ProjectList({
   onPanelAdd,
   onPanelEdit,
   onPanelDelete,
-}: ProjectListProps) {
+}: IProjectListProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -527,7 +527,7 @@ export default function ProjectList({
   };
 
   return (
-    <div className="w-80 min-w-80 max-w-80 glass-sidebar p-4 overflow-y-auto flex-shrink-0">
+    <div className="w-80 min-w-80 max-w-80 h-full glass-sidebar p-4 overflow-y-auto flex-shrink-0 flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-200">Projects</h2>
         <div className="flex gap-2">
@@ -596,7 +596,7 @@ export default function ProjectList({
       <div className="border-t border-gray-800 my-6"></div>
 
       {/* Panels Section */}
-      <div className="mt-0">
+      <div className="flex-1 flex flex-col min-h-0">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-200">Panels</h2>
           <Button
@@ -609,44 +609,46 @@ export default function ProjectList({
           </Button>
         </div>
 
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handlePanelDragEnd}
-        >
-          <SortableContext
-            items={(panels || []).map((p) => p.id)}
-            strategy={verticalListSortingStrategy}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handlePanelDragEnd}
           >
-            <div className="space-y-2">
-              {(panels || []).map((panel) => (
-                <SortablePanelCard
-                  key={panel.id}
-                  panel={panel}
-                  selectedPanel={selectedPanel}
-                  onPanelSelect={onPanelSelect}
-                  onPanelEdit={onPanelEdit}
-                  onPanelDelete={onPanelDelete}
-                  getProjectIcon={getProjectIcon}
-                />
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
+            <SortableContext
+              items={(panels || []).map((p) => p.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-2">
+                {(panels || []).map((panel) => (
+                  <SortablePanelCard
+                    key={panel.id}
+                    panel={panel}
+                    selectedPanel={selectedPanel}
+                    onPanelSelect={onPanelSelect}
+                    onPanelEdit={onPanelEdit}
+                    onPanelDelete={onPanelDelete}
+                    getProjectIcon={getProjectIcon}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
 
-        {(panels || []).length === 0 && (
-          <NonIdealState
-            icon={Globe}
-            title="No Panels"
-            description="Add panels to quickly access your favorite tools and dashboards."
-            action={
-              <Button onClick={onPanelAdd} variant="outline">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Panel
-              </Button>
-            }
-          />
-        )}
+          {(panels || []).length === 0 && (
+            <NonIdealState
+              icon={Globe}
+              title="No Panels"
+              description="Add panels to quickly access your favorite tools and dashboards."
+              action={
+                <Button onClick={onPanelAdd} variant="outline">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Panel
+                </Button>
+              }
+            />
+          )}
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import { type LucideProps } from "lucide-react";
 
-export interface NonIdealStateProps {
+export interface INonIdealStateProps {
   icon: React.ComponentType<LucideProps>;
   title: string;
   description?: string;
@@ -46,7 +46,7 @@ export function NonIdealState({
   variant = "default",
   size = "md",
   className = "",
-}: NonIdealStateProps) {
+}: INonIdealStateProps) {
   const variantClass = variantStyles[variant];
   const sizeStyle = sizeStyles[size];
 

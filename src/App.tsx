@@ -1,359 +1,320 @@
-import { useState, useEffect } from 'react';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import ProjectList from './components/project-list';
-import ProjectView from './components/project-view';
-import PanelView from './components/panel-view';
-import ProjectModal from './components/project-modal';
-import PanelModal from './components/panel-modal';
-import SettingsModal from './components/settings-modal';
-import DependenciesModal from './components/dependencies-modal';
-import ConfirmationModal from './components/confirmation-modal';
-import type { Project, Panel, TerminalOutput, ProcessExit } from './types';
+import { useState, useEffect } from "react";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import ProjectList from "./components/project-list";
+import ViewProject from "./components/view-project";
+import Modal from "./components/modal";
+import FormProject from "./components/form-project";
+import FormPanel from "./components/form-panel";
+import FormSettings from "./components/form-settings";
+import FormDependencies from "./components/form-dependencies";
+import FormConfirmation from "./components/form-confirmation";
+import { useAppStore, initializeFileSync } from "./stores/settings";
+import type { UnifiedItem, TerminalOutput, ProcessExit } from "./types";
 
 function App() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProject, setSelectedProject] = useState<string | null>(null);
-  const [panels, setPanels] = useState<Panel[]>([]);
-  const [selectedPanel, setSelectedPanel] = useState<string | null>(null);
+  // Use Zustand store for persistent state
+  const {
+    items,
+    selectedItem,
+    setItems,
+    setSelectedItem,
+    addItem,
+    updateItem,
+    updateStoredItem,
+    deleteItem,
+  } = useAppStore();
+
+  // Local UI state only
   const [isElectron, setIsElectron] = useState(false);
-  const [, setManuallyStopped] = useState<Set<string>>(new Set());
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [editingProject, setEditingProject] = useState<UnifiedItem | null>(
+    null
+  );
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPanelModalOpen, setIsPanelModalOpen] = useState(false);
-  const [editingPanel, setEditingPanel] = useState<Panel | null>(null);
+  const [editingPanel, setEditingPanel] = useState<UnifiedItem | null>(null);
   const [missingDeps, setMissingDeps] = useState<string[]>([]);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     isOpen: boolean;
-    projectId: string | null;
-    projectName: string | null;
+    itemId: string | null;
+    itemName: string | null;
   }>({
     isOpen: false,
-    projectId: null,
-    projectName: null
+    itemId: null,
+    itemName: null,
   });
 
+  // Get projects and panels from unified items
+  const projects = items.filter((item) => item.type === "project");
+  const panels = items.filter((item) => item.type === "panel");
+
   useEffect(() => {
+    // Initialize file sync for web server
+    initializeFileSync();
+
     // Check if we're running in Electron
-    if (typeof window !== 'undefined' && window.electronAPI) {
+    if (typeof window !== "undefined" && window.electronAPI) {
       setIsElectron(true);
-      
-      // Wait for main process to be ready before loading config
-      const unsubscribeMainReady = window.electronAPI.onMainProcessReady(() => {
-        // Load app config
-        window.electronAPI.loadAppConfig().then((config) => {
-        
-        // Load projects
-        if (config.data?.projects?.length > 0) {
-          setProjects(config.data.projects.map((p: any) => ({ 
-            ...p, 
-            status: 'idle' as const, 
-            output: [],
-            // Ensure all new fields are present with defaults if missing
-            icon: p.icon || 'folder',
-            runCommand: p.runCommand || undefined,
-            previewUrl: p.previewUrl || undefined,
-            restrictedBranches: p.restrictedBranches || undefined
-          })));
-          setSelectedProject(config.data.projects[0].id);
-        }
-        
-        // Load panels
-        if (config.data?.panels?.length > 0) {
-          setPanels(config.data.panels);
-        }
-      }).catch((error) => {
-        console.error('Failed to load app config:', error);
-        // Initialize with empty arrays if config loading fails
-        setProjects([]);
-        setPanels([]);
-      });
-      }); // Close onMainProcessReady callback
-      
-      const unsubscribeOutput = window.electronAPI.onTerminalOutput((output: TerminalOutput) => {
-        setProjects(prev => prev.map(project => 
-          project.id === output.projectId 
-            ? { 
-                ...project, 
-                output: [...project.output, output.data],
-                lastActivity: new Date().toLocaleTimeString()
-              }
-            : project
-        ));
-      });
 
-      const unsubscribeExit = window.electronAPI.onProcessExit((exit: ProcessExit) => {
-        setProjects(prev => prev.map(project => {
-          if (project.id === exit.projectId) {
-            // Check if this project was manually stopped using a synchronous check
-            return project.status === 'idle' ? project : {
-              ...project,
-              status: exit.code === 0 ? 'completed' : 'error',
-              lastActivity: new Date().toLocaleTimeString()
-            };
+      console.log(`[IPC Debug] Setting up terminal output listener...`);
+      const unsubscribeOutput = window.electronAPI.onTerminalOutput(
+        (output: TerminalOutput) => {
+          console.log(
+            `[App Debug] *** TERMINAL OUTPUT RECEIVED IN APP.TSX ***`,
+            {
+              projectId: output.projectId,
+              dataLength: output.data?.length,
+              dataPreview: output.data?.substring(0, 50),
+              timestamp: new Date().toISOString(),
+            }
+          );
+
+          // Update item output
+          const currentItem = items.find(
+            (item) => item.id === output.projectId
+          );
+          if (currentItem) {
+            updateItem(output.projectId, {
+              output: [...(currentItem.output || []), output.data],
+              lastActivity: new Date().toLocaleTimeString(),
+            });
           }
-          return project;
-        }));
-        
-        // Clean up the manually stopped set
-        setManuallyStopped(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(exit.projectId);
-          return newSet;
-        });
-      });
+        }
+      );
 
-      const unsubscribeReady = window.electronAPI.onClaudeReady((data: { projectId: string; timestamp: number }) => {
-        setProjects(prev => prev.map(project => 
-          project.id === data.projectId 
-            ? { 
-                ...project, 
-                status: 'ready' as const,
-                lastActivity: new Date().toLocaleTimeString()
-              }
-            : project
-        ));
-      });
+      const unsubscribeExit = window.electronAPI.onProcessExit(
+        (exit: ProcessExit) => {
+          updateItem(exit.projectId, {
+            status: exit.code === 0 ? "completed" : "error",
+            lastActivity: new Date().toLocaleTimeString(),
+          });
+        }
+      );
 
-      const unsubscribeWorking = window.electronAPI.onClaudeWorking((data: { projectId: string; timestamp: number }) => {
-        setProjects(prev => prev.map(project => 
-          project.id === data.projectId 
-            ? { 
-                ...project, 
-                status: 'working' as const,
-                lastActivity: new Date().toLocaleTimeString()
-              }
-            : project
-        ));
-      });
+      const unsubscribeReady = window.electronAPI.onClaudeReady(
+        (data: { projectId: string; timestamp: number }) => {
+          updateItem(data.projectId, {
+            status: "ready",
+            lastActivity: new Date().toLocaleTimeString(),
+          });
+        }
+      );
 
-      const unsubscribeMissingDeps = window.electronAPI.onMissingDependencies((deps: string[]) => {
-        setMissingDeps(deps);
-      });
+      const unsubscribeWorking = window.electronAPI.onClaudeWorking(
+        (data: { projectId: string; timestamp: number }) => {
+          updateItem(data.projectId, {
+            status: "working",
+            lastActivity: new Date().toLocaleTimeString(),
+          });
+        }
+      );
+
+      const unsubscribeDeps = window.electronAPI.onMissingDependencies(
+        (deps: string[]) => {
+          setMissingDeps(deps);
+        }
+      );
 
       return () => {
         unsubscribeOutput();
         unsubscribeExit();
         unsubscribeReady();
         unsubscribeWorking();
-        unsubscribeMissingDeps();
-        unsubscribeMainReady();
+        unsubscribeDeps();
       };
     }
-  }, []);
-
-  // Save app config whenever projects or panels change
-  useEffect(() => {
-    if (isElectron && window.electronAPI && projects.length > 0) {
-      window.electronAPI.loadAppConfig().then((config) => {
-        const projectsToSave = projects.map(p => ({
-          id: p.id,
-          name: p.name,
-          path: p.path,
-          icon: p.icon,
-          runCommand: p.runCommand,
-          previewUrl: p.previewUrl,
-          yoloMode: p.yoloMode,
-          restrictedBranches: p.restrictedBranches,
-          lastActivity: p.lastActivity
-        }));
-        
-        const updatedConfig = {
-          ...config.data,
-          projects: projectsToSave,
-          panels: panels
-        };
-        
-        window.electronAPI.saveAppConfig(updatedConfig);
-      }).catch((error) => {
-        console.error('Failed to save app config:', error);
-        toast.error('Failed to save configuration changes.');
-      });
-    }
-  }, [projects, panels, isElectron]);
+  }, [items, updateItem]);
 
   const handleProjectAdd = (projectData: {
     name: string;
     path: string;
     icon?: string;
     runCommand?: string;
-    previewUrl?: string;
+    url?: string;
     yoloMode?: boolean;
     restrictedBranches?: string;
   }) => {
     if (editingProject) {
-      // Update existing project
-      setProjects(prev => prev.map(p => 
-        p.id === editingProject.id 
-          ? {
-              ...p,
-              name: projectData.name,
-              path: projectData.path,
-              icon: projectData.icon,
-              runCommand: projectData.runCommand,
-              previewUrl: projectData.previewUrl,
-              yoloMode: projectData.yoloMode ?? true,
-              restrictedBranches: projectData.restrictedBranches,
-                  }
-          : p
-      ));
-      setEditingProject(null);
-    } else {
-      // Create new project
-      const newProject: Project = {
-        id: Date.now().toString(),
+      // Check if the new name conflicts with existing items (excluding current project)
+      if (projectData.name !== editingProject.name) {
+        const existingItem = items.find(
+          (item) =>
+            item.name === projectData.name && item.id !== editingProject.id
+        );
+        if (existingItem) {
+          toast.error(`Item with name "${projectData.name}" already exists`);
+          return;
+        }
+      }
+
+      // Update using unified structure
+      updateStoredItem(editingProject.id, {
+        id: projectData.name,
+        type: "project",
         name: projectData.name,
         path: projectData.path,
         icon: projectData.icon,
         runCommand: projectData.runCommand,
-        previewUrl: projectData.previewUrl,
+        url: projectData.url,
         yoloMode: projectData.yoloMode ?? true,
         restrictedBranches: projectData.restrictedBranches,
-        status: 'idle',
-        lastActivity: new Date().toLocaleTimeString(),
-        output: []
+      });
+
+      // Update selected item if it was the one being edited
+      if (selectedItem === editingProject.id) {
+        setSelectedItem(projectData.name);
+      }
+    } else {
+      // Check if item name already exists
+      const existingItem = items.find((item) => item.name === projectData.name);
+      if (existingItem) {
+        toast.error(`Item with name "${projectData.name}" already exists`);
+        return;
+      }
+
+      // Create new project using unified structure
+      const newItem: UnifiedItem = {
+        id: projectData.name,
+        type: "project",
+        name: projectData.name,
+        path: projectData.path,
+        icon: projectData.icon,
+        runCommand: projectData.runCommand,
+        url: projectData.url,
+        yoloMode: projectData.yoloMode ?? true,
+        restrictedBranches: projectData.restrictedBranches,
       };
-      setProjects(prev => [...prev, newProject]);
-      setSelectedProject(newProject.id);
+      addItem(newItem);
+      setSelectedItem(newItem.id);
     }
     setIsModalOpen(false);
+    setEditingProject(null);
   };
 
-  const handleProjectSelect = (projectId: string) => {
-    setSelectedProject(projectId);
-    setSelectedPanel(null); // Clear panel selection when selecting project
+  const handleItemSelect = (itemId: string) => {
+    setSelectedItem(itemId);
     // Notify Electron about the project selection for notifications
-    window.electronAPI.setSelectedProject(projectId);
+    const item = items.find((i) => i.id === itemId);
+    if (item?.type === "project" && window.electronAPI?.setSelectedProject) {
+      window.electronAPI.setSelectedProject(itemId);
+    }
   };
 
   const handleProjectStart = async (projectId: string, command: string) => {
-    const project = projects.find(p => p.id === projectId);
+    const project = items.find(
+      (item) => item.id === projectId && item.type === "project"
+    );
     if (!project) return;
 
     // Select the project when starting it
-    setSelectedProject(projectId);
-    window.electronAPI?.setSelectedProject(projectId);
+    setSelectedItem(projectId);
+    if (window.electronAPI?.setSelectedProject) {
+      window.electronAPI.setSelectedProject(projectId);
+    }
 
-    setProjects(prev => prev.map(p => 
-      p.id === projectId 
-        ? { ...p, status: 'running', output: [], lastActivity: new Date().toLocaleTimeString() }
-        : p
-    ));
+    updateItem(projectId, {
+      status: "running",
+      output: [],
+      lastActivity: new Date().toLocaleTimeString(),
+    });
 
     if (isElectron && window.electronAPI) {
-      const result = await window.electronAPI.startClaudeProcess(projectId, project.path, command, project.name, project.yoloMode);
+      const result = await window.electronAPI.startClaudeProcess(
+        projectId,
+        project.path!,
+        command,
+        project.name,
+        project.yoloMode
+      );
       if (!result.success) {
-        setProjects(prev => prev.map(p => 
-          p.id === projectId 
-            ? { ...p, status: 'error', output: [`Error: ${result.error}`] }
-            : p
-        ));
-        toast.error(`Failed to start ${project.name}: ${result.error}`);
+        updateItem(projectId, {
+          status: "error",
+          output: [`Error: ${result.error}`],
+        });
+        toast.error(`Failed to start process: ${result.error}`);
       }
-    } else {
-      // Mock behavior for browser
-      setTimeout(() => {
-        setProjects(prev => prev.map(p => 
-          p.id === projectId 
-            ? { ...p, output: ['Mock: Claude Code started...', 'Mock: Ready for input'] }
-            : p
-        ));
-      }, 1000);
     }
   };
 
   const handleProjectStop = async (projectId: string) => {
-    // Mark as manually stopped before stopping
-    setManuallyStopped(prev => new Set(prev).add(projectId));
-    
     if (isElectron && window.electronAPI) {
       await window.electronAPI.stopClaudeProcess(projectId);
     }
-    setProjects(prev => prev.map(p => 
-      p.id === projectId 
-        ? { ...p, status: 'idle', output: [], lastActivity: new Date().toLocaleTimeString() }
-        : p
-    ));
-    
-    // Also clear the terminal output
-    handleClearOutput(projectId);
-  };
-
-  // Remove handleSendInput since XTermPanel handles input directly
-
-  const handleClearOutput = (projectId: string) => {
-    setProjects(prev => prev.map(project => 
-      project.id === projectId 
-        ? { ...project, output: [] }
-        : project
-    ));
+    updateItem(projectId, {
+      status: "idle",
+      lastActivity: new Date().toLocaleTimeString(),
+    });
   };
 
   const handleProjectEdit = (projectId: string) => {
-    const project = projects.find(p => p.id === projectId);
+    const project = items.find(
+      (item) => item.id === projectId && item.type === "project"
+    );
     if (project) {
       setEditingProject(project);
       setIsModalOpen(true);
     }
   };
 
-  const handleProjectDeleteRequest = (projectId: string) => {
-    const project = projects.find(p => p.id === projectId);
-    if (project) {
+  const handleItemDeleteRequest = (itemId: string) => {
+    const item = items.find((i) => i.id === itemId);
+    if (item) {
       setDeleteConfirmation({
         isOpen: true,
-        projectId: projectId,
-        projectName: project.name
+        itemId: itemId,
+        itemName: item.name,
       });
     }
   };
 
-  const handleProjectDeleteConfirm = () => {
-    if (deleteConfirmation.projectId) {
-      setProjects(prev => prev.filter(project => project.id !== deleteConfirmation.projectId));
-      if (selectedProject === deleteConfirmation.projectId) {
-        setSelectedProject(null);
+  const handleItemDeleteConfirm = () => {
+    if (deleteConfirmation.itemId) {
+      deleteItem(deleteConfirmation.itemId);
+      if (selectedItem === deleteConfirmation.itemId) {
+        setSelectedItem(null);
       }
     }
     setDeleteConfirmation({
       isOpen: false,
-      projectId: null,
-      projectName: null
+      itemId: null,
+      itemName: null,
     });
   };
 
-  const handleProjectDeleteCancel = () => {
+  const handleItemDeleteCancel = () => {
     setDeleteConfirmation({
       isOpen: false,
-      projectId: null,
-      projectName: null
+      itemId: null,
+      itemName: null,
     });
   };
 
-  // Reordering handlers
   const handleProjectReorder = (startIndex: number, endIndex: number) => {
-    const result = Array.from(projects);
-    const [removed] = result.splice(startIndex, 1);
-    result.splice(endIndex, 0, removed);
-    setProjects(result);
+    const projectItems = items.filter((item) => item.type === "project");
+    const panelItems = items.filter((item) => item.type === "panel");
+
+    const reorderedProjects = Array.from(projectItems);
+    const [removed] = reorderedProjects.splice(startIndex, 1);
+    reorderedProjects.splice(endIndex, 0, removed);
+
+    setItems([...reorderedProjects, ...panelItems]);
   };
 
   const handlePanelReorder = (startIndex: number, endIndex: number) => {
-    const result = Array.from(panels);
-    const [removed] = result.splice(startIndex, 1);
-    result.splice(endIndex, 0, removed);
-    setPanels(result);
+    const projectItems = items.filter((item) => item.type === "project");
+    const panelItems = items.filter((item) => item.type === "panel");
+
+    const reorderedPanels = Array.from(panelItems);
+    const [removed] = reorderedPanels.splice(startIndex, 1);
+    reorderedPanels.splice(endIndex, 0, removed);
+
+    setItems([...projectItems, ...reorderedPanels]);
   };
 
-  const currentProject = selectedProject ? projects.find(p => p.id === selectedProject) : null;
-  const currentPanel = selectedPanel ? panels.find(p => p.id === selectedPanel) : null;
-
-  // Panel handlers
-  const handlePanelSelect = (panelId: string) => {
-    setSelectedPanel(panelId);
-    setSelectedProject(null); // Clear project selection when selecting panel
-  };
+  const currentItem = selectedItem
+    ? items.find((item) => item.id === selectedItem)
+    : null;
 
   const handlePanelAdd = () => {
     setEditingPanel(null);
@@ -361,162 +322,214 @@ function App() {
   };
 
   const handlePanelEdit = (panelId: string) => {
-    const panel = panels.find(p => p.id === panelId);
+    const panel = items.find(
+      (item) => item.id === panelId && item.type === "panel"
+    );
     if (panel) {
       setEditingPanel(panel);
       setIsPanelModalOpen(true);
     }
   };
 
-  const handlePanelSubmit = (panelData: { name: string; url: string; icon?: string }) => {
+  const handlePanelSubmit = (panelData: {
+    name: string;
+    url: string;
+    icon?: string;
+  }) => {
     if (editingPanel) {
-      // Update existing panel
-      setPanels(prev => prev.map(p => 
-        p.id === editingPanel.id 
-          ? { ...p, ...panelData }
-          : p
-      ));
+      // Update existing panel using unified structure
+      updateStoredItem(editingPanel.id, {
+        name: panelData.name,
+        url: panelData.url,
+        icon: panelData.icon,
+      });
+
+      // Update selected item if it was the one being edited
+      if (selectedItem === editingPanel.id) {
+        setSelectedItem(editingPanel.id);
+      }
     } else {
-      // Create new panel
-      const newPanel: Panel = {
-        id: Date.now().toString(),
-        ...panelData
+      // Find the first available panel ID
+      const existingIds = items
+        .filter((item) => item.type === "panel")
+        .map((item) => parseInt(item.id))
+        .filter((id) => !isNaN(id));
+      const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 0;
+      const newPanelId = (maxId + 1).toString();
+
+      const newItem: UnifiedItem = {
+        id: newPanelId,
+        type: "panel",
+        name: panelData.name,
+        url: panelData.url,
+        icon: panelData.icon,
       };
-      setPanels(prev => [...prev, newPanel]);
-      setSelectedPanel(newPanel.id);
+      addItem(newItem);
+      setSelectedItem(newItem.id);
     }
     setIsPanelModalOpen(false);
     setEditingPanel(null);
   };
 
   const handlePanelDelete = (panelId: string) => {
-    setPanels(prev => prev.filter(panel => panel.id !== panelId));
-    if (selectedPanel === panelId) {
-      setSelectedPanel(null);
+    deleteItem(panelId);
+    if (selectedItem === panelId) {
+      setSelectedItem(null);
     }
   };
 
   return (
     <div className="h-screen flex flex-col bg-gray-950 text-gray-100 overflow-hidden">
       {/* Custom Title Bar with Glass Effect */}
-      <div 
+      <div
         className="h-16 glass-titlebar flex items-center justify-center px-4 select-none"
-        style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+        style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
       >
         <h1 className="text-lg font-medium text-gray-200">Vibe Term</h1>
       </div>
-      
+
       {/* Main Content */}
-      <div className={`flex-1 flex overflow-hidden ${missingDeps.length > 0 ? 'pointer-events-none opacity-50' : ''}`}>
+      <div
+        className={`flex-1 flex overflow-hidden ${
+          missingDeps.length > 0 ? "pointer-events-none opacity-50" : ""
+        }`}
+      >
         <ProjectList
           projects={projects}
-          selectedProject={selectedProject}
+          selectedProject={
+            selectedItem && projects.find((p) => p.id === selectedItem)
+              ? selectedItem
+              : null
+          }
           panels={panels}
-          selectedPanel={selectedPanel}
-          onProjectSelect={handleProjectSelect}
+          selectedPanel={
+            selectedItem && panels.find((p) => p.id === selectedItem)
+              ? selectedItem
+              : null
+          }
+          onProjectSelect={handleItemSelect}
           onProjectStart={handleProjectStart}
           onProjectStop={handleProjectStop}
-          onProjectDelete={handleProjectDeleteRequest}
           onProjectEdit={handleProjectEdit}
+          onProjectDelete={handleItemDeleteRequest}
           onProjectReorder={handleProjectReorder}
-          onPanelReorder={handlePanelReorder}
-          onOpenModal={() => {
-            setEditingProject(null);
-            setIsModalOpen(true);
-          }}
+          onOpenModal={() => setIsModalOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
-          onPanelSelect={handlePanelSelect}
+          onPanelSelect={handleItemSelect}
           onPanelAdd={handlePanelAdd}
           onPanelEdit={handlePanelEdit}
           onPanelDelete={handlePanelDelete}
+          onPanelReorder={handlePanelReorder}
         />
-        {/* Keep both views mounted, only show the selected one */}
-        <div className="flex-1 relative">
-          <div
-            className="absolute inset-0"
-            style={{
-              display: selectedPanel ? "flex" : "none",
-            }}
-          >
-            <PanelView panels={panels} selectedPanel={currentPanel} />
-          </div>
-          <div
-            className="absolute inset-0"
-            style={{
-              display: selectedPanel ? "none" : "flex",
-            }}
-          >
-            <ProjectView
-              selectedProject={currentProject || null}
-              projects={projects}
-            />
-          </div>
+
+        <div className="flex-1">
+          {currentItem && (
+            <ViewProject selectedItem={currentItem} items={items} />
+          )}
         </div>
       </div>
-      
-      {/* Dependencies Modal - Blocks everything when dependencies are missing */}
-      {missingDeps.length > 0 && (
-        <DependenciesModal missingDeps={missingDeps} />
-      )}
-      
-      {/* Project Creation/Edit Modal */}
-      {missingDeps.length === 0 && (
-        <ProjectModal
-          isOpen={isModalOpen}
-          onClose={() => {
+
+      {/* Modals */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingProject(null);
+        }}
+        title={editingProject ? "Edit Project" : "Add Project"}
+        maxWidth="lg"
+      >
+        <FormProject
+          data={
+            editingProject
+              ? {
+                  name: editingProject.name,
+                  path: editingProject.path || "",
+                  icon: editingProject.icon,
+                  runCommand: editingProject.runCommand,
+                  url: editingProject.url,
+                  yoloMode: editingProject.yoloMode,
+                  restrictedBranches: editingProject.restrictedBranches,
+                }
+              : undefined
+          }
+          onSubmit={handleProjectAdd}
+          onCancel={() => {
             setIsModalOpen(false);
             setEditingProject(null);
           }}
-          onSubmit={handleProjectAdd}
-          editingProject={editingProject}
         />
-      )}
+      </Modal>
 
-      {/* Settings Modal */}
-      {missingDeps.length === 0 && (
-        <SettingsModal
-          isOpen={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
-        />
-      )}
-
-      {/* Panel Modal */}
-      {missingDeps.length === 0 && (
-        <PanelModal
-          isOpen={isPanelModalOpen}
-          onClose={() => {
+      <Modal
+        isOpen={isPanelModalOpen}
+        onClose={() => {
+          setIsPanelModalOpen(false);
+          setEditingPanel(null);
+        }}
+        title={editingPanel ? "Edit Panel" : "Add Panel"}
+        maxWidth="md"
+      >
+        <FormPanel
+          data={
+            editingPanel
+              ? {
+                  name: editingPanel.name,
+                  url: editingPanel.url || "",
+                  icon: editingPanel.icon,
+                }
+              : undefined
+          }
+          onSubmit={handlePanelSubmit}
+          onCancel={() => {
             setIsPanelModalOpen(false);
             setEditingPanel(null);
           }}
-          onSubmit={handlePanelSubmit}
-          editingPanel={editingPanel}
         />
+      </Modal>
+
+      <Modal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        title="Settings"
+        maxWidth="2xl"
+      >
+        <FormSettings onClose={() => setIsSettingsOpen(false)} />
+      </Modal>
+
+      {missingDeps.length > 0 && (
+        <Modal
+          isOpen={true}
+          onClose={() => {}}
+          title="Missing Dependencies"
+          maxWidth="2xl"
+          showCloseButton={false}
+        >
+          <FormDependencies data={{ missingDeps }} onClose={() => {}} />
+        </Modal>
       )}
 
-      {/* Delete Confirmation Modal */}
-      <ConfirmationModal
+      <Modal
         isOpen={deleteConfirmation.isOpen}
-        onConfirm={handleProjectDeleteConfirm}
-        onCancel={handleProjectDeleteCancel}
-        title="Delete Project"
-        message={`Are you sure you want to delete "${deleteConfirmation.projectName}"? This action cannot be undone.`}
-        confirmText="Delete"
-        cancelText="Cancel"
-      />
-      
-      {/* Toast Container */}
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="dark"
-      />
+        onClose={handleItemDeleteCancel}
+        title="Delete Item"
+        showCloseButton={false}
+        maxWidth="md"
+        intent="warning"
+      >
+        <FormConfirmation
+          data={{
+            title: "",
+            message: `Are you sure you want to delete "${deleteConfirmation.itemName}"?`,
+            confirmText: "Delete",
+            cancelText: "Cancel",
+          }}
+          onSubmit={handleItemDeleteConfirm}
+          onCancel={handleItemDeleteCancel}
+        />
+      </Modal>
+
+      <ToastContainer position="bottom-right" theme="dark" autoClose={3000} />
     </div>
   );
 }

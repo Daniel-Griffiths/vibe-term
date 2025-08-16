@@ -34,30 +34,26 @@ export interface ProcessExit {
   code: number | null;
 }
 
-export interface Project {
+export type ItemType = 'project' | 'panel';
+
+export interface UnifiedItem {
   id: string;
+  type: ItemType;
   name: string;
-  path: string;
   icon?: string;
+  url?: string;
+  // Project-specific fields (optional for panels)
+  path?: string;
   runCommand?: string;
-  previewUrl?: string;
   yoloMode?: boolean;
   restrictedBranches?: string;
-  status: 'idle' | 'running' | 'ready' | 'working' | 'completed' | 'error';
-  lastActivity: string;
-  output: string[];
-}
-
-export interface Panel {
-  id: string;
-  name: string;
-  url: string;
-  icon?: string;
+  status?: 'idle' | 'running' | 'ready' | 'working' | 'completed' | 'error';
+  lastActivity?: string;
+  output?: string[];
 }
 
 export interface AppConfig {
-  projects: Project[];
-  panels: Panel[];
+  items: UnifiedItem[];  // Only unified array
   settings: {
     editor: {
       theme: string;

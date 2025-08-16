@@ -19,8 +19,6 @@ import cors from "cors";
 import { createServer } from "http";
 import net from "net";
 import { ShellUtils } from "../src/utils/shellUtils";
-import { StorageService } from "../src/services/StorageService";
-import { IPCService } from "../src/services/IPCService";
 
 const execAsync = promisify(exec);
 
@@ -89,16 +87,14 @@ let webServer: any = null;
 let webSocketServer: WebSocketServer | null = null;
 const webClients = new Set<any>();
 
-// Storage functions using unified app config
-const loadAppConfig = () => StorageService.loadAppConfig().data;
-const saveAppConfig = (config: any) => StorageService.saveAppConfig(config);
 
 // Setup IPC handlers using IPCService
 function setupIPCHandlers() {
   // Process management
-  IPCService.handle(
+  ipcMain.handle(
     "start-claude-process",
     async (
+      _event,
       projectId: string,
       projectPath: string,
       command: string,
@@ -115,7 +111,7 @@ function setupIPCHandlers() {
     }
   );
 
-  IPCService.handle("stop-claude-process", async (projectId: string) => {
+  ipcMain.handle("stop-claude-process", async (_event, projectId: string) => {
     const proc = sharedPtyProcesses.get(projectId);
     const backgroundProc = backgroundProcesses.get(projectId);
 
@@ -133,7 +129,7 @@ function setupIPCHandlers() {
     return { success: true };
   });
 
-  IPCService.handle("send-input", async (projectId: string, input: string) => {
+  ipcMain.handle("send-input", async (_event, projectId: string, input: string) => {
     const proc = sharedPtyProcesses.get(projectId);
     if (proc) {
       proc.write(input);
@@ -142,54 +138,10 @@ function setupIPCHandlers() {
     return { success: false, error: "Process not found" };
   });
 
-  // Unified app config storage
-  IPCService.handle("load-app-config", () => loadAppConfig());
-  IPCService.handle("save-app-config", async (config: any) => {
-    try {
-      const oldConfig = loadAppConfig();
-      saveAppConfig(config);
 
-      // Check if web server settings changed
-      const webServerChanged =
-        !oldConfig?.settings?.webServer ||
-        oldConfig.settings.webServer.enabled !==
-          config.settings?.webServer?.enabled ||
-        oldConfig.settings.webServer.port !== config.settings?.webServer?.port;
-
-      if (webServerChanged) {
-        // Restart web server with new settings
-        if (webServer) {
-          webServer.close();
-          webServer = null;
-        }
-
-        if (webSocketServer) {
-          webSocketServer.close();
-          webSocketServer = null;
-        }
-
-        if (config.settings?.webServer?.enabled !== false) {
-          try {
-            const result = await createWebServer(
-              config.settings.webServer?.port || DEFAULT_WEB_SERVER_PORT
-            );
-            webServer = result.server;
-            console.log(`Web server restarted on port ${result.port}`);
-          } catch (error) {
-            console.error("Failed to restart web server:", error);
-          }
-        }
-      }
-
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  IPCService.handle(
+  ipcMain.handle(
     "test-command",
-    async (projectPath: string, command: string) => {
+    async (_event, projectPath: string, command: string) => {
       console.log(`[Test] Testing command "${command}" in ${projectPath}`);
 
       const result = await ShellUtils.execute(command, {
@@ -204,6 +156,18 @@ function setupIPCHandlers() {
       };
     }
   );
+
+  // Write state file for web server access
+  ipcMain.handle("write-state-file", async (_event, state) => {
+    try {
+      const stateFilePath = path.join(app.getPath('userData'), 'web-server-state.json');
+      await fs.promises.writeFile(stateFilePath, JSON.stringify(state, null, 2), 'utf8');
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error writing state file:', error);
+      return { success: false, error: error.message };
+    }
+  });
 
 }
 
@@ -289,36 +253,58 @@ async function checkPortAvailable(port: number) {
   });
 }
 
+// Helper function to read state from file (outside web server to avoid app naming conflict)
+const readStateFile = () => {
+  try {
+    const stateFilePath = path.join(app.getPath('userData'), 'web-server-state.json');
+    if (fs.existsSync(stateFilePath)) {
+      const data = fs.readFileSync(stateFilePath, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error('Error reading state file:', error);
+  }
+  return { settings: {}, storedItems: [] };
+};
+
 async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
   const port = await checkPortAvailable(preferredPort);
-  const app = express();
-  const server = createServer(app);
+  const expressApp = express();
+  const server = createServer(expressApp);
 
   // Enable CORS for all routes
-  app.use(cors());
-  app.use(express.json());
+  expressApp.use(cors());
+  expressApp.use(express.json());
 
   // Serve static files (we'll create a simple mobile-friendly interface)
   const webStaticPath = path.join(__dirname, "..", "web");
-  app.use(express.static(webStaticPath));
+  expressApp.use(express.static(webStaticPath));
 
   // API Routes
-  app.get("/api/projects", (req, res) => {
-    const projects = loadAppConfig().projects;
+  expressApp.get("/api/projects", (req, res) => {
+    const state = readStateFile();
+    const projects = state.storedItems?.filter((item: any) => item.type === 'project') || [];
     res.json({ success: true, data: projects });
   });
 
-  app.get("/api/settings", (req, res) => {
-    const settings = loadAppConfig().settings;
-    res.json({ success: true, data: settings });
+  expressApp.get("/api/panels", (req, res) => {
+    const state = readStateFile();
+    const panels = state.storedItems?.filter((item: any) => item.type === 'panel') || [];
+    res.json({ success: true, data: panels });
   });
 
-  app.post("/api/projects/:id/start", async (req, res) => {
+  expressApp.get("/api/settings", (req, res) => {
+    const state = readStateFile();
+    res.json({ success: true, data: state.settings || {} });
+  });
+
+  expressApp.post("/api/projects/:id/start", async (req, res) => {
     const { id } = req.params;
     const { command, projectName, yoloMode } = req.body;
 
     try {
-      const projects = loadAppConfig().projects;
+      const state = readStateFile();
+      const projects = state.storedItems?.filter((item: any) => item.type === 'project') || [];
       const project = projects.find((p: any) => p.id === id);
 
       if (!project) {
@@ -346,7 +332,7 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
     }
   });
 
-  app.post("/api/projects/:id/stop", async (req, res) => {
+  expressApp.post("/api/projects/:id/stop", async (req, res) => {
     const { id } = req.params;
     const proc = sharedPtyProcesses.get(id);
     const backgroundProc = backgroundProcesses.get(id);
@@ -373,7 +359,7 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
     res.json({ success: true });
   });
 
-  app.post("/api/projects/:id/input", async (req, res) => {
+  expressApp.post("/api/projects/:id/input", async (req, res) => {
     const { id } = req.params;
     const { input } = req.body;
     const proc = sharedPtyProcesses.get(id);
@@ -386,7 +372,7 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
     }
   });
 
-  app.post("/api/projects/:id/resize", async (req, res) => {
+  expressApp.post("/api/projects/:id/resize", async (req, res) => {
     const { id } = req.params;
     const { cols, rows } = req.body;
     const proc = sharedPtyProcesses.get(id);
@@ -410,7 +396,7 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
     }
   });
 
-  app.get("/api/projects/:id/history", async (req, res) => {
+  expressApp.get("/api/projects/:id/history", async (req, res) => {
     const { id } = req.params;
     const buffer = terminalBuffers.get(id) || "";
     res.json({ success: true, data: buffer });
@@ -423,7 +409,8 @@ async function createWebServer(preferredPort = DEFAULT_WEB_SERVER_PORT) {
     webClients.add(ws);
 
     // Send current projects state
-    const projects = loadAppConfig().projects;
+    const state = readStateFile();
+    const projects = state.storedItems?.filter((item: any) => item.type === 'project') || [];
     ws.send(
       JSON.stringify({
         type: "projects-state",
@@ -633,11 +620,18 @@ async function getOrCreateSharedPty(
 
     // Send to desktop if window exists
     if (win && !win.isDestroyed()) {
+      console.log(`[Main Process] Sending initial message to renderer:`, {
+        projectId,
+        message: initialMessage.trim(),
+        timestamp: new Date().toISOString()
+      });
       win.webContents.send("terminal-output", {
         projectId,
         data: initialMessage,
         type: "system",
       });
+    } else {
+      console.warn(`[Main Process] Cannot send initial message - window destroyed or missing`);
     }
 
     // Send to web clients
@@ -690,9 +684,8 @@ async function getOrCreateSharedPty(
           });
 
           // Send desktop notification if window is not focused and notifications are enabled
-          const settings = loadAppConfig().settings;
-          const desktopNotificationsEnabled =
-            settings?.desktop?.notifications !== false; // Default to true
+          // TODO: Connect to proper settings source
+          const desktopNotificationsEnabled = true; // Default to true
           const windowFocused = win && !win.isDestroyed() && win.isFocused();
 
           console.log(
@@ -701,9 +694,8 @@ async function getOrCreateSharedPty(
 
           if (!windowFocused && desktopNotificationsEnabled) {
             // Get the actual project name from saved projects
-            const projects = loadAppConfig().projects;
-            const project = projects.find((p: any) => p.id === projectId);
-            const projectDisplayName = project?.name || projectId;
+            // TODO: Connect to proper data source
+            const projectDisplayName = projectId;
             const notification = new Notification({
               title: `${projectDisplayName} finished`,
               body: "Claude Code process completed",
@@ -721,17 +713,8 @@ async function getOrCreateSharedPty(
             });
 
             // Also send Discord notification if configured
-            const settings = loadAppConfig().settings;
-            if (settings?.discord?.enabled && settings?.discord?.webhookUrl) {
-              const discordMessage = `🎯 **Project Finished**\n\n**${projectDisplayName}** has completed successfully and is ready for input.`;
-              sendDiscordNotification(
-                settings.discord.webhookUrl,
-                settings.discord.username || "Vibe Term",
-                discordMessage
-              ).catch((error) => {
-                console.error("Failed to send Discord notification:", error);
-              });
-            }
+            // TODO: Connect to proper settings source
+            // Discord notifications disabled until proper integration
           }
         } else if (status === "working") {
           // Send to desktop
@@ -810,11 +793,19 @@ async function getOrCreateSharedPty(
 
         // Send to desktop
         if (win && !win.isDestroyed()) {
+          console.log(`[Main Process] Sending terminal output to renderer:`, {
+            projectId,
+            dataLength: data?.length,
+            dataPreview: data?.substring(0, 50),
+            timestamp: new Date().toISOString()
+          });
           win.webContents.send("terminal-output", {
             projectId,
             data: data,
             type: "stdout",
           });
+        } else {
+          console.warn(`[Main Process] Cannot send terminal output - window destroyed or missing`);
         }
 
         // Send to web clients
@@ -855,15 +846,13 @@ async function getOrCreateSharedPty(
 
       // Send desktop notification for non-zero exit codes if window is not focused
       if (code !== 0) {
-        const settings = loadAppConfig().settings;
-        const desktopNotificationsEnabled =
-          settings?.desktop?.notifications !== false; // Default to true
+        // TODO: Connect to proper settings source
+        const desktopNotificationsEnabled = true; // Default to true
         const windowFocused = win && !win.isDestroyed() && win.isFocused();
 
         if (!windowFocused && desktopNotificationsEnabled) {
-          const projects = loadAppConfig().projects;
-          const project = projects.find((p: any) => p.id === projectId);
-          const projectDisplayName = project?.name || projectId;
+          // TODO: Connect to proper data source
+          const projectDisplayName = projectId;
           const notification = new Notification({
             title: `${projectDisplayName} failed`,
             body: `Process exited with code ${code}`,
@@ -898,15 +887,13 @@ async function getOrCreateSharedPty(
       }
 
       // Send desktop notification for errors if window is not focused
-      const settings = loadAppConfig().settings;
-      const desktopNotificationsEnabled =
-        settings?.desktop?.notifications !== false; // Default to true
+      // TODO: Connect to proper settings source
+      const desktopNotificationsEnabled = true; // Default to true
       const windowFocused = win && !win.isDestroyed() && win.isFocused();
 
       if (!windowFocused && desktopNotificationsEnabled) {
-        const projects = loadAppConfig().projects;
-        const project = projects.find((p: any) => p.id === projectId);
-        const projectDisplayName = project?.name || projectId;
+        // TODO: Connect to proper data source
+        const projectDisplayName = projectId;
         const notification = new Notification({
           title: `${projectDisplayName} error`,
           body: error.message,
@@ -1006,7 +993,6 @@ function createWindow() {
 
   win.webContents.on("did-finish-load", () => {
     win?.webContents.send("main-process-message", new Date().toLocaleString());
-    // Signal that main process is ready for IPC calls
     win?.webContents.send("main-process-ready");
     win?.show(); // Show window after loading
   });
@@ -1070,11 +1056,10 @@ app.whenReady().then(async () => {
     });
   }
 
-  // Start web server
+  // Start web server with default settings
   try {
-    const settings = loadAppConfig().settings;
-    const port = settings?.webServer?.port || DEFAULT_WEB_SERVER_PORT;
-    const enabled = settings?.webServer?.enabled !== false; // Default to enabled
+    const port = DEFAULT_WEB_SERVER_PORT;
+    const enabled = true; // Default to enabled
 
     if (enabled) {
       const result = await createWebServer(port);
@@ -1091,7 +1076,7 @@ app.whenReady().then(async () => {
   }
 });
 
-// Note: IPC handlers are now managed through IPCService in setupIPCHandlers()
+// IPC handlers are set up in setupIPCHandlers()
 
 ipcMain.handle("get-git-diff", async (event, projectPath: string) => {
   try {

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
-import { SharedEditor, getLanguageFromPath } from "./monaco-editor";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Button } from "./ui/button";
+import { MonacoEditor, getLanguageFromPath } from "./monaco-editor";
+import { Card, CardContent, CardHeader, CardTitle } from "./card";
+import { Button } from "./button";
 import {
   File,
   Folder,
@@ -15,10 +15,10 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { NonIdealState } from "./non-ideal-state";
-import type { Project } from "../types";
+import type { UnifiedItem } from "../types";
 
-interface FileEditorViewProps {
-  selectedProject: Project | null;
+interface IViewFileEditorProps {
+  selectedProject: UnifiedItem | null;
 }
 
 interface FileNode {
@@ -37,9 +37,9 @@ interface OpenFile {
   isDirty: boolean;
 }
 
-export default function FileEditorView({
+export default function ViewFileEditor({
   selectedProject,
-}: FileEditorViewProps) {
+}: IViewFileEditorProps) {
   const [fileTree, setFileTree] = useState<FileNode[]>([]);
   const [openFiles, setOpenFiles] = useState<OpenFile[]>([]);
   const [activeFile, setActiveFile] = useState<string | null>(null);
@@ -366,7 +366,7 @@ export default function FileEditorView({
       </div>
 
       {/* Editor Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col h-full">
         <Card className="flex-1 m-4 mt-0 flex flex-col glass-card overflow-hidden">
           <CardHeader className="flex-shrink-0 py-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800 rounded-t-lg">
             <div className="flex items-center justify-between">
@@ -427,7 +427,7 @@ export default function FileEditorView({
 
           <CardContent className="flex-1 p-0 overflow-hidden">
             {currentFile ? (
-              <SharedEditor
+              <MonacoEditor
                 value={currentFile.content}
                 onChange={(value) =>
                   handleContentChange(value, currentFile.path)

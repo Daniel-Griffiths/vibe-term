@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from "react";
-import { Button } from "./ui/button";
+import { Button } from "./button";
 import { RotateCcw, Code, ArrowLeft, ArrowRight, Home } from "lucide-react";
 
-interface SharedWebViewProps {
+interface IViewWebviewProps {
   url: string;
   title: string;
   showUrlBar?: boolean;
 }
 
-export default function SharedWebView({
+export default function ViewWebview({
   url,
   title,
   showUrlBar = true,
-}: SharedWebViewProps) {
+}: IViewWebviewProps) {
   const [webviewRef, setWebviewRef] = useState<any>(null);
   const [originalUrl] = useState(url);
 

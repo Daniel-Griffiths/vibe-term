@@ -11,6 +11,7 @@
     "build:dist": "tsc && vite build",
     "build": "npm run build:dist && electron-builder --publish never",
     "lint": "eslint .",
+    "tsc": "tsc --noEmit",
     "preview": "vite preview",
     "electron": "electron .",
     "electron:dev": "concurrently \"npm run dev\" \"electron .\"",
@@ -42,7 +43,8 @@
     "react-toastify": "^11.0.5",
     "utf-8-validate": "^6.0.5",
     "ws": "^8.18.3",
-    "yarn": "^1.22.22"
+    "yarn": "^1.22.22",
+    "zustand": "^5.0.7"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.1",

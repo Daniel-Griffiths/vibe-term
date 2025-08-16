@@ -1,12 +1,12 @@
 import * as React from "react"
-import { cn } from "../../lib/utils"
+import { cn } from "../lib/utils"
 
 const TabsContext = React.createContext<{
   value?: string
   onValueChange?: (value: string) => void
 }>({})
 
-interface TabsProps extends React.HTMLAttributes<HTMLDivElement> {
+interface ITabsProps extends React.HTMLAttributes<HTMLDivElement> {
   value?: string
   defaultValue?: string
   onValueChange?: (value: string) => void
@@ -19,7 +19,7 @@ export function Tabs({
   className,
   children,
   ...props 
-}: TabsProps) {
+}: ITabsProps) {
   const [uncontrolledValue, setUncontrolledValue] = React.useState(defaultValue)
   const value = controlledValue ?? uncontrolledValue
 
@@ -51,7 +51,7 @@ export function TabsList({ className, ...props }: React.HTMLAttributes<HTMLDivEl
   )
 }
 
-interface TabsTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface ITabsTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   value: string
 }
 
@@ -60,7 +60,7 @@ export function TabsTrigger({
   className,
   children,
   ...props 
-}: TabsTriggerProps) {
+}: ITabsTriggerProps) {
   const context = React.useContext(TabsContext)
   const isSelected = context.value === value
 
@@ -81,7 +81,7 @@ export function TabsTrigger({
   )
 }
 
-interface TabsContentProps extends React.HTMLAttributes<HTMLDivElement> {
+interface ITabsContentProps extends React.HTMLAttributes<HTMLDivElement> {
   value: string
 }
 
@@ -90,7 +90,7 @@ export function TabsContent({
   className,
   children,
   ...props 
-}: TabsContentProps) {
+}: ITabsContentProps) {
   const context = React.useContext(TabsContext)
   const isSelected = context.value === value
 

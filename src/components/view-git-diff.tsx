@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import {
-  SharedEditor,
+  MonacoEditor,
   SharedDiffEditor,
   getLanguageFromPath,
 } from "./monaco-editor";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Button } from "./ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./card";
+import { Button } from "./button";
 import {
   GitBranch,
   FileText,
@@ -20,10 +20,10 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { NonIdealState } from "./non-ideal-state";
-import type { Project } from "../types";
+import type { UnifiedItem } from "../types";
 
-interface GitDiffViewProps {
-  selectedProject: Project | null;
+interface IViewGitDiffProps {
+  selectedProject: UnifiedItem | null;
 }
 
 interface GitFile {
@@ -42,7 +42,7 @@ interface GitDiffData {
   behind: number;
 }
 
-export default function GitDiffView({ selectedProject }: GitDiffViewProps) {
+export default function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
   const [diffData, setDiffData] = useState<GitDiffData | null>(null);
   const [selectedFile, setSelectedFile] = useState<GitFile | null>(null);
   const [loading, setLoading] = useState(false);
@@ -446,8 +446,8 @@ export default function GitDiffView({ selectedProject }: GitDiffViewProps) {
       </div>
 
       {/* Diff Editor */}
-      <div className="flex-1 flex flex-col">
-        <Card className="flex-1 m-4 mt-0 flex flex-col glass-card overflow-hidden">
+      <div className="flex-1 flex flex-col h-full p-4">
+        <Card className="flex-1 flex flex-col glass-card overflow-hidden">
           <CardHeader className="flex-shrink-0 py-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800 rounded-t-lg">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-gray-200 font-semibold">
@@ -522,7 +522,7 @@ export default function GitDiffView({ selectedProject }: GitDiffViewProps) {
                     language={getLanguageFromPath(selectedFile.path)}
                   />
                 ) : (
-                  <SharedEditor
+                  <MonacoEditor
                     value={editContent}
                     onChange={handleContentChange}
                     language={getLanguageFromPath(selectedFile.path)}

@@ -96,8 +96,20 @@ export class TerminalService {
     const terminal = this.createTerminal(config);
     const fitAddon = new FitAddon();
     
-    terminal.loadAddon(fitAddon);
-    terminal.open(element);
+    try {
+      terminal.loadAddon(fitAddon);
+      terminal.open(element);
+      
+      console.log(`[Terminal Debug] Terminal created successfully:`, {
+        terminalExists: !!terminal,
+        elementExists: !!element,
+        containerExists: !!container,
+        fitAddonExists: !!fitAddon
+      });
+    } catch (error) {
+      console.error(`[Terminal Debug] Error creating terminal:`, error);
+      throw error;
+    }
 
     return { terminal, fitAddon, element };
   }
@@ -107,9 +119,14 @@ export class TerminalService {
    */
   static showTerminal(instance: TerminalInstance, delay: number = 10): void {
     instance.element.style.display = "block";
-    setTimeout(() => {
+    
+    // Simple approach: just fit and log basic info
+    try {
       instance.fitAddon.fit();
-    }, delay);
+      console.log(`[Terminal Debug] Terminal shown and fitted, buffer length:`, instance.terminal.buffer.active.length);
+    } catch (error) {
+      console.error(`[Terminal Debug] Error fitting terminal:`, error);
+    }
   }
 
   /**
@@ -246,6 +263,7 @@ export class TerminalService {
       resizeAll: (): void => {
         this.resizeTerminals(terminals);
       },
+      
       
       clearTerminal: (projectId: string, delay?: number): void => {
         const instance = terminals.get(projectId);

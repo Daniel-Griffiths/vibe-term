@@ -20,7 +20,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('save-app-config', config),
   
   onTerminalOutput: (callback: (data: any) => void) => {
-    ipcRenderer.on('terminal-output', (event, data) => callback(data));
+    ipcRenderer.on('terminal-output', (event, data) => {
+      console.log(`[Preload Debug] Received terminal-output in preload:`, {
+        projectId: data?.projectId,
+        dataLength: data?.data?.length,
+        dataPreview: data?.data?.substring(0, 50)
+      });
+      callback(data);
+    });
     return () => ipcRenderer.removeAllListeners('terminal-output');
   },
   
@@ -94,7 +101,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('get-project-files', projectPath),
   
   readProjectFile: (projectPath: string, filePath: string) => 
-    ipcRenderer.invoke('read-project-file', projectPath, filePath)
+    ipcRenderer.invoke('read-project-file', projectPath, filePath),
+  
+  writeStateFile: (state: any) => 
+    ipcRenderer.invoke('write-state-file', state)
 });
 
 export {};

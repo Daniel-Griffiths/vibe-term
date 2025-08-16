@@ -1,22 +1,22 @@
 import { useEffect, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "./card";
 import { Terminal as TerminalIcon } from "lucide-react";
 import { useTerminalManager } from "../hooks/use-terminal-manager";
 import { TerminalService } from "../services/TerminalService";
 import { NonIdealState } from "./non-ideal-state";
-import type { Project } from "../types";
+import type { UnifiedItem } from "../types";
 import "@xterm/xterm/css/xterm.css";
 
-interface XTermPanelProps {
-  selectedProject: Project | null;
-  projects: Project[];
+interface IViewTerminalProps {
+  selectedProject: UnifiedItem | null;
+  projects: UnifiedItem[];
 }
 
-export default function XTermPanel({
+export default function ViewTerminal({
   selectedProject,
   projects,
-}: XTermPanelProps) {
-  const prevProjectsRef = useRef<Project[]>([]);
+}: IViewTerminalProps) {
+  const prevProjectsRef = useRef<UnifiedItem[]>([]);
 
   // Use the terminal manager hook with Claude configuration
   const { containerRef, showTerminal, clearTerminal } = useTerminalManager(
@@ -28,7 +28,7 @@ export default function XTermPanel({
     }
   );
 
-  // Show/hide terminals based on selected project
+  // Show terminals based on selected project
   useEffect(() => {
     if (selectedProject) {
       showTerminal(selectedProject.id);
@@ -38,6 +38,7 @@ export default function XTermPanel({
   // Track previous project statuses to detect when a project is stopped
   useEffect(() => {
     // Clear terminal when project transitions from running/working to idle
+    if (!projects) return;
     projects.forEach((project) => {
       const prevProject = prevProjectsRef.current.find(
         (p) => p.id === project.id
@@ -68,11 +69,8 @@ export default function XTermPanel({
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <Card
-        className="flex-1 m-4 mt-0 flex flex-col glass-card overflow-hidden"
-        style={{ width: "calc(100vw - 350px)" }}
-      >
+    <div className="h-full flex flex-col p-4 pt-0">
+      <Card className="flex-1 flex flex-col h-full glass-card overflow-hidden">
         <CardHeader className="flex-shrink-0 py-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800 rounded-t-lg">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-gray-200 font-semibold">
