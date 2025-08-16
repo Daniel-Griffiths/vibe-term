@@ -9,6 +9,7 @@ import FormPanel from "./components/form-panel";
 import FormSettings from "./components/form-settings";
 import FormDependencies from "./components/form-dependencies";
 import FormConfirmation from "./components/form-confirmation";
+import { Button } from "./components/button";
 import { useAppStore, initializeFileSync } from "./stores/settings";
 import type { UnifiedItem, TerminalOutput, ProcessExit } from "./types";
 
@@ -44,6 +45,22 @@ function App() {
     itemId: null,
     itemName: null,
   });
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Auto-open sidebar on large screens
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setSidebarOpen(true);
+      }
+    };
+    
+    // Set initial state
+    handleResize();
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Get projects and panels from unified items
   const projects = items.filter((item) => item.type === "project");
@@ -395,8 +412,17 @@ function App() {
           missingDeps.length > 0 ? "pointer-events-none opacity-50" : ""
         }`}
       >
-        <ProjectList
-          projects={projects}
+        {/* Mobile overlay for sidebar */}
+        {sidebarOpen && (
+          <div 
+            className="lg:hidden fixed inset-0 bg-black/50 z-40"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+        
+        <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:relative z-50 lg:z-auto transition-transform duration-300 ease-in-out`}>
+          <ProjectList
+            projects={projects}
           selectedProject={
             selectedItem && projects.find((p) => p.id === selectedItem)
               ? selectedItem
@@ -422,10 +448,16 @@ function App() {
           onPanelDelete={handlePanelDelete}
           onPanelReorder={handlePanelReorder}
         />
-
-        <div className="flex-1">
+        </div>
+        
+        <div className="flex-1 relative">
           {currentItem && (
-            <ViewProject selectedItem={currentItem} items={items} />
+            <ViewProject 
+              selectedItem={currentItem} 
+              items={items}
+              sidebarOpen={sidebarOpen}
+              setSidebarOpen={setSidebarOpen}
+            />
           )}
         </div>
       </div>

@@ -321,7 +321,7 @@ export default function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
   const hasChanges = diffData && diffData.files.length > 0;
 
   return (
-    <div className="h-full flex">
+    <div className="h-full flex pt-0">
       {/* File List Sidebar */}
       <div className="w-80 bg-gray-950 border-r border-t border-gray-800 overflow-y-auto rounded-tr-lg max-h-screen">
         <div className="p-4 border-b border-gray-800">

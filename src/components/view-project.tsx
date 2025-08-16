@@ -1,27 +1,27 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Tabs, TabsList, TabsTrigger } from "./tabs";
 import { Input } from "./input";
+import { Button } from "./button";
 import ViewTerminal from "./view-terminal";
 import ViewGitDiff from "./view-git-diff";
 import ViewFileEditor from "./view-file-editor";
 import ViewWebview from "./view-webview";
 import { NonIdealState } from "./non-ideal-state";
-import {
-  Terminal,
-  GitBranch,
-  Globe,
-  FileText,
-} from "lucide-react";
+import { Terminal, GitBranch, Globe, FileText } from "lucide-react";
 import type { UnifiedItem } from "../types";
 
 interface IViewProjectProps {
   selectedItem: UnifiedItem | null;
   items: UnifiedItem[];
+  sidebarOpen?: boolean;
+  setSidebarOpen?: (open: boolean) => void;
 }
 
 export default function ViewProject({
   selectedItem,
   items,
+  sidebarOpen,
+  setSidebarOpen,
 }: IViewProjectProps) {
   const [activeTab, setActiveTab] = useState(() => {
     return selectedItem?.type === "panel" ? "preview" : "terminal";
@@ -31,8 +31,14 @@ export default function ViewProject({
 
   const currentItem = selectedItem;
   const previewUrl = useMemo(() => currentItem?.url, [currentItem?.url]);
-  const webUrl = useMemo(() => `http://${localIp}:${webPort}`, [localIp, webPort]);
-  const isPanel = useMemo(() => selectedItem?.type === "panel", [selectedItem?.type]);
+  const webUrl = useMemo(
+    () => `http://${localIp}:${webPort}`,
+    [localIp, webPort]
+  );
+  const isPanel = useMemo(
+    () => selectedItem?.type === "panel",
+    [selectedItem?.type]
+  );
 
   // Fetch local IP when component mounts
   const fetchLocalIp = useCallback(async () => {
@@ -41,7 +47,7 @@ export default function ViewProject({
         const result = await window.electronAPI.getLocalIp();
         setLocalIp(result.localIp);
       } catch (error) {
-        console.error('Failed to fetch local IP:', error);
+        console.error("Failed to fetch local IP:", error);
       }
     }
   }, []);
@@ -50,15 +56,23 @@ export default function ViewProject({
     fetchLocalIp();
   }, [fetchLocalIp]);
 
-
-  // Shared component for no URL state  
-  const NoUrlConfigured = useCallback(({ itemType }: { itemType: "panel" | "project" }) => (
-    <NonIdealState
-      icon={Globe}
-      title={`No ${itemType === "panel" ? "URL" : "Preview URL"} Configured`}
-      description={`Configure a ${itemType === "panel" ? "URL" : "preview URL"} in your ${itemType} settings to view${itemType === "panel" ? " content" : " your application"} here.${itemType === "project" ? " Example: http://localhost:3000" : ""}`}
-    />
-  ), []);
+  // Shared component for no URL state
+  const NoUrlConfigured = useCallback(
+    ({ itemType }: { itemType: "panel" | "project" }) => (
+      <NonIdealState
+        icon={Globe}
+        title={`No ${itemType === "panel" ? "URL" : "Preview URL"} Configured`}
+        description={`Configure a ${
+          itemType === "panel" ? "URL" : "preview URL"
+        } in your ${itemType} settings to view${
+          itemType === "panel" ? " content" : " your application"
+        } here.${
+          itemType === "project" ? " Example: http://localhost:3000" : ""
+        }`}
+      />
+    ),
+    []
+  );
 
   // Shared WebView component
   const WebViewContent = () => {
@@ -82,43 +96,71 @@ export default function ViewProject({
       >
         {/* Tab bar - only show for projects */}
         {!isPanel && currentItem?.type === "project" && (
-          <div className="px-4 pt-4">
-            <div className="flex items-start justify-between">
-              <TabsList className="bg-gray-900/50 border border-gray-800 mb-4">
-                <TabsTrigger
-                  value="terminal"
-                  className="flex items-center gap-2"
+          <div className="px-4 pt-4 mb-4">
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex items-center gap-3">
+                {/* Mobile menu button */}
+                <Button
+                  onClick={() => setSidebarOpen?.(!sidebarOpen)}
+                  variant="ghost"
+                  size="icon"
+                  className="lg:hidden bg-gray-800/50 border border-gray-700/50 flex-shrink-0 h-10"
                 >
-                  <Terminal className="h-4 w-4" />
-                  Terminal
-                </TabsTrigger>
-                <TabsTrigger
-                  value="git-diff"
-                  className="flex items-center gap-2"
-                >
-                  <GitBranch className="h-4 w-4" />
-                  Git Diff
-                </TabsTrigger>
-                <TabsTrigger value="editor" className="flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  Editor
-                </TabsTrigger>
-                <TabsTrigger
-                  value="preview"
-                  className={`flex items-center gap-2`}
-                  disabled={!previewUrl}
-                >
-                  <Globe className="h-4 w-4" />
-                  Preview
-                </TabsTrigger>
-              </TabsList>
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 6h16M4 12h16M4 18h16"
+                    />
+                  </svg>
+                </Button>
 
-              {/* Web URL display */}
-              <Input
-                value={webUrl}
-                hasCopy
-                className="font-mono text-sm"
-              />
+                <TabsList className="bg-gray-900/50 border border-gray-800 flex-shrink-0 overflow-hidden">
+                  <TabsTrigger
+                    value="terminal"
+                    className="flex items-center gap-2 whitespace-nowrap"
+                  >
+                    <Terminal className="h-4 w-4" />
+                    <span className="hidden sm:inline">Terminal</span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="git-diff"
+                    className="flex items-center gap-2 whitespace-nowrap"
+                  >
+                    <GitBranch className="h-4 w-4" />
+                    <span className="hidden sm:inline">Git Diff</span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="editor"
+                    className="flex items-center gap-2 whitespace-nowrap"
+                  >
+                    <FileText className="h-4 w-4" />
+                    <span className="hidden sm:inline">Editor</span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="preview"
+                    className={`flex items-center gap-2 whitespace-nowrap`}
+                    disabled={!previewUrl}
+                  >
+                    <Globe className="h-4 w-4" />
+                    <span className="hidden sm:inline">Preview</span>
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              <div className="hidden lg:block">
+                <Input
+                  value={webUrl}
+                  hasCopy
+                  className="font-mono text-sm w-auto min-w-64"
+                />
+              </div>
             </div>
           </div>
         )}
@@ -127,7 +169,7 @@ export default function ViewProject({
         <div className="h-full flex-1 flex flex-col">
           {isPanel ? (
             /* Panel mode - show preview directly */
-            <div className="h-full flex-1 flex flex-col p-4">
+            <div className="h-full flex-1 flex flex-col p-4 pt-0">
               <WebViewContent />
             </div>
           ) : (
@@ -162,7 +204,7 @@ export default function ViewProject({
 
               {/* Preview tab */}
               {activeTab === "preview" && (
-                <div className="flex-1 flex flex-col p-4">
+                <div className="flex-1 flex flex-col p-4 pt-0">
                   <WebViewContent />
                 </div>
               )}

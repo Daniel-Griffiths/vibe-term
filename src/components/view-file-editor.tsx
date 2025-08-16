@@ -441,9 +441,9 @@ export default function ViewFileEditor({
   }, [activeFile, openFiles]);
 
   return (
-    <div className="h-full flex">
+    <div className="h-full flex flex-col lg:flex-row pt-0">
       {/* File Explorer Sidebar */}
-      <div className="w-80 bg-gray-950 border-r border-t border-gray-800 overflow-y-auto rounded-tr-lg max-h-screen">
+      <div className="w-full lg:w-80 lg:min-w-64 lg:max-w-80 md:w-72 bg-gray-950 border-r border-t border-gray-800 overflow-y-auto rounded-tr-lg lg:max-h-screen max-h-64 lg:flex-shrink-0">
         <div className="p-4 border-b border-gray-800">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2 text-sm text-gray-400">
@@ -503,7 +503,7 @@ export default function ViewFileEditor({
                         onClick={() => setActiveFile(file.path)}
                         onContextMenu={(e) => handleTabRightClick(e, file.path)}
                       >
-                        <span className="truncate max-w-32">{file.name}</span>
+                        <span className="truncate max-w-24 sm:max-w-32 lg:max-w-40">{file.name}</span>
                         {file.isDirty && (
                           <span className="text-yellow-400 text-xs">●</span>
                         )}

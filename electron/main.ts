@@ -127,7 +127,7 @@ function setupIPCHandlers() {
     const backgroundProc = backgroundProcesses.get(projectId);
     if (backgroundProc) {
       console.log(`[${projectId}] Killing background process`);
-      backgroundProc.kill('SIGTERM');
+      backgroundProc.kill("SIGTERM");
       backgroundProcesses.delete(projectId);
     }
 
@@ -526,7 +526,7 @@ async function getOrCreateSharedPty(
     // If PTY already exists, send current buffer and return success
     if (sharedPtyProcesses.has(projectId)) {
       console.log(`[${projectId}] Using existing shared PTY process`);
-      
+
       // Send current terminal buffer to ensure UI is synced
       const currentBuffer = terminalBuffers.get(projectId) || "";
       if (currentBuffer) {
@@ -551,7 +551,7 @@ async function getOrCreateSharedPty(
           data: currentBuffer,
         });
       }
-      
+
       return { success: true, projectId };
     }
 
@@ -609,7 +609,9 @@ async function getOrCreateSharedPty(
 
     // Send initial message to both desktop and web
     const initialMessage = !sessionExists
-      ? `Creating new tmux session "${tmuxSessionName}" and starting Claude ${yoloMode ? '(yolo mode) ' : ''}in ${projectPath}\r\n`
+      ? `Creating new tmux session "${tmuxSessionName}" and starting Claude ${
+          yoloMode ? "(yolo mode) " : ""
+        }in ${projectPath}\r\n`
       : `Attaching to existing tmux session "${tmuxSessionName}"\r\n`;
 
     // Add a small delay to ensure UI handlers are ready
@@ -643,18 +645,24 @@ async function getOrCreateSharedPty(
     // Session established successfully
     if (!sessionExists) {
       console.log(`[${projectId}] New tmux session created`);
-      
+
       // Send Claude command after a short delay to ensure session is ready
       setTimeout(() => {
-        const claudeCommand = yoloMode ? "claude --dangerously-skip-permissions\r" : "claude\r";
-        console.log(`[${projectId}] Sending Claude command: ${claudeCommand.trim()}`);
+        const claudeCommand = yoloMode
+          ? "claude --dangerously-skip-permissions\r"
+          : "claude\r";
+        console.log(
+          `[${projectId}] Sending Claude command: ${claudeCommand.trim()}`
+        );
         proc.write(claudeCommand);
       }, 500);
 
       // Start background runCommand if provided
       if (runCommand && runCommand.trim()) {
         setTimeout(() => {
-          console.log(`[${projectId}] Starting background command: ${runCommand}`);
+          console.log(
+            `[${projectId}] Starting background command: ${runCommand}`
+          );
           try {
             const backgroundProc = spawn(
               ShellUtils.getPreferredShell(),
@@ -666,33 +674,44 @@ async function getOrCreateSharedPty(
                   PATH: `${process.env.PATH}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`,
                 },
                 detached: false,
-                stdio: ['ignore', 'pipe', 'pipe']
+                stdio: ["ignore", "pipe", "pipe"],
               }
             );
 
             backgroundProcesses.set(projectId, backgroundProc);
 
             // Log background process output for debugging
-            backgroundProc.stdout?.on('data', (data) => {
-              console.log(`[${projectId}] Background stdout:`, data.toString().substring(0, 100));
+            backgroundProc.stdout?.on("data", (data) => {
+              console.log(
+                `[${projectId}] Background stdout:`,
+                data.toString().substring(0, 100)
+              );
             });
 
-            backgroundProc.stderr?.on('data', (data) => {
-              console.log(`[${projectId}] Background stderr:`, data.toString().substring(0, 100));
+            backgroundProc.stderr?.on("data", (data) => {
+              console.log(
+                `[${projectId}] Background stderr:`,
+                data.toString().substring(0, 100)
+              );
             });
 
-            backgroundProc.on('exit', (code) => {
-              console.log(`[${projectId}] Background process exited with code:`, code);
+            backgroundProc.on("exit", (code) => {
+              console.log(
+                `[${projectId}] Background process exited with code:`,
+                code
+              );
               backgroundProcesses.delete(projectId);
             });
 
-            backgroundProc.on('error', (error) => {
+            backgroundProc.on("error", (error) => {
               console.error(`[${projectId}] Background process error:`, error);
               backgroundProcesses.delete(projectId);
             });
-
           } catch (error) {
-            console.error(`[${projectId}] Failed to start background command:`, error);
+            console.error(
+              `[${projectId}] Failed to start background command:`,
+              error
+            );
           }
         }, 1000); // Start background command after Claude
       }
@@ -1000,10 +1019,10 @@ function createWindow() {
   }
 
   win = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    minWidth: 1200,
-    minHeight: 800,
+    width: 1200,
+    height: 800,
+    minWidth: 300,
+    minHeight: 600,
     ...(iconPath && { icon: iconPath }),
     webPreferences: {
       preload: path.join(__dirname, "preload.mjs"),
@@ -1059,9 +1078,12 @@ app.on("before-quit", async (event) => {
   event.preventDefault();
 
   // Stop power save blocker
-  if (powerSaveBlockerId !== null && powerSaveBlocker.isStarted(powerSaveBlockerId)) {
+  if (
+    powerSaveBlockerId !== null &&
+    powerSaveBlocker.isStarted(powerSaveBlockerId)
+  ) {
     powerSaveBlocker.stop(powerSaveBlockerId);
-    console.log('✅ Power save blocker stopped');
+    console.log("✅ Power save blocker stopped");
   }
 
   // Kill all tmux sessions associated with projects (silently fail if not running)
@@ -1082,7 +1104,7 @@ app.on("before-quit", async (event) => {
   // Clean up background processes
   backgroundProcesses.forEach((proc, projectId) => {
     console.log(`[${projectId}] Killing background process on app exit`);
-    proc.kill('SIGTERM');
+    proc.kill("SIGTERM");
   });
   backgroundProcesses.clear();
 
@@ -1112,9 +1134,9 @@ app.on("activate", () => {
 
 app.whenReady().then(async () => {
   // Start power save blocker to keep PC awake while app is running
-  powerSaveBlockerId = powerSaveBlocker.start('prevent-app-suspension');
-  console.log('✅ Power save blocker started - PC will stay awake');
-  
+  powerSaveBlockerId = powerSaveBlocker.start("prevent-app-suspension");
+  console.log("✅ Power save blocker started - PC will stay awake");
+
   // Register IPC handlers first, before creating window
   setupIPCHandlers();
 
@@ -1441,24 +1463,24 @@ ipcMain.handle(
 
       // Read file as base64
       const buffer = fs.readFileSync(fullPath);
-      const base64 = buffer.toString('base64');
-      
+      const base64 = buffer.toString("base64");
+
       // Determine MIME type based on extension
       const ext = path.extname(fullPath).toLowerCase();
       const mimeTypes: Record<string, string> = {
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.png': 'image/png',
-        '.gif': 'image/gif',
-        '.bmp': 'image/bmp',
-        '.svg': 'image/svg+xml',
-        '.webp': 'image/webp',
-        '.ico': 'image/x-icon',
-        '.tiff': 'image/tiff',
-        '.tif': 'image/tiff',
-        '.avif': 'image/avif',
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".gif": "image/gif",
+        ".bmp": "image/bmp",
+        ".svg": "image/svg+xml",
+        ".webp": "image/webp",
+        ".ico": "image/x-icon",
+        ".tiff": "image/tiff",
+        ".tif": "image/tiff",
+        ".avif": "image/avif",
       };
-      const mimeType = mimeTypes[ext] || 'image/jpeg';
+      const mimeType = mimeTypes[ext] || "image/jpeg";
 
       return { success: true, data: base64, mimeType };
     } catch (error) {

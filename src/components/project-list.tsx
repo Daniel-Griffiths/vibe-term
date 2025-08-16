@@ -523,7 +523,7 @@ export default function ProjectList({
   };
 
   return (
-    <div className="w-80 min-w-80 max-w-80 h-full glass-sidebar p-4 flex-shrink-0 flex flex-col">
+    <div className="w-80 min-w-64 max-w-80 lg:w-80 md:w-72 sm:w-64 h-full glass-sidebar p-4 flex-shrink-0 flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-200">Projects</h2>
         <div className="flex gap-2">

@@ -19,14 +19,15 @@ export default function ViewTerminal({
   const prevProjectsRef = useRef<UnifiedItem[]>([]);
 
   // Use the terminal manager hook with Claude configuration
-  const { containerRef, showTerminal, focusTerminal, clearTerminal } = useTerminalManager(
-    projects,
-    TerminalService.getClaudeConfig(),
-    (output) => {
-      // Handle terminal data input (send to Electron)
-      window.electronAPI?.sendInput(output.projectId, output.data);
-    }
-  );
+  const { containerRef, showTerminal, focusTerminal, clearTerminal } =
+    useTerminalManager(
+      projects,
+      TerminalService.getClaudeConfig(),
+      (output) => {
+        // Handle terminal data input (send to Electron)
+        window.electronAPI?.sendInput(output.projectId, output.data);
+      }
+    );
 
   // Show terminals based on selected project
   useEffect(() => {
@@ -117,7 +118,7 @@ export default function ViewTerminal({
             ref={containerRef}
             className="flex-1 overflow-hidden"
             style={{
-              minHeight: "400px",
+              minHeight: "200px",
               maxHeight: "100%",
               backgroundColor: "#000000",
               paddingLeft: "16px",
