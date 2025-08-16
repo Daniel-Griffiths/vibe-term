@@ -206,6 +206,11 @@ export class ShellUtils {
     tmuxOptions?: string[];
   }): string {
     const { action, sessionName, projectPath, startCommand, tmuxOptions } = options;
+    
+    // Default tmux options - always include status off
+    const defaultOptions = ['set-option status off'];
+    const allOptions = tmuxOptions ? [...defaultOptions, ...tmuxOptions] : defaultOptions;
+    
     let command = '';
     
     switch (action) {
@@ -213,16 +218,12 @@ export class ShellUtils {
         command = `tmux new-session -s "${sessionName}"`;
         if (projectPath) command += ` -c "${projectPath}"`;
         if (startCommand) command += ` "${startCommand}"`;
-        if (tmuxOptions && tmuxOptions.length > 0) {
-          command += ` \\; ${tmuxOptions.join(' \\; ')}`;
-        }
+        command += ` \\; ${allOptions.join(' \\; ')}`;
         break;
 
       case 'attach':
         command = `tmux attach-session -t "${sessionName}"`;
-        if (tmuxOptions && tmuxOptions.length > 0) {
-          command += ` \\; ${tmuxOptions.join(' \\; ')}`;
-        }
+        command += ` \\; ${allOptions.join(' \\; ')}`;
         break;
     }
     
@@ -245,6 +246,10 @@ export class ShellUtils {
     try {
       let command = '';
       
+      // Default tmux options - always include status off
+      const defaultOptions = ['set-option status off'];
+      const allOptions = tmuxOptions ? [...defaultOptions, ...tmuxOptions] : defaultOptions;
+      
       switch (action) {
         case 'create':
           command = detached 
@@ -253,25 +258,19 @@ export class ShellUtils {
           
           if (projectPath) command += ` -c "${projectPath}"`;
           if (startCommand) command += ` "${startCommand}"`;
-          if (tmuxOptions && tmuxOptions.length > 0) {
-            command += ` \\; ${tmuxOptions.join(' \\; ')}`;
-          }
+          command += ` \\; ${allOptions.join(' \\; ')}`;
           break;
 
         case 'attach':
           command = `tmux attach-session -t "${sessionName}"`;
-          if (tmuxOptions && tmuxOptions.length > 0) {
-            command += ` \\; ${tmuxOptions.join(' \\; ')}`;
-          }
+          command += ` \\; ${allOptions.join(' \\; ')}`;
           break;
 
         case 'new-attach':
           command = `tmux new-session -s "${sessionName}"`;
           if (projectPath) command += ` -c "${projectPath}"`;
           if (startCommand) command += ` "${startCommand}"`;
-          if (tmuxOptions && tmuxOptions.length > 0) {
-            command += ` \\; ${tmuxOptions.join(' \\; ')}`;
-          }
+          command += ` \\; ${allOptions.join(' \\; ')}`;
           break;
 
         case 'check':

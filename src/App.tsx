@@ -70,8 +70,9 @@ function App() {
             }
           );
 
-          // Update item output
-          const currentItem = items.find(
+          // Get current items from store and update
+          const { items: currentItems } = useAppStore.getState();
+          const currentItem = currentItems.find(
             (item) => item.id === output.projectId
           );
           if (currentItem) {
@@ -124,7 +125,7 @@ function App() {
         unsubscribeDeps();
       };
     }
-  }, [items, updateItem]);
+  }, []); // Remove dependencies to prevent re-subscription
 
   const handleProjectAdd = (projectData: {
     name: string;

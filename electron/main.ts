@@ -506,9 +506,35 @@ async function getOrCreateSharedPty(
   yoloMode?: boolean
 ) {
   try {
-    // If PTY already exists, just return success
+    // If PTY already exists, send current buffer and return success
     if (sharedPtyProcesses.has(projectId)) {
       console.log(`[${projectId}] Using existing shared PTY process`);
+      
+      // Send current terminal buffer to ensure UI is synced
+      const currentBuffer = terminalBuffers.get(projectId) || "";
+      if (currentBuffer) {
+        // Send to desktop if window exists
+        if (win && !win.isDestroyed()) {
+          console.log(`[Main Process] Sending existing buffer to renderer:`, {
+            projectId,
+            bufferLength: currentBuffer.length,
+            timestamp: new Date().toISOString(),
+          });
+          win.webContents.send("terminal-output", {
+            projectId,
+            data: currentBuffer,
+            type: "history",
+          });
+        }
+
+        // Send to web clients
+        broadcastToWebClients({
+          type: "terminal-output",
+          projectId: projectId,
+          data: currentBuffer,
+        });
+      }
+      
       return { success: true, projectId };
     }
 
@@ -527,16 +553,17 @@ async function getOrCreateSharedPty(
     let tmuxCommand;
     if (!sessionExists) {
       // Create new session with a basic shell and immediately attach
-      tmuxCommand = ShellUtils.newAndAttachTmuxSessionCommand(
-        tmuxSessionName,
+      tmuxCommand = ShellUtils.tmuxCommand({
+        action: "new-attach",
+        sessionName: tmuxSessionName,
         projectPath,
-        ["set-option status off"]
-      );
+      });
     } else {
       // Attach to existing session
-      tmuxCommand = ShellUtils.attachTmuxSessionCommand(tmuxSessionName, [
-        "set-option status off",
-      ]);
+      tmuxCommand = ShellUtils.tmuxCommand({
+        action: "attach",
+        sessionName: tmuxSessionName,
+      });
     }
 
     const proc = pty.spawn(
@@ -568,30 +595,33 @@ async function getOrCreateSharedPty(
       ? `Creating new tmux session "${tmuxSessionName}" in ${projectPath}\r\n`
       : `Attaching to existing tmux session "${tmuxSessionName}"\r\n`;
 
-    // Send to desktop if window exists
-    if (win && !win.isDestroyed()) {
-      console.log(`[Main Process] Sending initial message to renderer:`, {
-        projectId,
-        message: initialMessage.trim(),
-        timestamp: new Date().toISOString(),
-      });
-      win.webContents.send("terminal-output", {
-        projectId,
-        data: initialMessage,
-        type: "system",
-      });
-    } else {
-      console.warn(
-        `[Main Process] Cannot send initial message - window destroyed or missing`
-      );
-    }
+    // Add a small delay to ensure UI handlers are ready
+    setTimeout(() => {
+      // Send to desktop if window exists
+      if (win && !win.isDestroyed()) {
+        console.log(`[Main Process] Sending initial message to renderer:`, {
+          projectId,
+          message: initialMessage.trim(),
+          timestamp: new Date().toISOString(),
+        });
+        win.webContents.send("terminal-output", {
+          projectId,
+          data: initialMessage,
+          type: "system",
+        });
+      } else {
+        console.warn(
+          `[Main Process] Cannot send initial message - window destroyed or missing`
+        );
+      }
 
-    // Send to web clients
-    broadcastToWebClients({
-      type: "project-started",
-      projectId: projectId,
-      data: initialMessage,
-    });
+      // Send to web clients
+      broadcastToWebClients({
+        type: "project-started",
+        projectId: projectId,
+        data: initialMessage,
+      });
+    }, 100);
 
     // Session established successfully
     if (!sessionExists) {
