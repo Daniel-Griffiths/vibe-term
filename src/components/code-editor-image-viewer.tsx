@@ -51,24 +51,24 @@ export function CodeEditorImageViewer({ filePath, projectPath, fileName }: ICode
   }, [loadImage, imageUrl]);
 
 
-  const handleZoomIn = () => {
+  const handleZoomIn = useCallback(() => {
     setScale(prev => Math.min(prev + 0.25, 5));
-  };
+  }, []);
 
-  const handleZoomOut = () => {
+  const handleZoomOut = useCallback(() => {
     setScale(prev => Math.max(prev - 0.25, 0.25));
-  };
+  }, []);
 
-  const handleRotate = () => {
+  const handleRotate = useCallback(() => {
     setRotation(prev => (prev + 90) % 360);
-  };
+  }, []);
 
-  const handleResetView = () => {
+  const handleResetView = useCallback(() => {
     setScale(1);
     setRotation(0);
-  };
+  }, []);
 
-  const handleDownload = () => {
+  const handleDownload = useCallback(() => {
     if (imageUrl) {
       const link = document.createElement('a');
       link.href = imageUrl;
@@ -77,7 +77,7 @@ export function CodeEditorImageViewer({ filePath, projectPath, fileName }: ICode
       link.click();
       document.body.removeChild(link);
     }
-  };
+  }, [imageUrl, fileName]);
 
   if (error) {
     return (

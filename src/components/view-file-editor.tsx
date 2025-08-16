@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { CodeEditor, getLanguageFromPath } from "./code-editor";
 import { CodeEditorImageViewer } from "./code-editor-image-viewer";
 import { Card, CardContent, CardHeader, CardTitle } from "./card";
@@ -176,7 +176,7 @@ export default function ViewFileEditor({
     }
   };
 
-  const closeFile = (filePath: string, skipConfirmation = false) => {
+  const closeFile = useCallback((filePath: string, skipConfirmation = false) => {
     const fileToClose = openFiles.find((f) => f.path === filePath);
     
     // If file has unsaved changes and we haven't skipped confirmation, show dialog
@@ -199,7 +199,7 @@ export default function ViewFileEditor({
       const remainingFiles = openFiles.filter((f) => f.path !== filePath);
       setActiveFile(remainingFiles.length > 0 ? remainingFiles[0].path : null);
     }
-  };
+  }, [openFiles, activeFile, setConfirmDialog]);
 
   const closeFilesToRight = (filePath: string) => {
     const fileIndex = openFiles.findIndex((f) => f.path === filePath);
@@ -261,22 +261,22 @@ export default function ViewFileEditor({
     setActiveFile(filePath);
   };
 
-  const handleTabRightClick = (event: React.MouseEvent, filePath: string) => {
+  const handleTabRightClick = useCallback((event: React.MouseEvent, filePath: string) => {
     event.preventDefault();
     setContextMenu({
       isOpen: true,
       position: { x: event.clientX, y: event.clientY },
       targetFile: filePath,
     });
-  };
+  }, []);
 
-  const closeContextMenu = () => {
+  const closeContextMenu = useCallback(() => {
     setContextMenu({ isOpen: false, position: { x: 0, y: 0 }, targetFile: null });
-  };
+  }, []);
 
-  const closeConfirmDialog = () => {
+  const closeConfirmDialog = useCallback(() => {
     setConfirmDialog({ isOpen: false, fileName: "", onConfirm: () => {} });
-  };
+  }, []);
 
   const handleContentChange = (value: string | undefined, filePath: string) => {
     if (value === undefined) return;
@@ -393,14 +393,14 @@ export default function ViewFileEditor({
     ));
   };
 
-  const isImageFile = (path: string): boolean => {
+  const isImageFile = useCallback((path: string): boolean => {
     const ext = path.split(".").pop()?.toLowerCase();
     const imageExtensions = [
       "jpg", "jpeg", "png", "gif", "bmp", "svg", 
       "webp", "ico", "tiff", "tif", "avif"
     ];
     return imageExtensions.includes(ext || "");
-  };
+  }, []);
 
 
   if (!selectedProject) {
@@ -436,9 +436,9 @@ export default function ViewFileEditor({
     );
   }
 
-  const currentFile = activeFile
-    ? openFiles.find((f) => f.path === activeFile)
-    : null;
+  const currentFile = useMemo(() => {
+    return activeFile ? openFiles.find((f) => f.path === activeFile) : null;
+  }, [activeFile, openFiles]);
 
   return (
     <div className="h-full flex">

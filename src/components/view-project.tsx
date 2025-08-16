@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Tabs, TabsList, TabsTrigger } from "./tabs";
-import { Button } from "./button";
+import { Input } from "./input";
 import ViewTerminal from "./view-terminal";
 import ViewGitDiff from "./view-git-diff";
 import ViewFileEditor from "./view-file-editor";
@@ -9,8 +9,6 @@ import { NonIdealState } from "./non-ideal-state";
 import {
   Terminal,
   GitBranch,
-  Copy,
-  Check,
   Globe,
   FileText,
 } from "lucide-react";
@@ -25,50 +23,42 @@ export default function ViewProject({
   selectedItem,
   items,
 }: IViewProjectProps) {
-  const isPanel = selectedItem?.type === "panel";
-  const [activeTab, setActiveTab] = useState(isPanel ? "preview" : "terminal");
-  const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState(() => {
+    return selectedItem?.type === "panel" ? "preview" : "terminal";
+  });
+  const [localIp, setLocalIp] = useState<string>("localhost");
+  const [webPort] = useState(6969); // Default web server port
 
   const currentItem = selectedItem;
-  const previewUrl = currentItem?.url;
+  const previewUrl = useMemo(() => currentItem?.url, [currentItem?.url]);
+  const webUrl = useMemo(() => `http://${localIp}:${webPort}`, [localIp, webPort]);
+  const isPanel = useMemo(() => selectedItem?.type === "panel", [selectedItem?.type]);
 
-  const handleCopyTmuxCommand = async () => {
-    if (!currentItem || currentItem.type !== "project") return;
-
-    // Match the tmux session name format used in the Electron main process
-    const sessionBase = currentItem.name || currentItem.id;
-    const tmuxSessionName = sessionBase
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, "-");
-    const command = `tmux attach-session -t ${tmuxSessionName}`;
-    try {
-      await navigator.clipboard.writeText(command);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy:", err);
+  // Fetch local IP when component mounts
+  const fetchLocalIp = useCallback(async () => {
+    if (window.electronAPI?.getLocalIp) {
+      try {
+        const result = await window.electronAPI.getLocalIp();
+        setLocalIp(result.localIp);
+      } catch (error) {
+        console.error('Failed to fetch local IP:', error);
+      }
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchLocalIp();
+  }, [fetchLocalIp]);
+
 
   // Shared component for no URL state  
-  const NoUrlConfigured = ({ itemType }: { itemType: "panel" | "project" }) => (
+  const NoUrlConfigured = useCallback(({ itemType }: { itemType: "panel" | "project" }) => (
     <NonIdealState
       icon={Globe}
       title={`No ${itemType === "panel" ? "URL" : "Preview URL"} Configured`}
-      description={
-        <>
-          Configure a {itemType === "panel" ? "URL" : "preview URL"} in your{" "}
-          {itemType} settings to view
-          {itemType === "panel" ? " content" : " your application"} here.
-          {itemType === "project" && (
-            <span className="block mt-2 text-xs text-gray-600">
-              Example: http://localhost:3000
-            </span>
-          )}
-        </>
-      }
+      description={`Configure a ${itemType === "panel" ? "URL" : "preview URL"} in your ${itemType} settings to view${itemType === "panel" ? " content" : " your application"} here.${itemType === "project" ? " Example: http://localhost:3000" : ""}`}
     />
-  );
+  ), []);
 
   // Shared WebView component
   const WebViewContent = () => {
@@ -123,27 +113,12 @@ export default function ViewProject({
                 </TabsTrigger>
               </TabsList>
 
-              {/* Tmux command display */}
-              <div className="relative">
-                <div className="flex items-center bg-gray-800 border border-gray-700 rounded-md pl-3 pr-10 h-10 text-sm text-gray-300 font-mono">
-                  tmux attach-session -t{" "}
-                  {(currentItem.name || currentItem.id)
-                    .toLowerCase()
-                    .replace(/[^a-z0-9]/g, "-")}
-                </div>
-                <Button
-                  size="sm"
-                  onClick={handleCopyTmuxCommand}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0 bg-transparent hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors rounded"
-                  title="Copy tmux command"
-                >
-                  {copied ? (
-                    <Check className="h-3 w-3" />
-                  ) : (
-                    <Copy className="h-3 w-3" />
-                  )}
-                </Button>
-              </div>
+              {/* Web URL display */}
+              <Input
+                value={webUrl}
+                hasCopy
+                className="font-mono text-sm"
+              />
             </div>
           </div>
         )}

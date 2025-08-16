@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 
 interface IContextMenuProps {
   isOpen: boolean;
@@ -10,19 +10,19 @@ interface IContextMenuProps {
 export function ContextMenu({ isOpen, position, onClose, children }: IContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
+  const handleClickOutside = useCallback((event: MouseEvent) => {
+    if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      onClose();
+    }
+  }, [onClose]);
+
+  const handleEscape = useCallback((event: KeyboardEvent) => {
+    if (event.key === "Escape") {
+      onClose();
+    }
+  }, [onClose]);
+
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        onClose();
-      }
-    };
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       document.addEventListener("keydown", handleEscape);
@@ -32,7 +32,7 @@ export function ContextMenu({ isOpen, position, onClose, children }: IContextMen
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleEscape);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, handleClickOutside, handleEscape]);
 
   if (!isOpen) return null;
 
