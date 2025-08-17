@@ -103,11 +103,11 @@ export default function FormProject({
   const handleSelectDirectory = async () => {
     try {
       const result = await communicationAPI.selectDirectory();
-      if (result?.success && result.path) {
-        setPath(result.path);
+      if (result?.success && result?.data?.path) {
+        setPath(result.data.path);
         // Auto-populate name with folder name if name is empty
         if (!name.trim()) {
-          const folderName = result.path.split("/").pop() || "";
+          const folderName = result.data.path.split("/").pop() || "";
           setName(folderName);
         }
       }

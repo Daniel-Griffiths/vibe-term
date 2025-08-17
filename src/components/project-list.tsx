@@ -515,8 +515,6 @@ export default function ProjectList({
         );
       case "completed":
         return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case "error":
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
       default:
         return <div className="h-2 w-2 rounded-full bg-gray-500" />;
     }

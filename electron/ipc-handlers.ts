@@ -378,19 +378,28 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
   });
 
   // Directory selection
-  registerIPCHandler("select-directory", async (): Promise<string | null> => {
+  registerIPCHandler("select-directory", async (): Promise<DataResult<{ path: string }>> => {
     if (!win) {
       console.warn("Window not available for directory selection");
-      return null;
+      return { success: false, error: "Window not available" };
     }
     try {
       const result = await dialog.showOpenDialog(win, {
         properties: ["openDirectory"],
       });
-      return result.canceled ? null : result.filePaths[0];
-    } catch (error) {
-      console.error("Error selecting directory:", error);
-      return null;
+      
+      if (result.canceled || !result.filePaths[0]) {
+        return { success: false, error: "Directory selection cancelled" };
+      }
+      
+      return { 
+        success: true, 
+        data: { path: result.filePaths[0] }
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error("Directory selection error:", error);
+      return { success: false, error: errorMessage };
     }
   });
 
