@@ -28154,7 +28154,14 @@ class TerminalService {
       cursorBlink,
       convertEol: true,
       scrollback,
-      disableStdin: !interactive
+      disableStdin: !interactive,
+      altClickMovesCursor: false,
+      macOptionIsMeta: true,
+      allowProposedApi: true,
+      macOptionClickForcesSelection: false,
+      rightClickSelectsWord: false,
+      windowOptions: {},
+      allowTransparency: false
     });
   }
   /**
@@ -28250,52 +28257,11 @@ class TerminalService {
    */
   static setupDataHandler(terminal, onData) {
     const disposable = terminal.onData((data) => {
-      if (this.shouldIgnoreData(data)) {
-        console.log(`[Terminal Debug] Ignoring terminal sequence:`, {
-          data,
-          preview: data.substring(0, 50)
-        });
-        return;
-      }
       onData(data);
     });
-    return () => disposable.dispose();
-  }
-  /**
-   * Check if terminal data should be ignored (not sent as user input)
-   */
-  static shouldIgnoreData(data) {
-    if (!data || data.length === 0) {
-      return true;
-    }
-    if (/^\u001b\[/.test(data)) {
-      return true;
-    }
-    if (/^[?>][\d;]*[a-zA-Z]$/.test(data)) {
-      return true;
-    }
-    if (/^[\d;]+[a-zA-Z]$/.test(data) && data.length < 20) {
-      return true;
-    }
-    if (data.length === 1 && /[?>]/.test(data)) {
-      return true;
-    }
-    const capabilityPatterns = [
-      /^\?1;2c$/,
-      // Primary Device Attributes
-      /^>0;276;0c$/,
-      // Secondary Device Attributes
-      /^\d+;\d+c$/,
-      // Device Attributes response
-      /^[\d;]+[cR]$/
-      // Various terminal responses
-    ];
-    for (const pattern of capabilityPatterns) {
-      if (pattern.test(data)) {
-        return true;
-      }
-    }
-    return false;
+    return () => {
+      disposable.dispose();
+    };
   }
   /**
    * Create terminal manager for managing multiple project terminals
