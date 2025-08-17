@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { TerminalService } from '../services/TerminalService';
 import type { TerminalConfig } from '../services/TerminalService';
 import type { Project } from '../types';
+import { communicationAPI } from '../utils/communication';
 
 export interface TerminalManagerHook {
   containerRef: React.RefObject<HTMLDivElement>;
@@ -78,9 +79,9 @@ export function useTerminalManager(
 
   // Set up external output listeners (e.g., from Electron IPC)
   useEffect(() => {
-    if (!window.electronAPI?.onTerminalOutput) return;
+    if (!communicationAPI.onTerminalOutput) return;
 
-    const unsubscribe = window.electronAPI.onTerminalOutput((output: any) => {
+    const unsubscribe = communicationAPI.onTerminalOutput((output: any) => {
       console.log(`[Terminal Debug] Received output for project ${output.projectId}:`, {
         dataLength: output.data?.length,
         dataPreview: output.data?.substring(0, 100),

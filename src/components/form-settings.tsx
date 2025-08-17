@@ -3,6 +3,7 @@ import { Button } from "./button";
 import { Input } from "./input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs";
 import { useAppStore } from "../stores/settings";
+import { communicationAPI } from "../utils/communication";
 import {
   Settings as SettingsIcon,
   MessageCircle,
@@ -36,12 +37,14 @@ export default function FormSettings({ onClose }: IFormSettingsProps) {
     setLocalSettings(settings);
     setHasChanges(false);
     
-    if (window.electronAPI?.getLocalIp) {
-      window.electronAPI.getLocalIp().then((result) => {
+    communicationAPI.getLocalIp().then((result) => {
+      if (result?.success) {
         setLocalIp(result.localIp);
         setHasTailscale(result.hasTailscale);
-      });
-    }
+      }
+    }).catch((error) => {
+      console.error("Failed to get local IP:", error);
+    });
   }, [settings]);
 
   const handleSettingChange = (path: string, value: any) => {
@@ -82,7 +85,7 @@ export default function FormSettings({ onClose }: IFormSettingsProps) {
 
     setTestingSending(true);
     try {
-      const result = await window.electronAPI?.testDiscordNotification?.(
+      const result = await communicationAPI.testDiscordNotification(
         localSettings.discord
       );
       if (result?.success) {

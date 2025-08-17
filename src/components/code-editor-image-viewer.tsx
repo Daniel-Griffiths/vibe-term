@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { ZoomIn, ZoomOut, RotateCw, Download, Maximize2 } from "lucide-react";
 import { Button } from "./button";
+import { communicationAPI } from "../utils/communication";
 
 interface ICodeEditorImageViewerProps {
   filePath: string;
@@ -18,7 +19,7 @@ export function CodeEditorImageViewer({ filePath, projectPath, fileName }: ICode
   const loadImage = useCallback(async () => {
     try {
       // Read the image file as base64
-      const result = await window.electronAPI?.readImageFile(projectPath, filePath);
+      const result = await communicationAPI.readImageFile(projectPath, filePath);
       if (result?.success && result.data) {
         // Create a data URL from the base64 string
         const url = `data:${result.mimeType || 'image/jpeg'};base64,${result.data}`;

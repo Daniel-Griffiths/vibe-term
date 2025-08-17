@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { CodeEditor, getLanguageFromPath } from "./code-editor";
 import { CodeEditorImageViewer } from "./code-editor-image-viewer";
 import { Card, CardContent, CardHeader, CardTitle } from "./card";
+import { communicationAPI } from "../utils/communication";
 import { Button } from "./button";
 import {
   File,
@@ -19,6 +20,16 @@ import { NonIdealState } from "./non-ideal-state";
 import { ContextMenu, ContextMenuItem } from "./context-menu";
 import Modal from "./modal";
 import type { UnifiedItem } from "../types";
+
+// Utility function to check if a file is an image
+const isImageFile = (path: string): boolean => {
+  const ext = path.split(".").pop()?.toLowerCase();
+  const imageExtensions = [
+    "jpg", "jpeg", "png", "gif", "bmp", "svg", 
+    "webp", "ico", "tiff", "tif", "avif"
+  ];
+  return imageExtensions.includes(ext || "");
+};
 
 interface IViewFileEditorProps {
   selectedProject: UnifiedItem | null;
@@ -65,7 +76,7 @@ export default function ViewFileEditor({
     setLoading(true);
     setError(null);
     try {
-      const result = await window.electronAPI?.getProjectFiles(
+      const result = await communicationAPI.getProjectFiles(
         selectedProject.path!
       );
       if (result?.success) {
@@ -145,7 +156,7 @@ export default function ViewFileEditor({
     }
 
     try {
-      const result = await window.electronAPI?.readProjectFile(
+      const result = await communicationAPI.readProjectFile(
         selectedProject.path!,
         filePath
       );
@@ -301,7 +312,7 @@ export default function ViewFileEditor({
       if (!file || !selectedProject) return;
 
       try {
-        const result = await window.electronAPI?.saveFile(
+        const result = await communicationAPI.saveFile(
           selectedProject.path!,
           filePath,
           file.content
@@ -393,14 +404,6 @@ export default function ViewFileEditor({
     ));
   };
 
-  const isImageFile = useCallback((path: string): boolean => {
-    const ext = path.split(".").pop()?.toLowerCase();
-    const imageExtensions = [
-      "jpg", "jpeg", "png", "gif", "bmp", "svg", 
-      "webp", "ico", "tiff", "tif", "avif"
-    ];
-    return imageExtensions.includes(ext || "");
-  }, []);
 
 
   if (!selectedProject) {
@@ -545,21 +548,11 @@ export default function ViewFileEditor({
 
           <CardContent className="flex-1 p-0 overflow-hidden">
             {currentFile ? (
-              isImageFile(currentFile.path) ? (
-                <CodeEditorImageViewer
-                  filePath={currentFile.path}
-                  projectPath={selectedProject.path!}
-                  fileName={currentFile.name}
-                />
-              ) : (
-                <CodeEditor
-                  value={currentFile.content}
-                  onChange={(value) =>
-                    handleContentChange(value, currentFile.path)
-                  }
-                  language={getLanguageFromPath(currentFile.path)}
-                />
-              )
+              <FileEditorContent
+                currentFile={currentFile}
+                selectedProject={selectedProject}
+                handleContentChange={handleContentChange}
+              />
             ) : (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
@@ -651,4 +644,38 @@ export default function ViewFileEditor({
       </Modal>
     </div>
   );
+}
+
+// Separate component to handle file content rendering
+// This ensures hooks are always called in the same order
+function FileEditorContent({ 
+  currentFile, 
+  selectedProject, 
+  handleContentChange 
+}: {
+  currentFile: any;
+  selectedProject: any;
+  handleContentChange: (value: string | undefined, path: string) => void;
+}) {
+  const isImage = isImageFile(currentFile.path);
+  
+  // Always render both components to maintain hook order
+  // But only show one at a time
+  if (isImage) {
+    return (
+      <CodeEditorImageViewer
+        filePath={currentFile.path}
+        projectPath={selectedProject.path!}
+        fileName={currentFile.name}
+      />
+    );
+  } else {
+    return (
+      <CodeEditor
+        value={currentFile.content}
+        onChange={(value) => handleContentChange(value, currentFile.path)}
+        language={getLanguageFromPath(currentFile.path)}
+      />
+    );
+  }
 }

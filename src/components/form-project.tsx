@@ -3,6 +3,7 @@ import { Button } from "./button";
 import { Input } from "./input";
 import { ChevronDown } from "lucide-react";
 import { ICON_OPTIONS } from "./shared-icons";
+import { communicationAPI } from "../utils/communication";
 
 interface IFormProjectProps {
   data?: {
@@ -100,16 +101,18 @@ export default function FormProject({
   };
 
   const handleSelectDirectory = async () => {
-    if (window.electronAPI) {
-      const selectedPath = await window.electronAPI.selectDirectory();
-      if (selectedPath) {
-        setPath(selectedPath);
+    try {
+      const result = await communicationAPI.selectDirectory();
+      if (result?.success && result.path) {
+        setPath(result.path);
         // Auto-populate name with folder name if name is empty
         if (!name.trim()) {
-          const folderName = selectedPath.split("/").pop() || "";
+          const folderName = result.path.split("/").pop() || "";
           setName(folderName);
         }
       }
+    } catch (error) {
+      console.error("Failed to select directory:", error);
     }
   };
 

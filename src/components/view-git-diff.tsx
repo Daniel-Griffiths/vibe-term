@@ -20,6 +20,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { NonIdealState } from "./non-ideal-state";
+import { communicationAPI } from "../utils/communication";
 import type { UnifiedItem } from "../types";
 
 interface IViewGitDiffProps {
@@ -64,7 +65,7 @@ export default function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
       setLoading(true);
       setError(null);
       try {
-        const result = await window.electronAPI?.getGitDiff(
+        const result = await communicationAPI.getGitDiff(
           selectedProject.path
         );
         if (result.success) {
@@ -111,7 +112,7 @@ export default function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
     setLoading(true);
     setError(null);
     try {
-      const result = await window.electronAPI?.getGitDiff(selectedProject.path);
+      const result = await communicationAPI.getGitDiff(selectedProject.path);
       if (result.success) {
         setDiffData(result.data);
         if (result.data.files.length > 0) {
@@ -173,7 +174,7 @@ export default function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
     if (!selectedProject || !selectedFile) return;
 
     try {
-      const result = await window.electronAPI?.saveFile(
+      const result = await communicationAPI.saveFile(
         selectedProject.path,
         selectedFile.path,
         editContent
@@ -203,7 +204,7 @@ export default function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
 
     setIsCommitting(true);
     try {
-      const result = await window.electronAPI?.gitCommit(
+      const result = await communicationAPI.gitCommit(
         selectedProject.path,
         commitMessage.trim()
       );
@@ -230,7 +231,7 @@ export default function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
             "Commit successful! Do you want to push to remote?"
           );
           if (shouldPush) {
-            const pushResult = await window.electronAPI?.gitPush(
+            const pushResult = await communicationAPI.gitPush(
               selectedProject.path
             );
             if (pushResult?.success) {
@@ -258,7 +259,7 @@ export default function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
     if (!selectedProject) return;
 
     try {
-      const result = await window.electronAPI?.revertFile(
+      const result = await communicationAPI.revertFile(
         selectedProject.path,
         filePath
       );

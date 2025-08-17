@@ -7,6 +7,7 @@ import ViewGitDiff from "./view-git-diff";
 import ViewFileEditor from "./view-file-editor";
 import ViewWebview from "./view-webview";
 import { NonIdealState } from "./non-ideal-state";
+import { communicationAPI } from "../utils/communication";
 import { Terminal, GitBranch, Globe, FileText } from "lucide-react";
 import type { UnifiedItem } from "../types";
 
@@ -42,13 +43,13 @@ export default function ViewProject({
 
   // Fetch local IP when component mounts
   const fetchLocalIp = useCallback(async () => {
-    if (window.electronAPI?.getLocalIp) {
-      try {
-        const result = await window.electronAPI.getLocalIp();
+    try {
+      const result = await communicationAPI.getLocalIp();
+      if (result?.success) {
         setLocalIp(result.localIp);
-      } catch (error) {
-        console.error("Failed to fetch local IP:", error);
       }
+    } catch (error) {
+      console.error("Failed to fetch local IP:", error);
     }
   }, []);
 

@@ -1,6 +1,5 @@
 import React from "react";
 import { Editor, DiffEditor } from "@monaco-editor/react";
-import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
 import { useEditorTheme } from "../hooks/use-editor-theme";
 
 interface ICodeEditorProps {

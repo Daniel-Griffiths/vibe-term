@@ -10,6 +10,7 @@
     "dev": "vite",
     "build:dist": "tsc && vite build",
     "build": "npm run build:dist && electron-builder --publish never",
+    "build:web": "vite build --config vite.web.config.ts",
     "lint": "eslint .",
     "tsc": "tsc --noEmit",
     "preview": "vite preview",

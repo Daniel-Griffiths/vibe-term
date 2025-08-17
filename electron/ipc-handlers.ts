@@ -151,6 +151,18 @@ interface WebSocketMessage {
   timestamp?: number;
 }
 
+interface UnifiedItem {
+  id: string;
+  name: string;
+  type: "project" | "panel";
+  path?: string;
+  url?: string;
+  icon?: string;
+  runCommand?: string;
+  yoloMode?: boolean;
+  restrictedBranches?: string;
+}
+
 interface IPCHandlerDependencies {
   win: BrowserWindow | null;
   sharedPtyProcesses: Map<string, IPty>;
@@ -165,6 +177,11 @@ interface IPCHandlerDependencies {
   ) => Promise<PTYResult>;
   readStateFile: () => AppState;
   broadcastToWebClients: (message: WebSocketMessage) => void;
+  getAppState: () => AppState;
+  updateAppState: (newState: Partial<AppState>) => void;
+  addStoredItem: (item: UnifiedItem) => void;
+  updateStoredItem: (id: string, updates: Partial<UnifiedItem>) => void;
+  deleteStoredItem: (id: string) => void;
 }
 
 export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
@@ -174,6 +191,11 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
     backgroundProcesses,
     getOrCreateSharedPty,
     readStateFile,
+    getAppState,
+    updateAppState,
+    addStoredItem,
+    updateStoredItem,
+    deleteStoredItem,
   } = deps;
 
   // Process management
@@ -283,13 +305,18 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
   // Directory selection
   registerIPCHandler("select-directory", async (): Promise<string | null> => {
     if (!win) {
-      throw new Error("Window not available");
+      console.warn("Window not available for directory selection");
+      return null;
     }
-    const result = await dialog.showOpenDialog(win, {
-      properties: ["openDirectory"],
-    });
-
-    return result.canceled ? null : result.filePaths[0];
+    try {
+      const result = await dialog.showOpenDialog(win, {
+        properties: ["openDirectory"],
+      });
+      return result.canceled ? null : result.filePaths[0];
+    } catch (error) {
+      console.error("Error selecting directory:", error);
+      return null;
+    }
   });
 
   // Git operations
@@ -776,6 +803,43 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
       }
     }
   );
+
+  // Data management IPC handlers
+  registerIPCHandler("get-stored-items", async (): Promise<{ success: boolean; data: UnifiedItem[] }> => {
+    const state = getAppState();
+    console.log('[IPC Debug] get-stored-items called, returning:', state.storedItems);
+    return { success: true, data: state.storedItems };
+  });
+
+  registerIPCHandler("add-stored-item", async (...args: unknown[]): Promise<{ success: boolean }> => {
+    const [item] = args as [UnifiedItem];
+    addStoredItem(item);
+    return { success: true };
+  });
+
+  registerIPCHandler("update-stored-item", async (...args: unknown[]): Promise<{ success: boolean }> => {
+    const [id, updates] = args as [string, Partial<UnifiedItem>];
+    updateStoredItem(id, updates);
+    return { success: true };
+  });
+
+  registerIPCHandler("delete-stored-item", async (...args: unknown[]): Promise<{ success: boolean }> => {
+    const [id] = args as [string];
+    deleteStoredItem(id);
+    return { success: true };
+  });
+
+  registerIPCHandler("get-app-settings", async (): Promise<{ success: boolean; data: any }> => {
+    const state = getAppState();
+    console.log('[IPC Debug] get-app-settings called, returning:', state.settings);
+    return { success: true, data: state.settings };
+  });
+
+  registerIPCHandler("update-app-settings", async (...args: unknown[]): Promise<{ success: boolean }> => {
+    const [settings] = args as [any];
+    updateAppState({ settings });
+    return { success: true };
+  });
 }
 
 export { ipcHandlers };

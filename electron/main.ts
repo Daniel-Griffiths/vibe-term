@@ -12,10 +12,64 @@ import { ChildProcess, spawn, exec } from "child_process";
 import { promisify } from "util";
 import * as pty from "node-pty";
 import { ShellUtils } from "../src/utils/shellUtils";
-import { setupIPCHandlers, ipcHandlers } from "./ipcHandlers";
-import { createWebServer, broadcastToWebClients, closeWebServer } from "./webServer";
+import { setupIPCHandlers, ipcHandlers } from "./ipc-handlers";
+import { createWebServer, broadcastToWebClients, closeWebServer } from "./web-server";
 
 const execAsync = promisify(exec);
+
+// Application state stored in main process
+interface UnifiedItem {
+  id: string;
+  name: string;
+  type: "project" | "panel";
+  path?: string;
+  url?: string;
+  icon?: string;
+  runCommand?: string;
+  yoloMode?: boolean;
+  restrictedBranches?: string;
+}
+
+interface AppState {
+  settings: {
+    editor: { theme: string };
+    desktop: { notifications: boolean };
+    webServer: { enabled: boolean; port: number };
+    discord: { enabled: boolean; username: string; webhookUrl: string };
+  };
+  storedItems: UnifiedItem[];
+}
+
+// In-memory application state
+let appState: AppState = {
+  settings: {
+    editor: { theme: "vibe-term" },
+    desktop: { notifications: true },
+    webServer: { enabled: true, port: 6969 },
+    discord: { enabled: false, username: "Vibe Term", webhookUrl: "" }
+  },
+  storedItems: []
+};
+
+// Helper functions for state management
+const getDataFilePath = () => path.join(app.getPath("userData"), "app-data.json");
+
+const saveAppState = async () => {
+  try {
+    await fs.promises.writeFile(getDataFilePath(), JSON.stringify(appState, null, 2), "utf8");
+  } catch (error) {
+    console.error("Failed to save app state:", error);
+  }
+};
+
+const loadAppState = async () => {
+  try {
+    const data = await fs.promises.readFile(getDataFilePath(), "utf8");
+    appState = { ...appState, ...JSON.parse(data) };
+  } catch (error) {
+    console.log("No existing app data found, using defaults");
+  }
+};
 
 // Test variable to force missing dependencies modal
 const FORCE_SHOW_DEPENDENCIES_MODAL = false; // Set to true for testing
@@ -88,19 +142,7 @@ let webServer: any = null;
 
 // Helper function to read state from file (outside web server to avoid app naming conflict)
 const readStateFile = () => {
-  try {
-    const stateFilePath = path.join(
-      app.getPath("userData"),
-      "web-server-state.json"
-    );
-    if (fs.existsSync(stateFilePath)) {
-      const data = fs.readFileSync(stateFilePath, "utf8");
-      return JSON.parse(data);
-    }
-  } catch (error) {
-    console.error("Error reading state file:", error);
-  }
-  return { settings: {}, storedItems: [] };
+  return appState;
 };
 
 
@@ -707,11 +749,16 @@ app.on("activate", () => {
 });
 
 app.whenReady().then(async () => {
+  // Load app state from disk
+  await loadAppState();
+  
   // Start power save blocker to keep PC awake while app is running
   powerSaveBlockerId = powerSaveBlocker.start("prevent-app-suspension");
   console.log("✅ Power save blocker started - PC will stay awake");
 
-  // Register IPC handlers first, before creating window
+  createWindow();
+
+  // Register IPC handlers after creating window so win is available
   setupIPCHandlers({
     win,
     sharedPtyProcesses,
@@ -720,9 +767,27 @@ app.whenReady().then(async () => {
     getOrCreateSharedPty,
     readStateFile,
     broadcastToWebClients,
+    getAppState: () => appState,
+    updateAppState: (newState: Partial<AppState>) => {
+      appState = { ...appState, ...newState };
+      saveAppState();
+    },
+    addStoredItem: (item: UnifiedItem) => {
+      appState.storedItems.push(item);
+      saveAppState();
+    },
+    updateStoredItem: (id: string, updates: Partial<UnifiedItem>) => {
+      const index = appState.storedItems.findIndex(item => item.id === id);
+      if (index !== -1) {
+        appState.storedItems[index] = { ...appState.storedItems[index], ...updates };
+        saveAppState();
+      }
+    },
+    deleteStoredItem: (id: string) => {
+      appState.storedItems = appState.storedItems.filter(item => item.id !== id);
+      saveAppState();
+    },
   });
-
-  createWindow();
 
   // Check for required dependencies
   const missingDeps = await checkDependencies();

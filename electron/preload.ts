@@ -107,7 +107,26 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('read-image-file', projectPath, filePath),
   
   writeStateFile: (state: any) => 
-    ipcRenderer.invoke('write-state-file', state)
+    ipcRenderer.invoke('write-state-file', state),
+
+  // New data management methods
+  getStoredItems: () => 
+    ipcRenderer.invoke('get-stored-items'),
+  
+  addStoredItem: (item: any) => 
+    ipcRenderer.invoke('add-stored-item', item),
+  
+  updateStoredItem: (id: string, updates: any) => 
+    ipcRenderer.invoke('update-stored-item', id, updates),
+  
+  deleteStoredItem: (id: string) => 
+    ipcRenderer.invoke('delete-stored-item', id),
+  
+  getAppSettings: () => 
+    ipcRenderer.invoke('get-app-settings'),
+  
+  updateAppSettings: (settings: any) => 
+    ipcRenderer.invoke('update-app-settings', settings)
 });
 
 export {};

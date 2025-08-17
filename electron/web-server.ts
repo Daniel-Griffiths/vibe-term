@@ -83,9 +83,13 @@ export async function createWebServer(
   expressApp.use(cors());
   expressApp.use(express.json());
 
-  // Serve static files (we'll create a simple mobile-friendly interface)
+  // Serve static files (both simple interface and React app)
   const webStaticPath = path.join(__dirname, "..", "web");
   expressApp.use(express.static(webStaticPath));
+  
+  // Serve React app static files
+  const distWebPath = path.join(__dirname, "..", "dist-web");
+  expressApp.use("/dist", express.static(distWebPath));
 
   // Automatic API endpoint generation from IPC handlers
   expressApp.post("/api/ipc/:handlerName", async (req, res) => {
@@ -113,11 +117,29 @@ export async function createWebServer(
   });
 
   // Legacy API endpoints for backward compatibility
-  expressApp.get("/api/projects", (req, res) => {
-    const state = readStateFile();
-    const projects =
-      state.storedItems?.filter((item: any) => item.type === "project") || [];
-    res.json({ success: true, data: projects });
+  expressApp.get("/api/projects", async (req, res) => {
+    try {
+      // Use IPC handler to get the latest state instead of reading from file
+      const handler = ipcHandlers.get("get-stored-items");
+      if (handler) {
+        const result = await handler();
+        if (result.success) {
+          const projects = result.data?.filter((item: any) => item.type === "project") || [];
+          res.json({ success: true, data: projects });
+        } else {
+          res.json({ success: true, data: [] });
+        }
+      } else {
+        // Fallback to reading state file
+        const state = readStateFile();
+        const projects =
+          state.storedItems?.filter((item: any) => item.type === "project") || [];
+        res.json({ success: true, data: projects });
+      }
+    } catch (error) {
+      console.error("Error getting projects:", error);
+      res.json({ success: true, data: [] });
+    }
   });
 
   // Note: Project status, resize, and history endpoints are now handled
@@ -129,22 +151,34 @@ export async function createWebServer(
     res.json({ success: true, handlers });
   });
 
+  // Serve the main React app
+  expressApp.get("/app", (_req, res) => {
+    res.sendFile(path.join(webStaticPath, "app.html"));
+  });
+
   // WebSocket setup
   webSocketServer = new WebSocketServer({ server });
 
-  webSocketServer.on("connection", (ws) => {
+  webSocketServer.on("connection", async (ws: any) => {
     webClients.add(ws);
 
-    // Send current projects state
-    const state = readStateFile();
-    const projects =
-      state.storedItems?.filter((item: any) => item.type === "project") || [];
-    ws.send(
-      JSON.stringify({
-        type: "projects-state",
-        data: projects,
-      })
-    );
+    // Send current projects state using IPC handler
+    try {
+      const handler = ipcHandlers.get("get-stored-items");
+      if (handler) {
+        const result = await handler();
+        if (result.success) {
+          ws.send(
+            JSON.stringify({
+              type: "projects-state", 
+              data: result.data,
+            })
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Error sending initial projects state:", error);
+    }
 
     ws.on("close", () => {
       webClients.delete(ws);

@@ -9,8 +9,8 @@ import FormPanel from "./components/form-panel";
 import FormSettings from "./components/form-settings";
 import FormDependencies from "./components/form-dependencies";
 import FormConfirmation from "./components/form-confirmation";
-import { Button } from "./components/button";
-import { useAppStore, initializeFileSync } from "./stores/settings";
+import { useAppStore, initializeStore } from "./stores/settings";
+import { communicationAPI, webSocketManager, isElectron, isWeb } from "./utils/communication";
 import type { UnifiedItem, TerminalOutput, ProcessExit } from "./types";
 
 function App() {
@@ -27,7 +27,6 @@ function App() {
   } = useAppStore();
 
   // Local UI state only
-  const [isElectron, setIsElectron] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<UnifiedItem | null>(
     null
@@ -67,18 +66,20 @@ function App() {
   const panels = items.filter((item) => item.type === "panel");
 
   useEffect(() => {
-    // Initialize file sync for web server
-    initializeFileSync();
+    console.log('[App Debug] useEffect running, isElectron:', isElectron, 'isWeb:', isWeb);
+    
+    // Initialize the Zustand store with Electron backend data
+    initializeStore();
 
-    // Check if we're running in Electron
-    if (typeof window !== "undefined" && window.electronAPI) {
-      setIsElectron(true);
+    // Set up event listeners - the communicationAPI handles environment detection
+    const unsubscribeFunctions: (() => void)[] = [];
 
-      console.log(`[IPC Debug] Setting up terminal output listener...`);
-      const unsubscribeOutput = window.electronAPI.onTerminalOutput(
+    if (communicationAPI.onTerminalOutput) {
+      console.log(`[Debug] Setting up terminal output listener...`);
+      const unsubscribeOutput = communicationAPI.onTerminalOutput(
         (output: TerminalOutput) => {
           console.log(
-            `[App Debug] *** TERMINAL OUTPUT RECEIVED IN APP.TSX ***`,
+            `[App Debug] *** TERMINAL OUTPUT RECEIVED ***`,
             {
               projectId: output.projectId,
               dataLength: output.data?.length,
@@ -88,8 +89,7 @@ function App() {
           );
 
           // Get current items from store and update
-          const { items: currentItems } = useAppStore.getState();
-          const currentItem = currentItems.find(
+          const currentItem = items.find(
             (item) => item.id === output.projectId
           );
           if (currentItem) {
@@ -100,8 +100,11 @@ function App() {
           }
         }
       );
+      unsubscribeFunctions.push(unsubscribeOutput);
+    }
 
-      const unsubscribeExit = window.electronAPI.onProcessExit(
+    if (communicationAPI.onProcessExit) {
+      const unsubscribeExit = communicationAPI.onProcessExit(
         (exit: ProcessExit) => {
           updateItem(exit.projectId, {
             status: exit.code === 0 ? "completed" : "error",
@@ -109,8 +112,11 @@ function App() {
           });
         }
       );
+      unsubscribeFunctions.push(unsubscribeExit);
+    }
 
-      const unsubscribeReady = window.electronAPI.onClaudeReady(
+    if (communicationAPI.onClaudeReady) {
+      const unsubscribeReady = communicationAPI.onClaudeReady(
         (data: { projectId: string; timestamp: number }) => {
           updateItem(data.projectId, {
             status: "ready",
@@ -118,8 +124,11 @@ function App() {
           });
         }
       );
+      unsubscribeFunctions.push(unsubscribeReady);
+    }
 
-      const unsubscribeWorking = window.electronAPI.onClaudeWorking(
+    if (communicationAPI.onClaudeWorking) {
+      const unsubscribeWorking = communicationAPI.onClaudeWorking(
         (data: { projectId: string; timestamp: number }) => {
           updateItem(data.projectId, {
             status: "working",
@@ -127,22 +136,77 @@ function App() {
           });
         }
       );
+      unsubscribeFunctions.push(unsubscribeWorking);
+    }
 
-      const unsubscribeDeps = window.electronAPI.onMissingDependencies(
+    if (communicationAPI.onMissingDependencies) {
+      const unsubscribeDeps = communicationAPI.onMissingDependencies(
         (deps: string[]) => {
           setMissingDeps(deps);
         }
       );
-
-      return () => {
-        unsubscribeOutput();
-        unsubscribeExit();
-        unsubscribeReady();
-        unsubscribeWorking();
-        unsubscribeDeps();
-      };
+      unsubscribeFunctions.push(unsubscribeDeps);
     }
-  }, []); // Remove dependencies to prevent re-subscription
+
+    // Set up WebSocket listeners for web environment
+    if (isWeb && webSocketManager) {
+      const unsubscribeProjectReady = webSocketManager.on('project-ready', (message: any) => {
+        updateItem(message.projectId, {
+          status: "ready",
+          lastActivity: new Date().toLocaleTimeString(),
+        });
+      });
+
+      const unsubscribeProjectWorking = webSocketManager.on('project-working', (message: any) => {
+        updateItem(message.projectId, {
+          status: "working",
+          lastActivity: new Date().toLocaleTimeString(),
+        });
+      });
+
+      const unsubscribeProjectStarted = webSocketManager.on('project-started', (message: any) => {
+        updateItem(message.projectId, {
+          status: "running",
+          lastActivity: new Date().toLocaleTimeString(),
+        });
+        if (message.data) {
+          const currentItem = items.find(item => item.id === message.projectId);
+          if (currentItem) {
+            updateItem(message.projectId, {
+              output: [...(currentItem.output || []), message.data],
+            });
+          }
+        }
+      });
+
+      const unsubscribeProjectStopped = webSocketManager.on('project-stopped', (message: any) => {
+        updateItem(message.projectId, {
+          status: "idle",
+          lastActivity: new Date().toLocaleTimeString(),
+        });
+      });
+
+      const unsubscribeProjectsState = webSocketManager.on('projects-state', (message: any) => {
+        console.log(`[Web App] Projects state updated:`, message.data);
+        if (message.data && Array.isArray(message.data)) {
+          setItems(message.data);
+        }
+      });
+
+      unsubscribeFunctions.push(
+        unsubscribeProjectReady,
+        unsubscribeProjectWorking, 
+        unsubscribeProjectStarted,
+        unsubscribeProjectStopped,
+        unsubscribeProjectsState
+      );
+    }
+
+    return () => {
+      unsubscribeFunctions.forEach(unsubscribe => unsubscribe());
+    };
+  }, []);
+
 
   const handleProjectAdd = (projectData: {
     name: string;
@@ -212,10 +276,10 @@ function App() {
 
   const handleItemSelect = (itemId: string) => {
     setSelectedItem(itemId);
-    // Notify Electron about the project selection for notifications
+    // Notify about the project selection for notifications
     const item = items.find((i) => i.id === itemId);
-    if (item?.type === "project" && window.electronAPI?.setSelectedProject) {
-      window.electronAPI.setSelectedProject(itemId);
+    if (item?.type === "project") {
+      communicationAPI.setSelectedProject(itemId);
     }
   };
 
@@ -227,9 +291,7 @@ function App() {
 
     // Select the project when starting it
     setSelectedItem(projectId);
-    if (window.electronAPI?.setSelectedProject) {
-      window.electronAPI.setSelectedProject(projectId);
-    }
+    communicationAPI.setSelectedProject(projectId);
 
     updateItem(projectId, {
       status: "running",
@@ -237,8 +299,8 @@ function App() {
       lastActivity: new Date().toLocaleTimeString(),
     });
 
-    if (isElectron && window.electronAPI) {
-      const result = await window.electronAPI.startClaudeProcess(
+    try {
+      const result = await communicationAPI.startClaudeProcess(
         projectId,
         project.path!,
         command,
@@ -252,12 +314,20 @@ function App() {
         });
         toast.error(`Failed to start process: ${result.error}`);
       }
+    } catch (error) {
+      updateItem(projectId, {
+        status: "error",
+        output: [`Error: Failed to start project`],
+      });
+      toast.error("Failed to start project");
     }
   };
 
   const handleProjectStop = async (projectId: string) => {
-    if (isElectron && window.electronAPI) {
-      await window.electronAPI.stopClaudeProcess(projectId);
+    try {
+      await communicationAPI.stopClaudeProcess(projectId);
+    } catch (error) {
+      console.error("Failed to stop project:", error);
     }
     updateItem(projectId, {
       status: "idle",

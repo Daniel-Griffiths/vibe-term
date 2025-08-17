@@ -4,6 +4,7 @@ import { Terminal as TerminalIcon } from "lucide-react";
 import { useTerminalManager } from "../hooks/use-terminal-manager";
 import { TerminalService } from "../services/TerminalService";
 import { NonIdealState } from "./non-ideal-state";
+import { communicationAPI } from "../utils/communication";
 import type { UnifiedItem } from "../types";
 import "@xterm/xterm/css/xterm.css";
 
@@ -25,7 +26,7 @@ export default function ViewTerminal({
       TerminalService.getClaudeConfig(),
       (output) => {
         // Handle terminal data input (send to Electron)
-        window.electronAPI?.sendInput(output.projectId, output.data);
+        communicationAPI.sendInput(output.projectId, output.data);
       }
     );
 
