@@ -28270,8 +28270,50 @@ class TerminalService {
    * Set up terminal data handling for interactive terminals
    */
   static setupDataHandler(terminal, onData) {
-    const disposable = terminal.onData(onData);
+    const disposable = terminal.onData((data) => {
+      if (this.shouldIgnoreData(data)) {
+        console.log(`[Terminal Debug] Ignoring terminal sequence:`, { data, preview: data.substring(0, 50) });
+        return;
+      }
+      onData(data);
+    });
     return () => disposable.dispose();
+  }
+  /**
+   * Check if terminal data should be ignored (not sent as user input)
+   */
+  static shouldIgnoreData(data) {
+    if (!data || data.length === 0) {
+      return true;
+    }
+    if (/^\u001b\[/.test(data)) {
+      return true;
+    }
+    if (/^[?>][\d;]*[a-zA-Z]$/.test(data)) {
+      return true;
+    }
+    if (/^[\d;]+[a-zA-Z]$/.test(data) && data.length < 20) {
+      return true;
+    }
+    if (data.length === 1 && /[?>]/.test(data)) {
+      return true;
+    }
+    const capabilityPatterns = [
+      /^\?1;2c$/,
+      // Primary Device Attributes
+      /^>0;276;0c$/,
+      // Secondary Device Attributes
+      /^\d+;\d+c$/,
+      // Device Attributes response
+      /^[\d;]+[cR]$/
+      // Various terminal responses
+    ];
+    for (const pattern of capabilityPatterns) {
+      if (pattern.test(data)) {
+        return true;
+      }
+    }
+    return false;
   }
   /**
    * Set up window resize handler for a collection of terminals
@@ -28435,6 +28477,35 @@ class WebCommunicationAPI {
   }
   async updateAppSettings(settings) {
     return this.callAPI("update-app-settings", [settings]);
+  }
+  // Terminal event methods - use WebSocket for web version
+  onTerminalOutput(callback) {
+    return webSocketManager?.on("terminal-output", callback) || (() => {
+    });
+  }
+  onProcessExit(callback) {
+    return webSocketManager?.on("process-exit", callback) || (() => {
+    });
+  }
+  onClaudeReady(callback) {
+    return webSocketManager?.on("claude-ready", callback) || (() => {
+    });
+  }
+  onClaudeWorking(callback) {
+    return webSocketManager?.on("claude-working", callback) || (() => {
+    });
+  }
+  onBackgroundOutput(callback) {
+    return webSocketManager?.on("background-output", callback) || (() => {
+    });
+  }
+  onMissingDependencies(callback) {
+    return webSocketManager?.on("missing-dependencies", callback) || (() => {
+    });
+  }
+  onMainProcessReady(callback) {
+    return webSocketManager?.on("main-process-ready", callback) || (() => {
+    });
   }
 }
 class ElectronCommunicationAPI {
@@ -31416,82 +31487,53 @@ function ViewProject({
       className: "flex-1 flex flex-col",
       children: [
         !isPanel && currentItem?.type === "project" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-4 pt-4 mb-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col lg:flex-row lg:items-start lg:justify-between", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-3", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              Button,
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(TabsList, { className: "bg-gray-900/50 border border-gray-800 flex-shrink-0 overflow-hidden", children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              TabsTrigger,
               {
-                onClick: () => setSidebarOpen?.(!sidebarOpen),
-                variant: "ghost",
-                size: "icon",
-                className: "lg:hidden bg-gray-800/50 border border-gray-700/50 flex-shrink-0 h-10",
-                children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-                  "svg",
-                  {
-                    className: "w-4 h-4",
-                    fill: "none",
-                    stroke: "currentColor",
-                    viewBox: "0 0 24 24",
-                    children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-                      "path",
-                      {
-                        strokeLinecap: "round",
-                        strokeLinejoin: "round",
-                        strokeWidth: 2,
-                        d: "M4 6h16M4 12h16M4 18h16"
-                      }
-                    )
-                  }
-                )
+                value: "terminal",
+                className: "flex items-center gap-2 whitespace-nowrap",
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(Terminal, { className: "h-4 w-4" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "hidden sm:inline", children: "Terminal" })
+                ]
               }
             ),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs(TabsList, { className: "bg-gray-900/50 border border-gray-800 flex-shrink-0 overflow-hidden", children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                TabsTrigger,
-                {
-                  value: "terminal",
-                  className: "flex items-center gap-2 whitespace-nowrap",
-                  children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx(Terminal, { className: "h-4 w-4" }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "hidden sm:inline", children: "Terminal" })
-                  ]
-                }
-              ),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                TabsTrigger,
-                {
-                  value: "git-diff",
-                  className: "flex items-center gap-2 whitespace-nowrap",
-                  children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx(GitBranch, { className: "h-4 w-4" }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "hidden sm:inline", children: "Git Diff" })
-                  ]
-                }
-              ),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                TabsTrigger,
-                {
-                  value: "editor",
-                  className: "flex items-center gap-2 whitespace-nowrap",
-                  children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx(FileText, { className: "h-4 w-4" }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "hidden sm:inline", children: "Editor" })
-                  ]
-                }
-              ),
-              /* @__PURE__ */ jsxRuntimeExports.jsxs(
-                TabsTrigger,
-                {
-                  value: "preview",
-                  className: `flex items-center gap-2 whitespace-nowrap`,
-                  disabled: !previewUrl,
-                  children: [
-                    /* @__PURE__ */ jsxRuntimeExports.jsx(Globe, { className: "h-4 w-4" }),
-                    /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "hidden sm:inline", children: "Preview" })
-                  ]
-                }
-              )
-            ] })
-          ] }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              TabsTrigger,
+              {
+                value: "git-diff",
+                className: "flex items-center gap-2 whitespace-nowrap",
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(GitBranch, { className: "h-4 w-4" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "hidden sm:inline", children: "Git Diff" })
+                ]
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              TabsTrigger,
+              {
+                value: "editor",
+                className: "flex items-center gap-2 whitespace-nowrap",
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(FileText, { className: "h-4 w-4" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "hidden sm:inline", children: "Editor" })
+                ]
+              }
+            ),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              TabsTrigger,
+              {
+                value: "preview",
+                className: `flex items-center gap-2 whitespace-nowrap`,
+                disabled: !previewUrl,
+                children: [
+                  /* @__PURE__ */ jsxRuntimeExports.jsx(Globe, { className: "h-4 w-4" }),
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "hidden sm:inline", children: "Preview" })
+                ]
+              }
+            )
+          ] }) }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "hidden lg:block", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
             Input,
             {
@@ -32560,14 +32602,18 @@ function App() {
     itemId: null,
     itemName: null
   });
-  const [sidebarOpen, setSidebarOpen] = reactExports.useState(false);
+  const [sidebarOpen, setSidebarOpen] = reactExports.useState(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth >= 1024;
+    }
+    return false;
+  });
   reactExports.useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 1024) {
         setSidebarOpen(true);
       }
     };
-    handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
@@ -32745,6 +32791,9 @@ function App() {
   };
   const handleItemSelect = (itemId) => {
     setSelectedItem(itemId);
+    if (window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
     const item = items.find((i) => i.id === itemId);
     if (item?.type === "project") {
       communicationAPI.setSelectedProject(itemId);
@@ -32899,12 +32948,40 @@ function App() {
     }
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "h-screen flex flex-col bg-gray-950 text-gray-100 overflow-hidden", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(
       "div",
       {
-        className: "h-16 glass-titlebar flex items-center justify-center px-4 select-none",
+        className: "h-16 glass-titlebar flex items-center px-4 select-none relative",
         style: { WebkitAppRegion: "drag" },
-        children: /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-lg font-medium text-gray-200", children: "Vibe Term" })
+        children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-lg font-medium text-gray-200 absolute left-1/2 transform -translate-x-1/2", children: "Vibe Term" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "button",
+            {
+              onClick: () => setSidebarOpen(!sidebarOpen),
+              className: "lg:hidden bg-gray-800/50 border border-gray-700/50 rounded-lg p-2 hover:bg-gray-700/50 transition-colors ml-auto",
+              style: { WebkitAppRegion: "no-drag" },
+              children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+                "svg",
+                {
+                  className: "w-5 h-5 text-gray-300",
+                  fill: "none",
+                  stroke: "currentColor",
+                  viewBox: "0 0 24 24",
+                  children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+                    "path",
+                    {
+                      strokeLinecap: "round",
+                      strokeLinejoin: "round",
+                      strokeWidth: 2,
+                      d: "M4 6h16M4 12h16M4 18h16"
+                    }
+                  )
+                }
+              )
+            }
+          )
+        ]
       }
     ),
     /* @__PURE__ */ jsxRuntimeExports.jsxs(

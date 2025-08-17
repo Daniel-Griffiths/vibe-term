@@ -41,6 +41,7 @@ const defaultDiffOptions = {
   minimap: { enabled: false },
   scrollBeyondLastLine: false,
   renderSideBySide: true,
+  wordWrap: "off",
 };
 
 function getLanguageFromPath(path: string): string {
@@ -359,9 +360,16 @@ export function SharedDiffEditor({
   const [monacoInstance, setMonacoInstance] = React.useState<any>(null);
   const [editorInstance, setEditorInstance] = React.useState<any>(null);
 
+  // Mobile-responsive options
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  
   const mergedOptions = {
     ...defaultDiffOptions,
     readOnly,
+    // Mobile-specific overrides
+    renderSideBySide: !isMobile, // Inline view on mobile
+    fontSize: isMobile ? 12 : 14,
+    wordWrap: isMobile ? "on" : "off",
     ...options,
   };
 

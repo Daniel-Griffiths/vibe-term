@@ -180,6 +180,35 @@ class WebCommunicationAPI implements ICommunicationAPI {
   async updateAppSettings(settings: any): Promise<any> {
     return this.callAPI('update-app-settings', [settings]);
   }
+
+  // Terminal event methods - use WebSocket for web version
+  onTerminalOutput(callback: (data: any) => void): () => void {
+    return webSocketManager?.on('terminal-output', callback) || (() => {});
+  }
+
+  onProcessExit(callback: (data: any) => void): () => void {
+    return webSocketManager?.on('process-exit', callback) || (() => {});
+  }
+
+  onClaudeReady(callback: (data: any) => void): () => void {
+    return webSocketManager?.on('claude-ready', callback) || (() => {});
+  }
+
+  onClaudeWorking(callback: (data: any) => void): () => void {
+    return webSocketManager?.on('claude-working', callback) || (() => {});
+  }
+
+  onBackgroundOutput(callback: (data: any) => void): () => void {
+    return webSocketManager?.on('background-output', callback) || (() => {});
+  }
+
+  onMissingDependencies(callback: (deps: string[]) => void): () => void {
+    return webSocketManager?.on('missing-dependencies', callback) || (() => {});
+  }
+
+  onMainProcessReady(callback: () => void): () => void {
+    return webSocketManager?.on('main-process-ready', callback) || (() => {});
+  }
 }
 
 class ElectronCommunicationAPI implements ICommunicationAPI {

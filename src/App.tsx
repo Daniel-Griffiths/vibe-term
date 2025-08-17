@@ -44,18 +44,23 @@ function App() {
     itemId: null,
     itemName: null,
   });
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    // Open sidebar by default only on large screens
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 1024;
+    }
+    return false; // Default to closed for SSR
+  });
 
-  // Auto-open sidebar on large screens
+  // Auto-open sidebar on large screens only
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 1024) {
         setSidebarOpen(true);
       }
+      // On smaller screens, keep current state
+      // Don't auto-close if user opened it manually
     };
-    
-    // Set initial state
-    handleResize();
     
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -276,6 +281,10 @@ function App() {
 
   const handleItemSelect = (itemId: string) => {
     setSelectedItem(itemId);
+    // Auto-close sidebar on mobile when selecting an item
+    if (window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
     // Notify about the project selection for notifications
     const item = items.find((i) => i.id === itemId);
     if (item?.type === "project") {
@@ -470,10 +479,32 @@ function App() {
     <div className="h-screen flex flex-col bg-gray-950 text-gray-100 overflow-hidden">
       {/* Custom Title Bar with Glass Effect */}
       <div
-        className="h-16 glass-titlebar flex items-center justify-center px-4 select-none"
+        className="h-16 glass-titlebar flex items-center px-4 select-none relative"
         style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
       >
-        <h1 className="text-lg font-medium text-gray-200">Vibe Term</h1>
+        {/* Centered title */}
+        <h1 className="text-lg font-medium text-gray-200 absolute left-1/2 transform -translate-x-1/2">Vibe Term</h1>
+        
+        {/* Mobile menu button - positioned on the right */}
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="lg:hidden bg-gray-800/50 border border-gray-700/50 rounded-lg p-2 hover:bg-gray-700/50 transition-colors ml-auto"
+          style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+        >
+          <svg
+            className="w-5 h-5 text-gray-300"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 6h16M4 12h16M4 18h16"
+            />
+          </svg>
+        </button>
       </div>
 
       {/* Main Content */}

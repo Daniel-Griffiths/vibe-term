@@ -322,9 +322,9 @@ export default function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
   const hasChanges = diffData && diffData.files.length > 0;
 
   return (
-    <div className="h-full flex pt-0">
+    <div className="h-full flex flex-col lg:flex-row pt-0">
       {/* File List Sidebar */}
-      <div className="w-80 bg-gray-950 border-r border-t border-gray-800 overflow-y-auto rounded-tr-lg max-h-screen">
+      <div className="w-full lg:w-80 bg-gray-950 lg:border-r border-t lg:border-t border-gray-800 overflow-y-auto rounded-tr-lg max-h-64 lg:max-h-screen flex-shrink-0">
         <div className="p-4 border-b border-gray-800">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2 text-sm text-gray-400">
@@ -453,18 +453,18 @@ export default function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
       </div>
 
       {/* Diff Editor */}
-      <div className="flex-1 flex flex-col h-full p-4 pt-0">
+      <div className="flex-1 flex flex-col h-full p-4 pt-0 min-h-0">
         <Card className="flex-1 flex flex-col glass-card overflow-hidden">
           <CardHeader className="flex-shrink-0 py-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800 rounded-t-lg">
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-gray-200 font-semibold">
-                <FileText className="h-5 w-5 text-green-400" />
-                {selectedFile?.path || "Select a file"}
+              <CardTitle className="flex items-center gap-2 text-gray-200 font-semibold min-w-0 flex-1">
+                <FileText className="h-5 w-5 text-green-400 flex-shrink-0" />
+                <span className="truncate">{selectedFile?.path || "Select a file"}</span>
                 {hasUnsavedChanges && (
-                  <span className="text-yellow-400 text-xs">●</span>
+                  <span className="text-yellow-400 text-xs flex-shrink-0">●</span>
                 )}
                 {selectedFile && (
-                  <div className="flex items-center gap-1 text-xs ml-2">
+                  <div className="flex items-center gap-1 text-xs ml-2 flex-shrink-0">
                     {selectedFile.additions > 0 && (
                       <span className="text-green-400">
                         +{selectedFile.additions}
@@ -480,16 +480,16 @@ export default function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
               </CardTitle>
 
               {selectedFile && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   {!editMode ? (
                     <Button
                       size="sm"
                       onClick={handleEditMode}
                       variant="primary"
-                      className="h-7 px-3"
+                      className="h-7 px-2 lg:px-3"
                     >
-                      <Edit className="h-3 w-3 mr-1" />
-                      Edit
+                      <Edit className="h-3 w-3 lg:mr-1" />
+                      <span className="hidden lg:inline">Edit</span>
                     </Button>
                   ) : (
                     <>
@@ -498,19 +498,19 @@ export default function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
                         onClick={handleSaveFile}
                         disabled={!hasUnsavedChanges}
                         variant="success"
-                        className="h-7 px-3"
+                        className="h-7 px-2 lg:px-3"
                       >
-                        <Save className="h-3 w-3 mr-1" />
-                        Save
+                        <Save className="h-3 w-3 lg:mr-1" />
+                        <span className="hidden lg:inline">Save</span>
                       </Button>
                       <Button
                         size="sm"
                         onClick={handleViewMode}
                         variant="outline"
-                        className="h-7 px-3"
+                        className="h-7 px-2 lg:px-3"
                       >
-                        <X className="h-3 w-3 mr-1" />
-                        Cancel
+                        <X className="h-3 w-3 lg:mr-1" />
+                        <span className="hidden lg:inline">Cancel</span>
                       </Button>
                     </>
                   )}
