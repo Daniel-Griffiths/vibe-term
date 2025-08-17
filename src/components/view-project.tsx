@@ -57,6 +57,7 @@ export default function ViewProject({
     fetchLocalIp();
   }, [fetchLocalIp]);
 
+
   // Shared component for no URL state
   const NoUrlConfigured = useCallback(
     ({ itemType }: { itemType: "panel" | "project" }) => (
@@ -97,34 +98,34 @@ export default function ViewProject({
       >
         {/* Tab bar - only show for projects */}
         {!isPanel && currentItem?.type === "project" && (
-          <div className="px-4 pt-4 mb-4">
+          <div className="px-0 md:px-4 pt-0 md:pt-4 mb-0 md:mb-4">
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between">
-              <div className="flex items-center">
-                <TabsList className="bg-gray-900/50 border border-gray-800 flex-shrink-0 overflow-hidden">
+              <div className="flex items-center w-full md:w-auto">
+                <TabsList className="bg-gray-900/50 md:border border-gray-800 flex-shrink-0 overflow-hidden w-full md:w-auto m-0 mdp-0 md:p-1 rounded-none md:rounded-md h-10 md:h-auto px-2 ">
                   <TabsTrigger
                     value="terminal"
-                    className="flex items-center gap-2 whitespace-nowrap"
+                    className="flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start"
                   >
                     <Terminal className="h-4 w-4" />
                     <span className="hidden sm:inline">Terminal</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="git-diff"
-                    className="flex items-center gap-2 whitespace-nowrap"
+                    className="flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start"
                   >
                     <GitBranch className="h-4 w-4" />
                     <span className="hidden sm:inline">Git Diff</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="editor"
-                    className="flex items-center gap-2 whitespace-nowrap"
+                    className="flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start"
                   >
                     <FileText className="h-4 w-4" />
                     <span className="hidden sm:inline">Editor</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="preview"
-                    className={`flex items-center gap-2 whitespace-nowrap`}
+                    className={`flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start`}
                     disabled={!previewUrl}
                   >
                     <Globe className="h-4 w-4" />
@@ -148,7 +149,7 @@ export default function ViewProject({
         <div className="h-full flex-1 flex flex-col">
           {isPanel ? (
             /* Panel mode - show preview directly */
-            <div className="h-full flex-1 flex flex-col p-4 pt-0">
+            <div className="h-full flex-1 flex flex-col p-0 md:p-4">
               <WebViewContent />
             </div>
           ) : (
@@ -183,7 +184,7 @@ export default function ViewProject({
 
               {/* Preview tab */}
               {activeTab === "preview" && (
-                <div className="flex-1 flex flex-col p-4 pt-0">
+                <div className={`flex-1 h-full p-0 md:p-4 md:pt-0`}>
                   <WebViewContent />
                 </div>
               )}

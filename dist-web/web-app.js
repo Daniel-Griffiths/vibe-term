@@ -15429,15 +15429,19 @@ const Card = reactExports.forwardRef(({ className, ...props }, ref) => /* @__PUR
   "div",
   {
     ref,
-    className: cn(
-      "rounded-lg text-gray-100 shadow-sm",
-      className
-    ),
+    className: cn("md:rounded-lg text-gray-100 shadow-sm", className),
     ...props
   }
 ));
 Card.displayName = "Card";
-const CardHeader = reactExports.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsxRuntimeExports.jsx("div", { ref, className: cn("flex flex-col space-y-1.5 p-6", className), ...props }));
+const CardHeader = reactExports.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+  "div",
+  {
+    ref,
+    className: cn("flex flex-col space-y-1.5 p-6", className),
+    ...props
+  }
+));
 CardHeader.displayName = "CardHeader";
 const CardTitle = reactExports.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsxRuntimeExports.jsx(
   "h3",
@@ -15448,14 +15452,7 @@ const CardTitle = reactExports.forwardRef(({ className, ...props }, ref) => /* @
   }
 ));
 CardTitle.displayName = "CardTitle";
-const CardDescription = reactExports.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-  "p",
-  {
-    ref,
-    className: cn("text-sm text-gray-400", className),
-    ...props
-  }
-));
+const CardDescription = reactExports.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsxRuntimeExports.jsx("p", { ref, className: cn("text-sm text-gray-400", className), ...props }));
 CardDescription.displayName = "CardDescription";
 const CardContent = reactExports.forwardRef(({ className, ...props }, ref) => /* @__PURE__ */ jsxRuntimeExports.jsx("div", { ref, className: cn("p-6 pt-0", className), ...props }));
 CardContent.displayName = "CardContent";
@@ -28880,8 +28877,8 @@ function ViewTerminal({
       }
     ) });
   }
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-full flex flex-col p-4 pt-0", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Card, { className: "flex-1 flex flex-col h-full glass-card overflow-hidden", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs(CardHeader, { className: "flex-shrink-0 py-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800 rounded-t-lg", children: [
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-full flex flex-col p-0 md:p-4 md:pt-0", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Card, { className: "flex-1 flex flex-col h-full glass-card overflow-hidden", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(CardHeader, { className: "flex-shrink-0 py-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs(CardTitle, { className: "flex items-center gap-2 text-gray-200 font-semibold", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(Terminal, { className: "h-5 w-5 text-green-400" }),
@@ -28897,7 +28894,7 @@ function ViewTerminal({
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm text-gray-300 capitalize font-medium", children: selectedProject.status })
         ] })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-gray-400 font-mono", children: selectedProject.path })
+      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-gray-400 font-mono hidden md:block", children: selectedProject.path })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsx(CardContent, { className: "flex-1 flex flex-col p-0 overflow-hidden", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
       "div",
@@ -30094,9 +30091,7 @@ function ViewGitDiff({ selectedProject }) {
       setLoading(true);
       setError(null);
       try {
-        const result = await communicationAPI.getGitDiff(
-          selectedProject.path
-        );
+        const result = await communicationAPI.getGitDiff(selectedProject.path);
         if (result.success) {
           setDiffData(result.data);
           if (result.data.files.length > 0) {
@@ -30296,7 +30291,7 @@ function ViewGitDiff({ selectedProject }) {
   const hasChanges = diffData && diffData.files.length > 0;
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "h-full flex flex-col lg:flex-row pt-0", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "w-full lg:w-80 bg-gray-950 lg:border-r border-t lg:border-t border-gray-800 overflow-y-auto rounded-tr-lg max-h-64 lg:max-h-screen flex-shrink-0", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-4 border-b border-gray-800", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-2 md:p-4 border-b border-gray-800", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between mb-2", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 text-sm text-gray-400", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx(GitBranch, { className: "h-4 w-4" }),
@@ -30402,8 +30397,8 @@ function ViewGitDiff({ selectedProject }) {
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-gray-600 mt-1", children: "Your working directory is clean" })
       ] }) })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 flex flex-col h-full p-4 pt-0 min-h-0", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Card, { className: "flex-1 flex flex-col glass-card overflow-hidden", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(CardHeader, { className: "flex-shrink-0 py-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800 rounded-t-lg", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 flex flex-col h-full p-0 md:p-4 md:pt-0 min-h-0", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Card, { className: "flex-1 flex flex-col glass-card overflow-hidden", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(CardHeader, { className: "flex-shrink-0 py-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800 md:rounded-t-lg", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs(CardTitle, { className: "flex items-center gap-2 text-gray-200 font-semibold min-w-0 flex-1", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(FileText, { className: "h-5 w-5 text-green-400 flex-shrink-0" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "truncate", children: selectedFile?.path || "Select a file" }),
@@ -30864,7 +30859,9 @@ function ViewFileEditor({
         isDirty: false
       };
       if (shouldReplaceCurrentFile && currentFile2) {
-        setOpenFiles((prev) => prev.map((f) => f.path === currentFile2.path ? newFile : f));
+        setOpenFiles(
+          (prev) => prev.map((f) => f.path === currentFile2.path ? newFile : f)
+        );
       } else {
         setOpenFiles((prev) => [...prev, newFile]);
       }
@@ -30886,7 +30883,9 @@ function ViewFileEditor({
           isDirty: false
         };
         if (shouldReplaceCurrentFile && currentFile2) {
-          setOpenFiles((prev) => prev.map((f) => f.path === currentFile2.path ? newFile : f));
+          setOpenFiles(
+            (prev) => prev.map((f) => f.path === currentFile2.path ? newFile : f)
+          );
         } else {
           setOpenFiles((prev) => [...prev, newFile]);
         }
@@ -30899,26 +30898,35 @@ function ViewFileEditor({
       console.error(err);
     }
   };
-  const closeFile = reactExports.useCallback((filePath, skipConfirmation = false) => {
-    const fileToClose = openFiles.find((f) => f.path === filePath);
-    if (fileToClose?.isDirty && !skipConfirmation) {
-      setConfirmDialog({
-        isOpen: true,
-        fileName: fileToClose.name,
-        onConfirm: () => {
-          setConfirmDialog({ isOpen: false, fileName: "", onConfirm: () => {
-          } });
-          closeFile(filePath, true);
-        }
-      });
-      return;
-    }
-    setOpenFiles((prev) => prev.filter((f) => f.path !== filePath));
-    if (activeFile === filePath) {
-      const remainingFiles = openFiles.filter((f) => f.path !== filePath);
-      setActiveFile(remainingFiles.length > 0 ? remainingFiles[0].path : null);
-    }
-  }, [openFiles, activeFile, setConfirmDialog]);
+  const closeFile = reactExports.useCallback(
+    (filePath, skipConfirmation = false) => {
+      const fileToClose = openFiles.find((f) => f.path === filePath);
+      if (fileToClose?.isDirty && !skipConfirmation) {
+        setConfirmDialog({
+          isOpen: true,
+          fileName: fileToClose.name,
+          onConfirm: () => {
+            setConfirmDialog({
+              isOpen: false,
+              fileName: "",
+              onConfirm: () => {
+              }
+            });
+            closeFile(filePath, true);
+          }
+        });
+        return;
+      }
+      setOpenFiles((prev) => prev.filter((f) => f.path !== filePath));
+      if (activeFile === filePath) {
+        const remainingFiles = openFiles.filter((f) => f.path !== filePath);
+        setActiveFile(
+          remainingFiles.length > 0 ? remainingFiles[0].path : null
+        );
+      }
+    },
+    [openFiles, activeFile, setConfirmDialog]
+  );
   const closeFilesToRight = (filePath) => {
     const fileIndex = openFiles.findIndex((f) => f.path === filePath);
     if (fileIndex === -1) return;
@@ -30930,8 +30938,12 @@ function ViewFileEditor({
         isOpen: true,
         fileName: `${unsavedFiles.length} file${unsavedFiles.length > 1 ? "s" : ""}`,
         onConfirm: () => {
-          setConfirmDialog({ isOpen: false, fileName: "", onConfirm: () => {
-          } });
+          setConfirmDialog({
+            isOpen: false,
+            fileName: "",
+            onConfirm: () => {
+            }
+          });
           const remainingFiles2 = openFiles.slice(0, fileIndex + 1);
           setOpenFiles(remainingFiles2);
           if (filesToClose.some((f) => f.path === activeFile)) {
@@ -30958,8 +30970,12 @@ function ViewFileEditor({
         isOpen: true,
         fileName: `${unsavedFiles.length} file${unsavedFiles.length > 1 ? "s" : ""}`,
         onConfirm: () => {
-          setConfirmDialog({ isOpen: false, fileName: "", onConfirm: () => {
-          } });
+          setConfirmDialog({
+            isOpen: false,
+            fileName: "",
+            onConfirm: () => {
+            }
+          });
           setOpenFiles([targetFile]);
           setActiveFile(filePath);
         }
@@ -30969,16 +30985,23 @@ function ViewFileEditor({
     setOpenFiles([targetFile]);
     setActiveFile(filePath);
   };
-  const handleTabRightClick = reactExports.useCallback((event, filePath) => {
-    event.preventDefault();
-    setContextMenu({
-      isOpen: true,
-      position: { x: event.clientX, y: event.clientY },
-      targetFile: filePath
-    });
-  }, []);
+  const handleTabRightClick = reactExports.useCallback(
+    (event, filePath) => {
+      event.preventDefault();
+      setContextMenu({
+        isOpen: true,
+        position: { x: event.clientX, y: event.clientY },
+        targetFile: filePath
+      });
+    },
+    []
+  );
   const closeContextMenu = reactExports.useCallback(() => {
-    setContextMenu({ isOpen: false, position: { x: 0, y: 0 }, targetFile: null });
+    setContextMenu({
+      isOpen: false,
+      position: { x: 0, y: 0 },
+      targetFile: null
+    });
   }, []);
   const closeConfirmDialog = reactExports.useCallback(() => {
     setConfirmDialog({ isOpen: false, fileName: "", onConfirm: () => {
@@ -31109,7 +31132,7 @@ function ViewFileEditor({
   }, [activeFile, openFiles]);
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "h-full flex flex-col lg:flex-row pt-0", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "w-full lg:w-80 lg:min-w-64 lg:max-w-80 md:w-72 bg-gray-950 border-r border-t border-gray-800 overflow-y-auto rounded-tr-lg lg:max-h-screen max-h-64 lg:flex-shrink-0", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-4 border-b border-gray-800", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-2 md:p-4 border-b border-gray-800", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between mb-2", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 text-sm text-gray-400", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx(FileText, { className: "h-4 w-4" }),
@@ -31142,8 +31165,8 @@ function ViewFileEditor({
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-gray-500", children: "No files found" })
       ] }) })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 flex flex-col h-full", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Card, { className: "flex-1 m-4 mt-0 flex flex-col glass-card overflow-hidden", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(CardHeader, { className: "flex-shrink-0 py-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800 rounded-t-lg", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 flex flex-col h-full", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Card, { className: "flex-1 m-0 md:m-4 md:mt-0 flex flex-col glass-card overflow-hidden", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(CardHeader, { className: "flex-shrink-0 py-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800 md:rounded-t-lg", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
         openFiles.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1 flex-1 min-w-0", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(FileText, { className: "h-5 w-5 text-blue-400 flex-shrink-0" }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center gap-1 overflow-x-auto flex-1 min-w-0 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800", children: openFiles.map((file) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
@@ -31355,70 +31378,119 @@ function ViewWebview({
       iframeRef.src = originalUrl;
     }
   };
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "h-full flex-1 flex flex-col glass-card overflow-hidden", children: [
-    showUrlBar && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-gray-800 border-b border-gray-700 px-4 py-2 rounded-t-lg", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        Button,
-        {
-          size: "sm",
-          onClick: handleGoBack,
-          disabled: !isElectron2,
-          className: "h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed",
-          title: isElectron2 ? "Go back" : "Navigation not available in web mode",
-          children: /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowLeft, { className: "h-4 w-4" })
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        Button,
-        {
-          size: "sm",
-          onClick: handleGoForward,
-          disabled: !isElectron2,
-          className: "h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed",
-          title: isElectron2 ? "Go forward" : "Navigation not available in web mode",
-          children: /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowRight, { className: "h-4 w-4" })
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        Button,
-        {
-          size: "sm",
-          onClick: handleWebviewReload,
-          className: "h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white",
-          title: "Reload webview",
-          children: /* @__PURE__ */ jsxRuntimeExports.jsx(RotateCcw, { className: "h-4 w-4" })
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        Button,
-        {
-          size: "sm",
-          onClick: handleGoHome,
-          className: "h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white",
-          title: "Go home",
-          children: /* @__PURE__ */ jsxRuntimeExports.jsx(House, { className: "h-4 w-4" })
-        }
-      ),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-1 text-sm text-gray-300 font-mono", children: url }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(
-        Button,
-        {
-          size: "sm",
-          onClick: handleOpenDevTools,
-          disabled: !isElectron2,
-          className: "h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed",
-          title: isElectron2 ? "Open DevTools" : "DevTools not available in web mode",
-          children: /* @__PURE__ */ jsxRuntimeExports.jsx(Code, { className: "h-4 w-4" })
-        }
-      )
-    ] }) }),
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "h-full flex-1 flex flex-col glass-card md:rounded-lg overflow-hidden", children: [
+    showUrlBar && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "bg-gray-800 border-b border-gray-700 px-4 py-2 md:rounded-t-lg", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "md:hidden space-y-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            Button,
+            {
+              size: "sm",
+              onClick: handleGoBack,
+              disabled: !isElectron2,
+              className: "h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed",
+              title: isElectron2 ? "Go back" : "Navigation not available in web mode",
+              children: /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowLeft, { className: "h-4 w-4" })
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            Button,
+            {
+              size: "sm",
+              onClick: handleGoForward,
+              disabled: !isElectron2,
+              className: "h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed",
+              title: isElectron2 ? "Go forward" : "Navigation not available in web mode",
+              children: /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowRight, { className: "h-4 w-4" })
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            Button,
+            {
+              size: "sm",
+              onClick: handleWebviewReload,
+              className: "h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white",
+              title: "Reload webview",
+              children: /* @__PURE__ */ jsxRuntimeExports.jsx(RotateCcw, { className: "h-4 w-4" })
+            }
+          ),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            Button,
+            {
+              size: "sm",
+              onClick: handleGoHome,
+              className: "h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white",
+              title: "Go home",
+              children: /* @__PURE__ */ jsxRuntimeExports.jsx(House, { className: "h-4 w-4" })
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "bg-gray-700 border border-gray-600 rounded px-3 py-1 text-sm text-gray-300 font-mono", children: url })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "hidden md:flex items-center gap-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          Button,
+          {
+            size: "sm",
+            onClick: handleGoBack,
+            disabled: !isElectron2,
+            className: "h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed",
+            title: isElectron2 ? "Go back" : "Navigation not available in web mode",
+            children: /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowLeft, { className: "h-4 w-4" })
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          Button,
+          {
+            size: "sm",
+            onClick: handleGoForward,
+            disabled: !isElectron2,
+            className: "h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed",
+            title: isElectron2 ? "Go forward" : "Navigation not available in web mode",
+            children: /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowRight, { className: "h-4 w-4" })
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          Button,
+          {
+            size: "sm",
+            onClick: handleWebviewReload,
+            className: "h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white",
+            title: "Reload webview",
+            children: /* @__PURE__ */ jsxRuntimeExports.jsx(RotateCcw, { className: "h-4 w-4" })
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          Button,
+          {
+            size: "sm",
+            onClick: handleGoHome,
+            className: "h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white",
+            title: "Go home",
+            children: /* @__PURE__ */ jsxRuntimeExports.jsx(House, { className: "h-4 w-4" })
+          }
+        ),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-1 text-sm text-gray-300 font-mono", children: url }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(
+          Button,
+          {
+            size: "sm",
+            onClick: handleOpenDevTools,
+            disabled: !isElectron2,
+            className: "h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed",
+            title: isElectron2 ? "Open DevTools" : "DevTools not available in web mode",
+            children: /* @__PURE__ */ jsxRuntimeExports.jsx(Code, { className: "h-4 w-4" })
+          }
+        )
+      ] })
+    ] }),
     isElectron2 ? /* @__PURE__ */ jsxRuntimeExports.jsx(
       "webview",
       {
         allowpopups: true,
         ref: setWebviewRef,
         src: url,
-        className: `flex-1 border-0 bg-black ${showUrlBar ? "rounded-b-lg" : "rounded-lg"}`,
+        className: `flex-1 bg-black`,
         title
       }
     ) : /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -31426,7 +31498,7 @@ function ViewWebview({
       {
         ref: setIframeRef,
         src: url,
-        className: `flex-1 border-0 bg-black ${showUrlBar ? "rounded-b-lg" : "rounded-lg"}`,
+        className: `flex-1 bg-black`,
         title,
         allow: "fullscreen",
         sandbox: "allow-same-origin allow-scripts allow-popups allow-forms allow-downloads"
@@ -31493,13 +31565,13 @@ function ViewProject({
       onValueChange: setActiveTab,
       className: "flex-1 flex flex-col",
       children: [
-        !isPanel && currentItem?.type === "project" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-4 pt-4 mb-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col lg:flex-row lg:items-start lg:justify-between", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(TabsList, { className: "bg-gray-900/50 border border-gray-800 flex-shrink-0 overflow-hidden", children: [
+        !isPanel && currentItem?.type === "project" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-0 md:px-4 pt-0 md:pt-4 mb-0 md:mb-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col lg:flex-row lg:items-start lg:justify-between", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center w-full md:w-auto", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(TabsList, { className: "bg-gray-900/50 md:border border-gray-800 flex-shrink-0 overflow-hidden w-full md:w-auto m-0 mdp-0 md:p-1 rounded-none md:rounded-md h-10 md:h-auto px-2 ", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs(
               TabsTrigger,
               {
                 value: "terminal",
-                className: "flex items-center gap-2 whitespace-nowrap",
+                className: "flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start",
                 children: [
                   /* @__PURE__ */ jsxRuntimeExports.jsx(Terminal, { className: "h-4 w-4" }),
                   /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "hidden sm:inline", children: "Terminal" })
@@ -31510,7 +31582,7 @@ function ViewProject({
               TabsTrigger,
               {
                 value: "git-diff",
-                className: "flex items-center gap-2 whitespace-nowrap",
+                className: "flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start",
                 children: [
                   /* @__PURE__ */ jsxRuntimeExports.jsx(GitBranch, { className: "h-4 w-4" }),
                   /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "hidden sm:inline", children: "Git Diff" })
@@ -31521,7 +31593,7 @@ function ViewProject({
               TabsTrigger,
               {
                 value: "editor",
-                className: "flex items-center gap-2 whitespace-nowrap",
+                className: "flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start",
                 children: [
                   /* @__PURE__ */ jsxRuntimeExports.jsx(FileText, { className: "h-4 w-4" }),
                   /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "hidden sm:inline", children: "Editor" })
@@ -31532,7 +31604,7 @@ function ViewProject({
               TabsTrigger,
               {
                 value: "preview",
-                className: `flex items-center gap-2 whitespace-nowrap`,
+                className: `flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start`,
                 disabled: !previewUrl,
                 children: [
                   /* @__PURE__ */ jsxRuntimeExports.jsx(Globe, { className: "h-4 w-4" }),
@@ -31552,7 +31624,7 @@ function ViewProject({
         ] }) }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-full flex-1 flex flex-col", children: isPanel ? (
           /* Panel mode - show preview directly */
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-full flex-1 flex flex-col p-4 pt-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx(WebViewContent, {}) })
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-full flex-1 flex flex-col p-0 md:p-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx(WebViewContent, {}) })
         ) : (
           /* Project mode - show tabbed content */
           /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
@@ -31574,7 +31646,7 @@ function ViewProject({
             ),
             activeTab === "git-diff" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 h-full", children: /* @__PURE__ */ jsxRuntimeExports.jsx(ViewGitDiff, { selectedProject: currentItem }) }),
             activeTab === "editor" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 h-full", children: /* @__PURE__ */ jsxRuntimeExports.jsx(ViewFileEditor, { selectedProject: currentItem }) }),
-            activeTab === "preview" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 flex flex-col p-4 pt-0", children: /* @__PURE__ */ jsxRuntimeExports.jsx(WebViewContent, {}) })
+            activeTab === "preview" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `flex-1 h-full p-0 md:p-4 md:pt-0`, children: /* @__PURE__ */ jsxRuntimeExports.jsx(WebViewContent, {}) })
           ] })
         ) })
       ]
@@ -32627,22 +32699,24 @@ function App() {
   const projects = items.filter((item) => item.type === "project");
   const panels = items.filter((item) => item.type === "panel");
   reactExports.useEffect(() => {
-    console.log("[App Debug] useEffect running, isElectron:", isElectron, "isWeb:", isWeb);
+    console.log(
+      "[App Debug] useEffect running, isElectron:",
+      isElectron,
+      "isWeb:",
+      isWeb
+    );
     initializeStore();
     const unsubscribeFunctions = [];
     if (communicationAPI.onTerminalOutput) {
       console.log(`[Debug] Setting up terminal output listener...`);
       const unsubscribeOutput = communicationAPI.onTerminalOutput(
         (output) => {
-          console.log(
-            `[App Debug] *** TERMINAL OUTPUT RECEIVED ***`,
-            {
-              projectId: output.projectId,
-              dataLength: output.data?.length,
-              dataPreview: output.data?.substring(0, 50),
-              timestamp: (/* @__PURE__ */ new Date()).toISOString()
-            }
-          );
+          console.log(`[App Debug] *** TERMINAL OUTPUT RECEIVED ***`, {
+            projectId: output.projectId,
+            dataLength: output.data?.length,
+            dataPreview: output.data?.substring(0, 50),
+            timestamp: (/* @__PURE__ */ new Date()).toISOString()
+          });
           const currentItem2 = items.find(
             (item) => item.id === output.projectId
           );
@@ -32698,44 +32772,61 @@ function App() {
       unsubscribeFunctions.push(unsubscribeDeps);
     }
     if (isWeb && webSocketManager) {
-      const unsubscribeProjectReady = webSocketManager.on("project-ready", (message) => {
-        updateItem(message.projectId, {
-          status: "ready",
-          lastActivity: (/* @__PURE__ */ new Date()).toLocaleTimeString()
-        });
-      });
-      const unsubscribeProjectWorking = webSocketManager.on("project-working", (message) => {
-        updateItem(message.projectId, {
-          status: "working",
-          lastActivity: (/* @__PURE__ */ new Date()).toLocaleTimeString()
-        });
-      });
-      const unsubscribeProjectStarted = webSocketManager.on("project-started", (message) => {
-        updateItem(message.projectId, {
-          status: "running",
-          lastActivity: (/* @__PURE__ */ new Date()).toLocaleTimeString()
-        });
-        if (message.data) {
-          const currentItem2 = items.find((item) => item.id === message.projectId);
-          if (currentItem2) {
-            updateItem(message.projectId, {
-              output: [...currentItem2.output || [], message.data]
-            });
+      const unsubscribeProjectReady = webSocketManager.on(
+        "project-ready",
+        (message) => {
+          updateItem(message.projectId, {
+            status: "ready",
+            lastActivity: (/* @__PURE__ */ new Date()).toLocaleTimeString()
+          });
+        }
+      );
+      const unsubscribeProjectWorking = webSocketManager.on(
+        "project-working",
+        (message) => {
+          updateItem(message.projectId, {
+            status: "working",
+            lastActivity: (/* @__PURE__ */ new Date()).toLocaleTimeString()
+          });
+        }
+      );
+      const unsubscribeProjectStarted = webSocketManager.on(
+        "project-started",
+        (message) => {
+          updateItem(message.projectId, {
+            status: "running",
+            lastActivity: (/* @__PURE__ */ new Date()).toLocaleTimeString()
+          });
+          if (message.data) {
+            const currentItem2 = items.find(
+              (item) => item.id === message.projectId
+            );
+            if (currentItem2) {
+              updateItem(message.projectId, {
+                output: [...currentItem2.output || [], message.data]
+              });
+            }
           }
         }
-      });
-      const unsubscribeProjectStopped = webSocketManager.on("project-stopped", (message) => {
-        updateItem(message.projectId, {
-          status: "idle",
-          lastActivity: (/* @__PURE__ */ new Date()).toLocaleTimeString()
-        });
-      });
-      const unsubscribeProjectsState = webSocketManager.on("projects-state", (message) => {
-        console.log(`[Web App] Projects state updated:`, message.data);
-        if (message.data && Array.isArray(message.data)) {
-          setItems(message.data);
+      );
+      const unsubscribeProjectStopped = webSocketManager.on(
+        "project-stopped",
+        (message) => {
+          updateItem(message.projectId, {
+            status: "idle",
+            lastActivity: (/* @__PURE__ */ new Date()).toLocaleTimeString()
+          });
         }
-      });
+      );
+      const unsubscribeProjectsState = webSocketManager.on(
+        "projects-state",
+        (message) => {
+          console.log(`[Web App] Projects state updated:`, message.data);
+          if (message.data && Array.isArray(message.data)) {
+            setItems(message.data);
+          }
+        }
+      );
       unsubscribeFunctions.push(
         unsubscribeProjectReady,
         unsubscribeProjectWorking,
@@ -32949,16 +33040,20 @@ function App() {
     setEditingPanel(null);
   };
   const handlePanelDelete = (panelId) => {
-    deleteItem(panelId);
-    if (selectedItem === panelId) {
-      setSelectedItem(null);
+    const item = items.find((i) => i.id === panelId);
+    if (item) {
+      setDeleteConfirmation({
+        isOpen: true,
+        itemId: panelId,
+        itemName: item.name
+      });
     }
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "h-screen flex flex-col bg-gray-950 text-gray-100 overflow-hidden", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs(
       "div",
       {
-        className: "h-16 glass-titlebar flex items-center px-4 select-none relative",
+        className: "glass-titlebar flex items-center px-4 select-none relative",
         style: { WebkitAppRegion: "drag" },
         children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-lg font-medium text-gray-200 absolute left-1/2 transform -translate-x-1/2", children: "Vibe Term" }),
@@ -33003,28 +33098,34 @@ function App() {
               onClick: () => setSidebarOpen(false)
             }
           ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:relative z-50 lg:z-auto transition-transform duration-300 ease-in-out`, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-            ProjectList,
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "div",
             {
-              projects,
-              selectedProject: selectedItem && projects.find((p) => p.id === selectedItem) ? selectedItem : null,
-              panels,
-              selectedPanel: selectedItem && panels.find((p) => p.id === selectedItem) ? selectedItem : null,
-              onProjectSelect: handleItemSelect,
-              onProjectStart: handleProjectStart,
-              onProjectStop: handleProjectStop,
-              onProjectEdit: handleProjectEdit,
-              onProjectDelete: handleItemDeleteRequest,
-              onProjectReorder: handleProjectReorder,
-              onOpenModal: () => setIsModalOpen(true),
-              onOpenSettings: () => setIsSettingsOpen(true),
-              onPanelSelect: handleItemSelect,
-              onPanelAdd: handlePanelAdd,
-              onPanelEdit: handlePanelEdit,
-              onPanelDelete: handlePanelDelete,
-              onPanelReorder: handlePanelReorder
+              className: `${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 fixed lg:relative z-50 lg:z-auto transition-transform duration-300 ease-in-out`,
+              children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+                ProjectList,
+                {
+                  projects,
+                  selectedProject: selectedItem && projects.find((p) => p.id === selectedItem) ? selectedItem : null,
+                  panels,
+                  selectedPanel: selectedItem && panels.find((p) => p.id === selectedItem) ? selectedItem : null,
+                  onProjectSelect: handleItemSelect,
+                  onProjectStart: handleProjectStart,
+                  onProjectStop: handleProjectStop,
+                  onProjectEdit: handleProjectEdit,
+                  onProjectDelete: handleItemDeleteRequest,
+                  onProjectReorder: handleProjectReorder,
+                  onOpenModal: () => setIsModalOpen(true),
+                  onOpenSettings: () => setIsSettingsOpen(true),
+                  onPanelSelect: handleItemSelect,
+                  onPanelAdd: handlePanelAdd,
+                  onPanelEdit: handlePanelEdit,
+                  onPanelDelete: handlePanelDelete,
+                  onPanelReorder: handlePanelReorder
+                }
+              )
             }
-          ) }),
+          ),
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 relative", children: currentItem && /* @__PURE__ */ jsxRuntimeExports.jsx(
             ViewProject,
             {

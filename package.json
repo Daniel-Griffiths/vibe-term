@@ -7,7 +7,7 @@
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
-    "dev": "vite",
+    "dev": "yarn build:web && vite",
     "build:dist": "tsc && vite build",
     "build": "yarn build:dist && yarn build:web && electron-builder --publish never",
     "build:web": "vite build --config vite.web.config.ts",

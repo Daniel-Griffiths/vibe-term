@@ -194,26 +194,27 @@ async function getOrCreateSharedPty(
       `[${projectId}] Creating shared PTY for tmux session: ${tmuxSessionName}`
     );
 
-    // Check if tmux session exists
+    // Check if session exists first to determine if we should send Claude command
     const sessionExists = await ShellUtils.checkTmuxSession(tmuxSessionName);
-    console.log(`[${projectId}] Session exists: ${sessionExists}`);
-
-    // Build tmux command - create session if needed, then attach
-    let tmuxCommand;
-    if (!sessionExists) {
-      // Create new session without command first (to avoid immediate exit)
-      tmuxCommand = ShellUtils.tmuxCommand({
-        action: "new-attach",
-        sessionName: tmuxSessionName,
-        projectPath,
-      });
-    } else {
-      // Attach to existing session
-      tmuxCommand = ShellUtils.tmuxCommand({
-        action: "attach",
-        sessionName: tmuxSessionName,
-      });
-    }
+    const shouldStartClaude = !sessionExists;
+    
+    // Use a more robust approach: try to attach first, fallback to create if session doesn't exist
+    // This avoids race conditions where session state changes between check and action
+    const attachCommand = ShellUtils.tmuxCommand({
+      action: "attach",
+      sessionName: tmuxSessionName,
+    });
+    
+    const createCommand = ShellUtils.tmuxCommand({
+      action: "new-attach", 
+      sessionName: tmuxSessionName,
+      projectPath,
+    });
+    
+    // Try attach first, fallback to create on failure
+    const tmuxCommand = `(${attachCommand}) || (${createCommand})`;
+    
+    console.log(`[${projectId}] Tmux command: ${tmuxCommand} (shouldStartClaude: ${shouldStartClaude})`);
 
     const proc = pty.spawn(
       ShellUtils.getPreferredShell(),
@@ -240,11 +241,9 @@ async function getOrCreateSharedPty(
     sharedPtyProcesses.set(projectId, proc);
 
     // Send initial message to both desktop and web
-    const initialMessage = !sessionExists
-      ? `Creating new tmux session "${tmuxSessionName}" and starting Claude ${
-          yoloMode ? "(yolo mode) " : ""
-        }in ${projectPath}\r\n`
-      : `Attaching to existing tmux session "${tmuxSessionName}"\r\n`;
+    const initialMessage = `Connecting to tmux session "${tmuxSessionName}" and starting Claude ${
+      yoloMode ? "(yolo mode) " : ""
+    }in ${projectPath}\r\n`;
 
     // Add a small delay to ensure UI handlers are ready
     setTimeout(() => {
@@ -275,80 +274,82 @@ async function getOrCreateSharedPty(
     }, 100);
 
     // Session established successfully
-    if (!sessionExists) {
-      console.log(`[${projectId}] New tmux session created`);
+    console.log(`[${projectId}] Tmux session connected`);
 
-      // Send Claude command after a short delay to ensure session is ready
+    // Send Claude command only if we created a new session
+    if (shouldStartClaude) {
       setTimeout(() => {
         const claudeCommand = yoloMode
           ? "claude --dangerously-skip-permissions\r"
           : "claude\r";
         console.log(
-          `[${projectId}] Sending Claude command: ${claudeCommand.trim()}`
+          `[${projectId}] Sending Claude command to new session: ${claudeCommand.trim()}`
         );
         proc.write(claudeCommand);
       }, 1000);
-
-      // Start background runCommand if provided
-      if (runCommand && runCommand.trim()) {
-        setTimeout(() => {
-          console.log(
-            `[${projectId}] Starting background command: ${runCommand}`
-          );
-          try {
-            const backgroundProc = spawn(
-              ShellUtils.getPreferredShell(),
-              ["-l", "-c", runCommand],
-              {
-                cwd: projectPath,
-                env: {
-                  ...process.env,
-                  PATH: `${process.env.PATH}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`,
-                },
-                detached: false,
-                stdio: ["ignore", "pipe", "pipe"],
-              }
-            );
-
-            backgroundProcesses.set(projectId, backgroundProc);
-
-            // Log background process output for debugging
-            backgroundProc.stdout?.on("data", (data) => {
-              console.log(
-                `[${projectId}] Background stdout:`,
-                data.toString().substring(0, 100)
-              );
-            });
-
-            backgroundProc.stderr?.on("data", (data) => {
-              console.log(
-                `[${projectId}] Background stderr:`,
-                data.toString().substring(0, 100)
-              );
-            });
-
-            backgroundProc.on("exit", (code) => {
-              console.log(
-                `[${projectId}] Background process exited with code:`,
-                code
-              );
-              backgroundProcesses.delete(projectId);
-            });
-
-            backgroundProc.on("error", (error) => {
-              console.error(`[${projectId}] Background process error:`, error);
-              backgroundProcesses.delete(projectId);
-            });
-          } catch (error) {
-            console.error(
-              `[${projectId}] Failed to start background command:`,
-              error
-            );
-          }
-        }, 1500); // Start background command after Claude
-      }
     } else {
-      console.log(`[${projectId}] Attached to existing tmux session`);
+      console.log(
+        `[${projectId}] Skipping Claude command - attaching to existing session`
+      );
+    }
+
+    // Start background runCommand if provided
+    if (runCommand && runCommand.trim()) {
+      setTimeout(() => {
+        console.log(
+          `[${projectId}] Starting background command: ${runCommand}`
+        );
+        try {
+          const backgroundProc = spawn(
+            ShellUtils.getPreferredShell(),
+            ["-l", "-c", runCommand],
+            {
+              cwd: projectPath,
+              env: {
+                ...process.env,
+                PATH: `${process.env.PATH}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`,
+              },
+              detached: false,
+              stdio: ["ignore", "pipe", "pipe"],
+            }
+          );
+
+          backgroundProcesses.set(projectId, backgroundProc);
+
+          // Log background process output for debugging
+          backgroundProc.stdout?.on("data", (data) => {
+            console.log(
+              `[${projectId}] Background stdout:`,
+              data.toString().substring(0, 100)
+            );
+          });
+
+          backgroundProc.stderr?.on("data", (data) => {
+            console.log(
+              `[${projectId}] Background stderr:`,
+              data.toString().substring(0, 100)
+            );
+          });
+
+          backgroundProc.on("exit", (code) => {
+            console.log(
+              `[${projectId}] Background process exited with code:`,
+              code
+            );
+            backgroundProcesses.delete(projectId);
+          });
+
+          backgroundProc.on("error", (error) => {
+            console.error(`[${projectId}] Background process error:`, error);
+            backgroundProcesses.delete(projectId);
+          });
+        } catch (error) {
+          console.error(
+            `[${projectId}] Failed to start background command:`,
+            error
+          );
+        }
+      }, 1500); // Start background command after Claude
     }
 
     // Track the most recent state indicator

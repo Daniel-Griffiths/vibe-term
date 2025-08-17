@@ -15,6 +15,8 @@ export interface TerminalConfig {
   fontSize?: number;
   fontFamily?: string;
   cursorBlink?: boolean;
+  cols?: number;
+  rows?: number;
 }
 
 export interface TerminalInstance {
@@ -45,7 +47,7 @@ export class TerminalService {
       foreground: "#ffffff",
       cursor: "#ffffff",
       selectionBackground: "rgba(255, 255, 255, 0.3)",
-    }
+    },
   };
 
   /**
@@ -53,7 +55,7 @@ export class TerminalService {
    */
   static readonly DEFAULT_FONT = {
     family: '"JetBrains Mono", "SF Mono", Monaco, Consolas, monospace',
-    size: 14
+    size: 14,
   };
 
   /**
@@ -66,7 +68,7 @@ export class TerminalService {
       scrollback = 1000,
       fontSize = this.DEFAULT_FONT.size,
       fontFamily = this.DEFAULT_FONT.family,
-      cursorBlink = true
+      cursorBlink = true,
     } = config;
 
     return new Terminal({
@@ -95,16 +97,16 @@ export class TerminalService {
 
     const terminal = this.createTerminal(config);
     const fitAddon = new FitAddon();
-    
+
     try {
       terminal.loadAddon(fitAddon);
       terminal.open(element);
-      
+
       console.log(`[Terminal Debug] Terminal created successfully:`, {
         terminalExists: !!terminal,
         elementExists: !!element,
         containerExists: !!container,
-        fitAddonExists: !!fitAddon
+        fitAddonExists: !!fitAddon,
       });
     } catch (error) {
       console.error(`[Terminal Debug] Error creating terminal:`, error);
@@ -117,16 +119,8 @@ export class TerminalService {
   /**
    * Show a terminal and fit it to container
    */
-  static showTerminal(instance: TerminalInstance, delay: number = 10): void {
+  static showTerminal(instance: TerminalInstance): void {
     instance.element.style.display = "block";
-    
-    // Simple approach: just fit and log basic info
-    try {
-      instance.fitAddon.fit();
-      console.log(`[Terminal Debug] Terminal shown and fitted, buffer length:`, instance.terminal.buffer.active.length);
-    } catch (error) {
-      console.error(`[Terminal Debug] Error fitting terminal:`, error);
-    }
   }
 
   /**
@@ -146,17 +140,6 @@ export class TerminalService {
    */
   static hideTerminal(instance: TerminalInstance): void {
     instance.element.style.display = "none";
-  }
-
-  /**
-   * Resize all terminals in a collection
-   */
-  static resizeTerminals(terminals: Map<string, TerminalInstance>): void {
-    terminals.forEach((instance) => {
-      if (instance.element.style.display === "block") {
-        instance.fitAddon.fit();
-      }
-    });
   }
 
   /**
@@ -186,7 +169,7 @@ export class TerminalService {
       theme: this.THEMES.claude,
       interactive: true,
       scrollback: 1000,
-      cursorBlink: true
+      cursorBlink: true,
     };
   }
 
@@ -198,7 +181,7 @@ export class TerminalService {
       theme: this.THEMES.output,
       interactive: false,
       scrollback: 5000,
-      cursorBlink: false
+      cursorBlink: false,
     };
   }
 
@@ -213,10 +196,13 @@ export class TerminalService {
       // Filter out terminal capability detection sequences and other escape sequences
       // that should not be sent as user input
       if (this.shouldIgnoreData(data)) {
-        console.log(`[Terminal Debug] Ignoring terminal sequence:`, { data, preview: data.substring(0, 50) });
+        console.log(`[Terminal Debug] Ignoring terminal sequence:`, {
+          data,
+          preview: data.substring(0, 50),
+        });
         return;
       }
-      
+
       // Only send actual user input
       onData(data);
     });
@@ -233,56 +219,44 @@ export class TerminalService {
     }
 
     // Check for escape sequence patterns that should not be sent as input:
-    
+
     // 1. Full escape sequences starting with ESC[
     if (/^\u001b\[/.test(data)) {
       return true;
     }
-    
+
     // 2. Partial escape sequences (sequences without the ESC character)
     // Common patterns: ?1;2c, >0;276;0c, etc.
     if (/^[?>][\d;]*[a-zA-Z]$/.test(data)) {
       return true;
     }
-    
+
     // 3. Control sequences that are just numbers, semicolons, and letters
     // This catches fragmented escape sequences like "1;2c", "0;276;0c"
     if (/^[\d;]+[a-zA-Z]$/.test(data) && data.length < 20) {
       return true;
     }
-    
+
     // 4. Single characters that are likely parts of escape sequences
     if (data.length === 1 && /[?>]/.test(data)) {
       return true;
     }
-    
+
     // 5. Check for common terminal capability response patterns
     const capabilityPatterns = [
-      /^\?1;2c$/,           // Primary Device Attributes
-      /^>0;276;0c$/,        // Secondary Device Attributes
-      /^\d+;\d+c$/,         // Device Attributes response
-      /^[\d;]+[cR]$/,       // Various terminal responses
+      /^\?1;2c$/, // Primary Device Attributes
+      /^>0;276;0c$/, // Secondary Device Attributes
+      /^\d+;\d+c$/, // Device Attributes response
+      /^[\d;]+[cR]$/, // Various terminal responses
     ];
-    
+
     for (const pattern of capabilityPatterns) {
       if (pattern.test(data)) {
         return true;
       }
     }
-    
-    return false;
-  }
 
-  /**
-   * Set up window resize handler for a collection of terminals
-   */
-  static setupResizeHandler(terminals: Map<string, TerminalInstance>): () => void {
-    const handleResize = () => this.resizeTerminals(terminals);
-    window.addEventListener("resize", handleResize);
-    
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
+    return false;
   }
 
   /**
@@ -290,32 +264,32 @@ export class TerminalService {
    */
   static createTerminalManager() {
     const terminals = new Map<string, TerminalInstance>();
-    
+
     return {
       terminals,
-      
+
       createTerminal: (
-        projectId: string, 
-        container: HTMLElement, 
+        projectId: string,
+        container: HTMLElement,
         config: TerminalConfig = {}
       ): TerminalInstance => {
         if (terminals.has(projectId)) {
           return terminals.get(projectId)!;
         }
-        
+
         const instance = this.createTerminalInstance(container, config);
         terminals.set(projectId, instance);
         return instance;
       },
-      
+
       getTerminal: (projectId: string): TerminalInstance | undefined => {
         return terminals.get(projectId);
       },
-      
-      showTerminal: (projectId: string, delay?: number): void => {
+
+      showTerminal: (projectId: string): void => {
         const instance = terminals.get(projectId);
         if (instance) {
-          this.showTerminal(instance, delay);
+          this.showTerminal(instance);
         }
       },
 
@@ -325,38 +299,33 @@ export class TerminalService {
           this.focusTerminal(instance);
         }
       },
-      
+
       hideTerminal: (projectId: string): void => {
         const instance = terminals.get(projectId);
         if (instance) {
           this.hideTerminal(instance);
         }
       },
-      
+
       hideAllTerminals: (): void => {
         terminals.forEach((instance) => {
           this.hideTerminal(instance);
         });
       },
-      
-      resizeAll: (): void => {
-        this.resizeTerminals(terminals);
-      },
-      
-      
+
       clearTerminal: (projectId: string, delay?: number): void => {
         const instance = terminals.get(projectId);
         if (instance) {
           this.clearTerminal(instance, delay);
         }
       },
-      
+
       cleanup: (): void => {
         terminals.forEach((instance) => {
           this.cleanupTerminal(instance);
         });
         terminals.clear();
-      }
+      },
     };
   }
 }

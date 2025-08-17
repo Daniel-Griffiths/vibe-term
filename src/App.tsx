@@ -10,7 +10,12 @@ import FormSettings from "./components/form-settings";
 import FormDependencies from "./components/form-dependencies";
 import FormConfirmation from "./components/form-confirmation";
 import { useAppStore, initializeStore } from "./stores/settings";
-import { communicationAPI, webSocketManager, isElectron, isWeb } from "./utils/communication";
+import {
+  communicationAPI,
+  webSocketManager,
+  isElectron,
+  isWeb,
+} from "./utils/communication";
 import type { UnifiedItem, TerminalOutput, ProcessExit } from "./types";
 
 function App() {
@@ -46,7 +51,7 @@ function App() {
   });
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     // Open sidebar by default only on large screens
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       return window.innerWidth >= 1024;
     }
     return false; // Default to closed for SSR
@@ -61,9 +66,9 @@ function App() {
       // On smaller screens, keep current state
       // Don't auto-close if user opened it manually
     };
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   // Get projects and panels from unified items
@@ -71,8 +76,13 @@ function App() {
   const panels = items.filter((item) => item.type === "panel");
 
   useEffect(() => {
-    console.log('[App Debug] useEffect running, isElectron:', isElectron, 'isWeb:', isWeb);
-    
+    console.log(
+      "[App Debug] useEffect running, isElectron:",
+      isElectron,
+      "isWeb:",
+      isWeb
+    );
+
     // Initialize the Zustand store with Electron backend data
     initializeStore();
 
@@ -83,15 +93,12 @@ function App() {
       console.log(`[Debug] Setting up terminal output listener...`);
       const unsubscribeOutput = communicationAPI.onTerminalOutput(
         (output: TerminalOutput) => {
-          console.log(
-            `[App Debug] *** TERMINAL OUTPUT RECEIVED ***`,
-            {
-              projectId: output.projectId,
-              dataLength: output.data?.length,
-              dataPreview: output.data?.substring(0, 50),
-              timestamp: new Date().toISOString(),
-            }
-          );
+          console.log(`[App Debug] *** TERMINAL OUTPUT RECEIVED ***`, {
+            projectId: output.projectId,
+            dataLength: output.data?.length,
+            dataPreview: output.data?.substring(0, 50),
+            timestamp: new Date().toISOString(),
+          });
 
           // Get current items from store and update
           const currentItem = items.find(
@@ -155,52 +162,69 @@ function App() {
 
     // Set up WebSocket listeners for web environment
     if (isWeb && webSocketManager) {
-      const unsubscribeProjectReady = webSocketManager.on('project-ready', (message: any) => {
-        updateItem(message.projectId, {
-          status: "ready",
-          lastActivity: new Date().toLocaleTimeString(),
-        });
-      });
+      const unsubscribeProjectReady = webSocketManager.on(
+        "project-ready",
+        (message: any) => {
+          updateItem(message.projectId, {
+            status: "ready",
+            lastActivity: new Date().toLocaleTimeString(),
+          });
+        }
+      );
 
-      const unsubscribeProjectWorking = webSocketManager.on('project-working', (message: any) => {
-        updateItem(message.projectId, {
-          status: "working",
-          lastActivity: new Date().toLocaleTimeString(),
-        });
-      });
+      const unsubscribeProjectWorking = webSocketManager.on(
+        "project-working",
+        (message: any) => {
+          updateItem(message.projectId, {
+            status: "working",
+            lastActivity: new Date().toLocaleTimeString(),
+          });
+        }
+      );
 
-      const unsubscribeProjectStarted = webSocketManager.on('project-started', (message: any) => {
-        updateItem(message.projectId, {
-          status: "running",
-          lastActivity: new Date().toLocaleTimeString(),
-        });
-        if (message.data) {
-          const currentItem = items.find(item => item.id === message.projectId);
-          if (currentItem) {
-            updateItem(message.projectId, {
-              output: [...(currentItem.output || []), message.data],
-            });
+      const unsubscribeProjectStarted = webSocketManager.on(
+        "project-started",
+        (message: any) => {
+          updateItem(message.projectId, {
+            status: "running",
+            lastActivity: new Date().toLocaleTimeString(),
+          });
+          if (message.data) {
+            const currentItem = items.find(
+              (item) => item.id === message.projectId
+            );
+            if (currentItem) {
+              updateItem(message.projectId, {
+                output: [...(currentItem.output || []), message.data],
+              });
+            }
           }
         }
-      });
+      );
 
-      const unsubscribeProjectStopped = webSocketManager.on('project-stopped', (message: any) => {
-        updateItem(message.projectId, {
-          status: "idle",
-          lastActivity: new Date().toLocaleTimeString(),
-        });
-      });
-
-      const unsubscribeProjectsState = webSocketManager.on('projects-state', (message: any) => {
-        console.log(`[Web App] Projects state updated:`, message.data);
-        if (message.data && Array.isArray(message.data)) {
-          setItems(message.data);
+      const unsubscribeProjectStopped = webSocketManager.on(
+        "project-stopped",
+        (message: any) => {
+          updateItem(message.projectId, {
+            status: "idle",
+            lastActivity: new Date().toLocaleTimeString(),
+          });
         }
-      });
+      );
+
+      const unsubscribeProjectsState = webSocketManager.on(
+        "projects-state",
+        (message: any) => {
+          console.log(`[Web App] Projects state updated:`, message.data);
+          if (message.data && Array.isArray(message.data)) {
+            setItems(message.data);
+          }
+        }
+      );
 
       unsubscribeFunctions.push(
         unsubscribeProjectReady,
-        unsubscribeProjectWorking, 
+        unsubscribeProjectWorking,
         unsubscribeProjectStarted,
         unsubscribeProjectStopped,
         unsubscribeProjectsState
@@ -208,10 +232,9 @@ function App() {
     }
 
     return () => {
-      unsubscribeFunctions.forEach(unsubscribe => unsubscribe());
+      unsubscribeFunctions.forEach((unsubscribe) => unsubscribe());
     };
   }, []);
-
 
   const handleProjectAdd = (projectData: {
     name: string;
@@ -469,9 +492,13 @@ function App() {
   };
 
   const handlePanelDelete = (panelId: string) => {
-    deleteItem(panelId);
-    if (selectedItem === panelId) {
-      setSelectedItem(null);
+    const item = items.find((i) => i.id === panelId);
+    if (item) {
+      setDeleteConfirmation({
+        isOpen: true,
+        itemId: panelId,
+        itemName: item.name,
+      });
     }
   };
 
@@ -483,8 +510,10 @@ function App() {
         style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
       >
         {/* Centered title */}
-        <h1 className="text-lg font-medium text-gray-200 absolute left-1/2 transform -translate-x-1/2">Vibe Term</h1>
-        
+        <h1 className="text-lg font-medium text-gray-200 absolute left-1/2 transform -translate-x-1/2">
+          Vibe Term
+        </h1>
+
         {/* Mobile menu button - positioned on the right */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -515,46 +544,50 @@ function App() {
       >
         {/* Mobile overlay for sidebar */}
         {sidebarOpen && (
-          <div 
+          <div
             className="lg:hidden fixed inset-0 bg-black/50 z-40"
             onClick={() => setSidebarOpen(false)}
           />
         )}
-        
-        <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:relative z-50 lg:z-auto transition-transform duration-300 ease-in-out`}>
+
+        <div
+          className={`${
+            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          } lg:translate-x-0 fixed lg:relative z-50 lg:z-auto transition-transform duration-300 ease-in-out`}
+        >
           <ProjectList
             projects={projects}
-          selectedProject={
-            selectedItem && projects.find((p) => p.id === selectedItem)
-              ? selectedItem
-              : null
-          }
-          panels={panels}
-          selectedPanel={
-            selectedItem && panels.find((p) => p.id === selectedItem)
-              ? selectedItem
-              : null
-          }
-          onProjectSelect={handleItemSelect}
-          onProjectStart={handleProjectStart}
-          onProjectStop={handleProjectStop}
-          onProjectEdit={handleProjectEdit}
-          onProjectDelete={handleItemDeleteRequest}
-          onProjectReorder={handleProjectReorder}
-          onOpenModal={() => setIsModalOpen(true)}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          onPanelSelect={handleItemSelect}
-          onPanelAdd={handlePanelAdd}
-          onPanelEdit={handlePanelEdit}
-          onPanelDelete={handlePanelDelete}
-          onPanelReorder={handlePanelReorder}
-        />
+            selectedProject={
+              selectedItem && projects.find((p) => p.id === selectedItem)
+                ? selectedItem
+                : null
+            }
+            panels={panels}
+            selectedPanel={
+              selectedItem && panels.find((p) => p.id === selectedItem)
+                ? selectedItem
+                : null
+            }
+            onProjectSelect={handleItemSelect}
+            onProjectStart={handleProjectStart}
+            onProjectStop={handleProjectStop}
+            onProjectEdit={handleProjectEdit}
+            onProjectDelete={handleItemDeleteRequest}
+            onProjectReorder={handleProjectReorder}
+            onOpenModal={() => setIsModalOpen(true)}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            onPanelSelect={handleItemSelect}
+            onPanelAdd={handlePanelAdd}
+            onPanelEdit={handlePanelEdit}
+            onPanelDelete={handlePanelDelete}
+            onPanelReorder={handlePanelReorder}
+          />
         </div>
-        
+
         <div className="flex-1 relative">
           {currentItem && (
-            <ViewProject 
-              selectedItem={currentItem} 
+            <ViewProject
+              selectedItem={currentItem}
               items={items}
               sidebarOpen={sidebarOpen}
               setSidebarOpen={setSidebarOpen}

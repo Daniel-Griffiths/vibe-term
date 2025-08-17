@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./card";
 import { Terminal as TerminalIcon } from "lucide-react";
 import { useTerminalManager } from "../hooks/use-terminal-manager";
@@ -20,7 +20,7 @@ export default function ViewTerminal({
   const prevProjectsRef = useRef<UnifiedItem[]>([]);
 
   // Use the terminal manager hook with Claude configuration
-  const { containerRef, showTerminal, focusTerminal, clearTerminal } =
+  const { containerRef, showTerminal, focusTerminal, clearTerminal, fitTerminal } =
     useTerminalManager(
       projects,
       TerminalService.getClaudeConfig(),
@@ -70,6 +70,17 @@ export default function ViewTerminal({
     prevProjectsRef.current = [...projects];
   }, [projects, clearTerminal]);
 
+  // Simple terminal resize solution - fit terminal after mount with delay
+  useLayoutEffect(() => {
+    if (selectedProject) {
+      const timer = setTimeout(() => {
+        fitTerminal(selectedProject.id);
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [selectedProject, fitTerminal]);
+
   if (!selectedProject) {
     return (
       <div className="flex-1 h-full flex items-center justify-center">
@@ -84,9 +95,9 @@ export default function ViewTerminal({
   }
 
   return (
-    <div className="h-full flex flex-col p-4 pt-0">
+    <div className="h-full flex flex-col p-0 md:p-4 md:pt-0">
       <Card className="flex-1 flex flex-col h-full glass-card overflow-hidden">
-        <CardHeader className="flex-shrink-0 py-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800 rounded-t-lg">
+        <CardHeader className="flex-shrink-0 py-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-gray-200 font-semibold">
               <TerminalIcon className="h-5 w-5 text-green-400" />
@@ -109,7 +120,7 @@ export default function ViewTerminal({
               </span>
             </div>
           </div>
-          <p className="text-sm text-gray-400 font-mono">
+          <p className="text-sm text-gray-400 font-mono hidden md:block">
             {selectedProject.path}
           </p>
         </CardHeader>

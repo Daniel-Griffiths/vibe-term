@@ -25,8 +25,17 @@ import type { UnifiedItem } from "../types";
 const isImageFile = (path: string): boolean => {
   const ext = path.split(".").pop()?.toLowerCase();
   const imageExtensions = [
-    "jpg", "jpeg", "png", "gif", "bmp", "svg", 
-    "webp", "ico", "tiff", "tif", "avif"
+    "jpg",
+    "jpeg",
+    "png",
+    "gif",
+    "bmp",
+    "svg",
+    "webp",
+    "ico",
+    "tiff",
+    "tif",
+    "avif",
   ];
   return imageExtensions.includes(ext || "");
 };
@@ -131,7 +140,9 @@ export default function ViewFileEditor({
     if (!selectedProject) return;
 
     // Check if current active file is unchanged and can be replaced
-    const currentFile = activeFile ? openFiles.find((f) => f.path === activeFile) : null;
+    const currentFile = activeFile
+      ? openFiles.find((f) => f.path === activeFile)
+      : null;
     const shouldReplaceCurrentFile = currentFile && !currentFile.isDirty;
 
     // For image files, we don't need to read the content as text
@@ -146,7 +157,9 @@ export default function ViewFileEditor({
 
       if (shouldReplaceCurrentFile && currentFile) {
         // Replace the current file
-        setOpenFiles((prev) => prev.map((f) => f.path === currentFile.path ? newFile : f));
+        setOpenFiles((prev) =>
+          prev.map((f) => (f.path === currentFile.path ? newFile : f))
+        );
       } else {
         // Add as new tab
         setOpenFiles((prev) => [...prev, newFile]);
@@ -172,7 +185,9 @@ export default function ViewFileEditor({
 
         if (shouldReplaceCurrentFile && currentFile) {
           // Replace the current file
-          setOpenFiles((prev) => prev.map((f) => f.path === currentFile.path ? newFile : f));
+          setOpenFiles((prev) =>
+            prev.map((f) => (f.path === currentFile.path ? newFile : f))
+          );
         } else {
           // Add as new tab
           setOpenFiles((prev) => [...prev, newFile]);
@@ -187,30 +202,39 @@ export default function ViewFileEditor({
     }
   };
 
-  const closeFile = useCallback((filePath: string, skipConfirmation = false) => {
-    const fileToClose = openFiles.find((f) => f.path === filePath);
-    
-    // If file has unsaved changes and we haven't skipped confirmation, show dialog
-    if (fileToClose?.isDirty && !skipConfirmation) {
-      setConfirmDialog({
-        isOpen: true,
-        fileName: fileToClose.name,
-        onConfirm: () => {
-          setConfirmDialog({ isOpen: false, fileName: "", onConfirm: () => {} });
-          closeFile(filePath, true); // Skip confirmation on recursive call
-        },
-      });
-      return;
-    }
+  const closeFile = useCallback(
+    (filePath: string, skipConfirmation = false) => {
+      const fileToClose = openFiles.find((f) => f.path === filePath);
 
-    setOpenFiles((prev) => prev.filter((f) => f.path !== filePath));
+      // If file has unsaved changes and we haven't skipped confirmation, show dialog
+      if (fileToClose?.isDirty && !skipConfirmation) {
+        setConfirmDialog({
+          isOpen: true,
+          fileName: fileToClose.name,
+          onConfirm: () => {
+            setConfirmDialog({
+              isOpen: false,
+              fileName: "",
+              onConfirm: () => {},
+            });
+            closeFile(filePath, true); // Skip confirmation on recursive call
+          },
+        });
+        return;
+      }
 
-    // If this was the active file, switch to another or none
-    if (activeFile === filePath) {
-      const remainingFiles = openFiles.filter((f) => f.path !== filePath);
-      setActiveFile(remainingFiles.length > 0 ? remainingFiles[0].path : null);
-    }
-  }, [openFiles, activeFile, setConfirmDialog]);
+      setOpenFiles((prev) => prev.filter((f) => f.path !== filePath));
+
+      // If this was the active file, switch to another or none
+      if (activeFile === filePath) {
+        const remainingFiles = openFiles.filter((f) => f.path !== filePath);
+        setActiveFile(
+          remainingFiles.length > 0 ? remainingFiles[0].path : null
+        );
+      }
+    },
+    [openFiles, activeFile, setConfirmDialog]
+  );
 
   const closeFilesToRight = (filePath: string) => {
     const fileIndex = openFiles.findIndex((f) => f.path === filePath);
@@ -218,17 +242,23 @@ export default function ViewFileEditor({
 
     const filesToClose = openFiles.slice(fileIndex + 1);
     const hasUnsavedChanges = filesToClose.some((f) => f.isDirty);
-    
+
     if (hasUnsavedChanges) {
       const unsavedFiles = filesToClose.filter((f) => f.isDirty);
       setConfirmDialog({
         isOpen: true,
-        fileName: `${unsavedFiles.length} file${unsavedFiles.length > 1 ? 's' : ''}`,
+        fileName: `${unsavedFiles.length} file${
+          unsavedFiles.length > 1 ? "s" : ""
+        }`,
         onConfirm: () => {
-          setConfirmDialog({ isOpen: false, fileName: "", onConfirm: () => {} });
+          setConfirmDialog({
+            isOpen: false,
+            fileName: "",
+            onConfirm: () => {},
+          });
           const remainingFiles = openFiles.slice(0, fileIndex + 1);
           setOpenFiles(remainingFiles);
-          
+
           // If the active file was closed, switch to the target file
           if (filesToClose.some((f) => f.path === activeFile)) {
             setActiveFile(filePath);
@@ -240,7 +270,7 @@ export default function ViewFileEditor({
 
     const remainingFiles = openFiles.slice(0, fileIndex + 1);
     setOpenFiles(remainingFiles);
-    
+
     // If the active file was closed, switch to the target file
     if (filesToClose.some((f) => f.path === activeFile)) {
       setActiveFile(filePath);
@@ -253,14 +283,20 @@ export default function ViewFileEditor({
 
     const otherFiles = openFiles.filter((f) => f.path !== filePath);
     const hasUnsavedChanges = otherFiles.some((f) => f.isDirty);
-    
+
     if (hasUnsavedChanges) {
       const unsavedFiles = otherFiles.filter((f) => f.isDirty);
       setConfirmDialog({
         isOpen: true,
-        fileName: `${unsavedFiles.length} file${unsavedFiles.length > 1 ? 's' : ''}`,
+        fileName: `${unsavedFiles.length} file${
+          unsavedFiles.length > 1 ? "s" : ""
+        }`,
         onConfirm: () => {
-          setConfirmDialog({ isOpen: false, fileName: "", onConfirm: () => {} });
+          setConfirmDialog({
+            isOpen: false,
+            fileName: "",
+            onConfirm: () => {},
+          });
           setOpenFiles([targetFile]);
           setActiveFile(filePath);
         },
@@ -272,17 +308,24 @@ export default function ViewFileEditor({
     setActiveFile(filePath);
   };
 
-  const handleTabRightClick = useCallback((event: React.MouseEvent, filePath: string) => {
-    event.preventDefault();
-    setContextMenu({
-      isOpen: true,
-      position: { x: event.clientX, y: event.clientY },
-      targetFile: filePath,
-    });
-  }, []);
+  const handleTabRightClick = useCallback(
+    (event: React.MouseEvent, filePath: string) => {
+      event.preventDefault();
+      setContextMenu({
+        isOpen: true,
+        position: { x: event.clientX, y: event.clientY },
+        targetFile: filePath,
+      });
+    },
+    []
+  );
 
   const closeContextMenu = useCallback(() => {
-    setContextMenu({ isOpen: false, position: { x: 0, y: 0 }, targetFile: null });
+    setContextMenu({
+      isOpen: false,
+      position: { x: 0, y: 0 },
+      targetFile: null,
+    });
   }, []);
 
   const closeConfirmDialog = useCallback(() => {
@@ -404,8 +447,6 @@ export default function ViewFileEditor({
     ));
   };
 
-
-
   if (!selectedProject) {
     return (
       <div className="flex-1 h-full flex items-center justify-center">
@@ -447,7 +488,7 @@ export default function ViewFileEditor({
     <div className="h-full flex flex-col lg:flex-row pt-0">
       {/* File Explorer Sidebar */}
       <div className="w-full lg:w-80 lg:min-w-64 lg:max-w-80 md:w-72 bg-gray-950 border-r border-t border-gray-800 overflow-y-auto rounded-tr-lg lg:max-h-screen max-h-64 lg:flex-shrink-0">
-        <div className="p-4 border-b border-gray-800">
+        <div className="p-2 md:p-4 border-b border-gray-800">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2 text-sm text-gray-400">
               <FileText className="h-4 w-4" />
@@ -487,8 +528,8 @@ export default function ViewFileEditor({
 
       {/* Editor Area */}
       <div className="flex-1 flex flex-col h-full">
-        <Card className="flex-1 m-4 mt-0 flex flex-col glass-card overflow-hidden">
-          <CardHeader className="flex-shrink-0 py-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800 rounded-t-lg">
+        <Card className="flex-1 m-0 md:m-4 md:mt-0 flex flex-col glass-card overflow-hidden">
+          <CardHeader className="flex-shrink-0 py-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800 md:rounded-t-lg">
             <div className="flex items-center justify-between">
               {/* File Tabs in Header */}
               {openFiles.length > 0 ? (
@@ -506,7 +547,9 @@ export default function ViewFileEditor({
                         onClick={() => setActiveFile(file.path)}
                         onContextMenu={(e) => handleTabRightClick(e, file.path)}
                       >
-                        <span className="truncate max-w-24 sm:max-w-32 lg:max-w-40">{file.name}</span>
+                        <span className="truncate max-w-24 sm:max-w-32 lg:max-w-40">
+                          {file.name}
+                        </span>
                         {file.isDirty && (
                           <span className="text-yellow-400 text-xs">●</span>
                         )}
@@ -569,7 +612,7 @@ export default function ViewFileEditor({
           </CardContent>
         </Card>
       </div>
-      
+
       {/* Context Menu */}
       <ContextMenu
         isOpen={contextMenu.isOpen}
@@ -606,13 +649,14 @@ export default function ViewFileEditor({
           }}
           disabled={
             !contextMenu.targetFile ||
-            openFiles.findIndex((f) => f.path === contextMenu.targetFile) >= openFiles.length - 1
+            openFiles.findIndex((f) => f.path === contextMenu.targetFile) >=
+              openFiles.length - 1
           }
         >
           Close to the Right
         </ContextMenuItem>
       </ContextMenu>
-      
+
       {/* Confirmation Dialog */}
       <Modal
         isOpen={confirmDialog.isOpen}
@@ -623,9 +667,10 @@ export default function ViewFileEditor({
       >
         <div className="space-y-4">
           <p className="text-gray-300 leading-relaxed">
-            {confirmDialog.fileName} has unsaved changes. Are you sure you want to close without saving?
+            {confirmDialog.fileName} has unsaved changes. Are you sure you want
+            to close without saving?
           </p>
-          
+
           <div className="flex justify-end gap-3 pt-2">
             <Button
               onClick={closeConfirmDialog}
@@ -648,17 +693,17 @@ export default function ViewFileEditor({
 
 // Separate component to handle file content rendering
 // This ensures hooks are always called in the same order
-function FileEditorContent({ 
-  currentFile, 
-  selectedProject, 
-  handleContentChange 
+function FileEditorContent({
+  currentFile,
+  selectedProject,
+  handleContentChange,
 }: {
   currentFile: any;
   selectedProject: any;
   handleContentChange: (value: string | undefined, path: string) => void;
 }) {
   const isImage = isImageFile(currentFile.path);
-  
+
   // Always render both components to maintain hook order
   // But only show one at a time
   if (isImage) {

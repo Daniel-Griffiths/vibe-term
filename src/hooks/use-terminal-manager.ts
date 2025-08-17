@@ -5,14 +5,14 @@ import type { Project } from '../types';
 import { communicationAPI } from '../utils/communication';
 
 export interface TerminalManagerHook {
-  containerRef: React.RefObject<HTMLDivElement>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
   showTerminal: (projectId: string) => void;
   focusTerminal: (projectId: string) => void;
   hideAllTerminals: () => void;
   clearTerminal: (projectId: string) => void;
   writeToTerminal: (projectId: string, data: string) => void;
   setupDataHandler: (projectId: string, onData: (data: string) => void) => void;
-  resizeTerminals: () => void;
+  fitTerminal: (projectId: string) => void;
 }
 
 export function useTerminalManager(
@@ -67,15 +67,6 @@ export function useTerminalManager(
     return existing;
   }, [config, onOutput]);
 
-  // Set up window resize handler for all terminals
-  useEffect(() => {
-    const manager = managerRef.current;
-    const resizeUnsubscriber = TerminalService.setupResizeHandler(manager.terminals);
-    
-    return () => {
-      resizeUnsubscriber();
-    };
-  }, []);
 
   // Set up external output listeners (e.g., from Electron IPC)
   useEffect(() => {
@@ -169,8 +160,16 @@ export function useTerminalManager(
     }
   }, []);
 
-  const resizeTerminals = useCallback(() => {
-    managerRef.current.resizeAll();
+  const fitTerminal = useCallback((projectId: string) => {
+    const manager = managerRef.current;
+    const instance = manager.getTerminal(projectId);
+    if (instance) {
+      try {
+        instance.fitAddon.fit();
+      } catch (error) {
+        console.log('[Terminal Debug] Fit addon error (expected on initial load):', error);
+      }
+    }
   }, []);
 
   return {
@@ -181,6 +180,6 @@ export function useTerminalManager(
     clearTerminal,
     writeToTerminal,
     setupDataHandler,
-    resizeTerminals,
+    fitTerminal,
   };
 }

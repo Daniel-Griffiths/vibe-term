@@ -65,9 +65,7 @@ export default function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
       setLoading(true);
       setError(null);
       try {
-        const result = await communicationAPI.getGitDiff(
-          selectedProject.path
-        );
+        const result = await communicationAPI.getGitDiff(selectedProject.path);
         if (result.success) {
           setDiffData(result.data);
           if (result.data.files.length > 0) {
@@ -325,7 +323,7 @@ export default function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
     <div className="h-full flex flex-col lg:flex-row pt-0">
       {/* File List Sidebar */}
       <div className="w-full lg:w-80 bg-gray-950 lg:border-r border-t lg:border-t border-gray-800 overflow-y-auto rounded-tr-lg max-h-64 lg:max-h-screen flex-shrink-0">
-        <div className="p-4 border-b border-gray-800">
+        <div className="p-2 md:p-4 border-b border-gray-800">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2 text-sm text-gray-400">
               <GitBranch className="h-4 w-4" />
@@ -453,15 +451,19 @@ export default function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
       </div>
 
       {/* Diff Editor */}
-      <div className="flex-1 flex flex-col h-full p-4 pt-0 min-h-0">
+      <div className="flex-1 flex flex-col h-full p-0 md:p-4 md:pt-0 min-h-0">
         <Card className="flex-1 flex flex-col glass-card overflow-hidden">
-          <CardHeader className="flex-shrink-0 py-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800 rounded-t-lg">
+          <CardHeader className="flex-shrink-0 py-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800 md:rounded-t-lg">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-gray-200 font-semibold min-w-0 flex-1">
                 <FileText className="h-5 w-5 text-green-400 flex-shrink-0" />
-                <span className="truncate">{selectedFile?.path || "Select a file"}</span>
+                <span className="truncate">
+                  {selectedFile?.path || "Select a file"}
+                </span>
                 {hasUnsavedChanges && (
-                  <span className="text-yellow-400 text-xs flex-shrink-0">●</span>
+                  <span className="text-yellow-400 text-xs flex-shrink-0">
+                    ●
+                  </span>
                 )}
                 {selectedFile && (
                   <div className="flex items-center gap-1 text-xs ml-2 flex-shrink-0">
