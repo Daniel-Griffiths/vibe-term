@@ -21747,8 +21747,6 @@ function ProjectList({
         return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-2 w-2 rounded-full bg-green-400 animate-pulse shadow-lg shadow-green-400/50" });
       case "completed":
         return /* @__PURE__ */ jsxRuntimeExports.jsx(CircleCheckBig, { className: "h-4 w-4 text-green-500" });
-      case "error":
-        return /* @__PURE__ */ jsxRuntimeExports.jsx(CircleAlert, { className: "h-4 w-4 text-red-500" });
       default:
         return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-2 w-2 rounded-full bg-gray-500" });
     }
@@ -28803,98 +28801,100 @@ function useTerminalManager(projects, config2 = {}, onOutput) {
     fitTerminal
   };
 }
-function ViewTerminal({
-  selectedProject,
-  projects
-}) {
-  const prevProjectsRef = reactExports.useRef([]);
-  const { containerRef, showTerminal, focusTerminal, clearTerminal, fitTerminal } = useTerminalManager(
-    projects,
-    TerminalService.getClaudeConfig(),
-    (output) => {
-      communicationAPI.sendInput(output.projectId, output.data);
-    }
-  );
-  reactExports.useEffect(() => {
-    if (selectedProject) {
-      showTerminal(selectedProject.id);
-    }
-  }, [selectedProject, showTerminal]);
-  reactExports.useEffect(() => {
-    if (selectedProject && selectedProject.status === "ready") {
-      setTimeout(() => {
-        focusTerminal(selectedProject.id);
-      }, 100);
-    }
-  }, [selectedProject?.status, selectedProject?.id, focusTerminal]);
-  reactExports.useEffect(() => {
-    if (!projects) return;
-    projects.forEach((project) => {
-      const prevProject = prevProjectsRef.current.find(
-        (p) => p.id === project.id
-      );
-      const wasRunning = prevProject && (prevProject.status === "running" || prevProject.status === "working" || prevProject.status === "ready");
-      const nowIdle = project.status === "idle";
-      if (wasRunning && nowIdle) {
-        clearTerminal(project.id);
+const ViewTerminal = reactExports.forwardRef(
+  ({ selectedProject, projects }, ref) => {
+    const prevProjectsRef = reactExports.useRef([]);
+    const {
+      containerRef,
+      showTerminal,
+      focusTerminal,
+      clearTerminal,
+      fitTerminal
+    } = useTerminalManager(
+      projects,
+      TerminalService.getClaudeConfig(),
+      (output) => {
+        communicationAPI.sendInput(output.projectId, output.data);
       }
-    });
-    prevProjectsRef.current = [...projects];
-  }, [projects, clearTerminal]);
-  reactExports.useLayoutEffect(() => {
-    if (selectedProject) {
-      const timer = setTimeout(() => {
-        fitTerminal(selectedProject.id);
-      }, 1e3);
-      return () => clearTimeout(timer);
-    }
-  }, [selectedProject, fitTerminal]);
-  if (!selectedProject) {
-    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 h-full flex items-center justify-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-      NonIdealState,
-      {
-        icon: Terminal,
-        title: "No Project Selected",
-        description: "Select a project from the sidebar to view its terminal",
-        className: "min-w-80 max-w-2xl"
+    );
+    reactExports.useImperativeHandle(
+      ref,
+      () => ({
+        fitTerminal
+      }),
+      [fitTerminal]
+    );
+    reactExports.useEffect(() => {
+      if (selectedProject) {
+        showTerminal(selectedProject.id);
       }
-    ) });
-  }
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-full flex flex-col p-0 md:p-4 md:pt-0", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Card, { className: "flex-1 flex flex-col h-full glass-card overflow-hidden", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs(CardHeader, { className: "flex-shrink-0 py-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs(CardTitle, { className: "flex items-center gap-2 text-gray-200 font-semibold", children: [
+    }, [selectedProject, showTerminal]);
+    reactExports.useEffect(() => {
+      if (selectedProject && selectedProject.status === "ready") {
+        setTimeout(() => {
+          focusTerminal(selectedProject.id);
+        }, 100);
+      }
+    }, [selectedProject?.status, selectedProject?.id, focusTerminal]);
+    reactExports.useEffect(() => {
+      if (!projects) return;
+      projects.forEach((project) => {
+        const prevProject = prevProjectsRef.current.find(
+          (p) => p.id === project.id
+        );
+        const wasRunning = prevProject && (prevProject.status === "running" || prevProject.status === "working" || prevProject.status === "ready");
+        const nowIdle = project.status === "idle";
+        if (wasRunning && nowIdle) {
+          clearTerminal(project.id);
+        }
+      });
+      prevProjectsRef.current = [...projects];
+    }, [projects, clearTerminal]);
+    reactExports.useLayoutEffect(() => {
+      if (selectedProject) {
+        const timer = setTimeout(() => {
+          fitTerminal(selectedProject.id);
+        }, 1e3);
+        return () => clearTimeout(timer);
+      }
+    }, [selectedProject, fitTerminal]);
+    if (!selectedProject) {
+      return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 h-full flex items-center justify-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+        NonIdealState,
+        {
+          icon: Terminal,
+          title: "No Project Selected",
+          description: "Select a project from the sidebar to view its terminal",
+          className: "min-w-80 max-w-2xl"
+        }
+      ) });
+    }
+    return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-full flex flex-col p-0 md:p-4 md:pt-0", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Card, { className: "flex-1 flex flex-col h-full glass-card overflow-hidden", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(CardHeader, { className: "flex-shrink-0 py-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center justify-between", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(CardTitle, { className: "flex items-center gap-2 text-gray-200 font-semibold", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(Terminal, { className: "h-5 w-5 text-green-400" }),
           selectedProject.name
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "div",
-            {
-              className: `h-2 w-2 rounded-full ${selectedProject.status === "running" ? "bg-green-400 animate-pulse" : selectedProject.status === "completed" ? "bg-blue-400" : selectedProject.status === "error" ? "bg-red-400" : "bg-gray-500"}`
-            }
-          ),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-sm text-gray-300 capitalize font-medium", children: selectedProject.status })
-        ] })
+        ] }) }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-gray-400 font-mono hidden md:block", children: selectedProject.path })
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-sm text-gray-400 font-mono hidden md:block", children: selectedProject.path })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(CardContent, { className: "flex-1 flex flex-col p-0 overflow-hidden", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-      "div",
-      {
-        ref: containerRef,
-        className: "flex-1 overflow-hidden",
-        style: {
-          minHeight: "200px",
-          maxHeight: "100%",
-          backgroundColor: "#000000",
-          paddingLeft: "16px",
-          paddingRight: "16px"
+      /* @__PURE__ */ jsxRuntimeExports.jsx(CardContent, { className: "flex-1 flex flex-col p-0 overflow-hidden", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+        "div",
+        {
+          ref: containerRef,
+          className: "flex-1 overflow-hidden",
+          style: {
+            minHeight: "200px",
+            maxHeight: "100%",
+            backgroundColor: "#000000",
+            paddingLeft: "16px",
+            paddingRight: "16px"
+          }
         }
-      }
-    ) })
-  ] }) });
-}
+      ) })
+    ] }) });
+  }
+);
+ViewTerminal.displayName = "ViewTerminal";
 function _defineProperty$1(obj, key, value) {
   if (key in obj) {
     Object.defineProperty(obj, key, {
@@ -31500,6 +31500,7 @@ function ViewProject({
   });
   const [localIp, setLocalIp] = reactExports.useState("localhost");
   const [webPort] = reactExports.useState(6969);
+  const terminalRef = reactExports.useRef(null);
   const currentItem = selectedItem;
   const previewUrl = reactExports.useMemo(() => currentItem?.url, [currentItem?.url]);
   const webUrl = reactExports.useMemo(
@@ -31523,6 +31524,14 @@ function ViewProject({
   reactExports.useEffect(() => {
     fetchLocalIp();
   }, [fetchLocalIp]);
+  reactExports.useEffect(() => {
+    if (activeTab === "terminal" && currentItem && terminalRef.current) {
+      const timer = setTimeout(() => {
+        terminalRef.current?.fitTerminal(currentItem.id);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab, currentItem?.id]);
   const NoUrlConfigured = reactExports.useCallback(
     ({ itemType }) => /* @__PURE__ */ jsxRuntimeExports.jsx(
       NonIdealState,
@@ -31605,33 +31614,31 @@ function ViewProject({
             }
           ) })
         ] }) }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-full flex-1 flex flex-col", children: isPanel ? (
-          /* Panel mode - show preview directly */
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-full flex-1 flex flex-col p-0 md:p-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx(WebViewContent, {}) })
-        ) : (
-          /* Project mode - show tabbed content */
-          /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "div",
-              {
-                className: "flex-1 h-full",
-                style: {
-                  display: activeTab === "terminal" ? "block" : "none"
-                },
-                children: /* @__PURE__ */ jsxRuntimeExports.jsx(
-                  ViewTerminal,
-                  {
-                    selectedProject: currentItem,
-                    projects: items.filter((item) => item.type === "project")
-                  }
-                )
-              }
-            ),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "h-full flex-1 flex flex-col", children: [
+          isPanel && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-full flex-1 flex flex-col p-0 md:p-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx(WebViewContent, {}) }),
+          !isPanel && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
             activeTab === "git-diff" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 h-full", children: /* @__PURE__ */ jsxRuntimeExports.jsx(ViewGitDiff, { selectedProject: currentItem }) }),
             activeTab === "editor" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 h-full", children: /* @__PURE__ */ jsxRuntimeExports.jsx(ViewFileEditor, { selectedProject: currentItem }) }),
             activeTab === "preview" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `flex-1 h-full p-0 md:p-4 md:pt-0`, children: /* @__PURE__ */ jsxRuntimeExports.jsx(WebViewContent, {}) })
-          ] })
-        ) })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(
+            "div",
+            {
+              className: "flex-1 h-full",
+              style: {
+                display: !isPanel && activeTab === "terminal" ? "block" : "none"
+              },
+              children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+                ViewTerminal,
+                {
+                  ref: terminalRef,
+                  selectedProject: currentItem,
+                  projects: items.filter((item) => item.type === "project")
+                }
+              )
+            }
+          )
+        ] })
       ]
     }
   ) });
@@ -31811,10 +31818,10 @@ function FormProject({
   const handleSelectDirectory = async () => {
     try {
       const result = await communicationAPI.selectDirectory();
-      if (result?.success && result.path) {
-        setPath(result.path);
+      if (result?.success && result?.data?.path) {
+        setPath(result.data.path);
         if (!name.trim()) {
-          const folderName = result.path.split("/").pop() || "";
+          const folderName = result.data.path.split("/").pop() || "";
           setName(folderName);
         }
       }
