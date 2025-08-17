@@ -28178,12 +28178,6 @@ class TerminalService {
     try {
       terminal.loadAddon(fitAddon);
       terminal.open(element);
-      console.log(`[Terminal Debug] Terminal created successfully:`, {
-        terminalExists: !!terminal,
-        elementExists: !!element,
-        containerExists: !!container,
-        fitAddonExists: !!fitAddon
-      });
     } catch (error) {
       console.error(`[Terminal Debug] Error creating terminal:`, error);
       throw error;
@@ -28202,7 +28196,6 @@ class TerminalService {
   static focusTerminal(instance) {
     try {
       instance.terminal.focus();
-      console.log(`[Terminal Debug] Terminal focused`);
     } catch (error) {
       console.error(`[Terminal Debug] Error focusing terminal:`, error);
     }
@@ -28557,7 +28550,6 @@ class ElectronCommunicationAPI {
 }
 const isElectron = typeof window !== "undefined" && window.electronAPI;
 const isWeb = !isElectron;
-console.log("[Communication Debug] Environment detection - isElectron:", isElectron, "isWeb:", isWeb);
 const communicationAPI = isElectron ? new ElectronCommunicationAPI() : new WebCommunicationAPI();
 class WebSocketManager {
   ws = null;
@@ -28648,7 +28640,6 @@ function useTerminalManager(projects, config2 = {}, onOutput) {
     const manager = managerRef.current;
     const existing = manager.getTerminal(projectId);
     if (!existing) {
-      console.log(`[Terminal Debug] Creating terminal for project ${projectId}`);
       const instance = manager.createTerminal(projectId, containerRef.current, config2);
       if (config2.interactive !== false) {
         const unsubscriber = TerminalService.setupDataHandler(
@@ -28663,7 +28654,6 @@ function useTerminalManager(projects, config2 = {}, onOutput) {
       }
       const pendingOutput = pendingOutputRef.current.get(projectId);
       if (pendingOutput && pendingOutput.length > 0) {
-        console.log(`[Terminal Debug] Replaying ${pendingOutput.length} pending outputs for ${projectId}`);
         pendingOutput.forEach((data) => {
           instance.terminal.write(data);
         });
@@ -28676,23 +28666,11 @@ function useTerminalManager(projects, config2 = {}, onOutput) {
   reactExports.useEffect(() => {
     if (!communicationAPI.onTerminalOutput) return;
     const unsubscribe = communicationAPI.onTerminalOutput((output) => {
-      console.log(`[Terminal Debug] Received output for project ${output.projectId}:`, {
-        dataLength: output.data?.length,
-        dataPreview: output.data?.substring(0, 100),
-        timestamp: (/* @__PURE__ */ new Date()).toISOString()
-      });
       const manager = managerRef.current;
       const instance = manager.getTerminal(output.projectId);
       if (instance) {
-        console.log(`[Terminal Debug] Writing to terminal:`, {
-          projectId: output.projectId,
-          terminalExists: !!instance.terminal,
-          elementVisible: instance.element.style.display !== "none",
-          bufferLength: instance.terminal.buffer.active.length
-        });
         instance.terminal.write(output.data);
       } else {
-        console.log(`[Terminal Debug] Storing output for future terminal ${output.projectId}`);
         const pending = pendingOutputRef.current.get(output.projectId) || [];
         pending.push(output.data);
         pendingOutputRef.current.set(output.projectId, pending);
@@ -28752,7 +28730,7 @@ function useTerminalManager(projects, config2 = {}, onOutput) {
       try {
         instance.fitAddon.fit();
       } catch (error) {
-        console.log("[Terminal Debug] Fit addon error (expected on initial load):", error);
+        console.error("Fit addon error (expected on initial load):", error);
       }
     }
   }, []);
@@ -29533,15 +29511,11 @@ const useAppStore = create((set, get) => ({
   initialize: async () => {
     const state = get();
     if (state.isInitialized) {
-      console.log("[Zustand] Already initialized, skipping...");
       return;
     }
     try {
-      console.log("[Zustand] Initializing from Electron storage...", { isElectron: typeof window !== "undefined" && !!window.electronAPI });
       const itemsResult = await communicationAPI.getStoredItems();
-      console.log("[Zustand] Loaded items:", itemsResult);
       const settingsResult = await communicationAPI.getAppSettings();
-      console.log("[Zustand] Loaded settings:", settingsResult);
       set({
         items: itemsResult.success ? itemsResult.data.map((item) => ({
           ...item,
@@ -29553,7 +29527,6 @@ const useAppStore = create((set, get) => ({
         isLoading: false,
         isInitialized: true
       });
-      console.log("[Zustand] Initialization complete");
     } catch (error) {
       console.error("[Zustand] Failed to initialize:", error);
       set({ isLoading: false, isInitialized: true });
@@ -29631,7 +29604,6 @@ async function initializeStore() {
   return initPromise;
 }
 if (typeof window !== "undefined" && !window.electronAPI) {
-  console.log("[Zustand] Auto-initializing for web environment");
   initializeStore();
 }
 function useEditorTheme() {

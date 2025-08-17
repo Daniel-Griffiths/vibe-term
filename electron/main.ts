@@ -1,22 +1,17 @@
-import {
-  app,
-  BrowserWindow,
-  shell,
-  Notification,
-  powerSaveBlocker,
-} from "electron";
+import { app, BrowserWindow, Notification, powerSaveBlocker } from "electron";
 import fs from "fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { ChildProcess, spawn, exec } from "child_process";
-import { promisify } from "util";
+import { ChildProcess, spawn } from "child_process";
 import * as pty from "node-pty";
 import { ShellUtils } from "../src/utils/shellUtils";
 import { setupIPCHandlers, ipcHandlers } from "./ipc-handlers";
-import { createWebServer, broadcastToWebClients, closeWebServer } from "./web-server";
+import {
+  createWebServer,
+  broadcastToWebClients,
+  closeWebServer,
+} from "./web-server";
 import { setupClaudeHooks } from "../src/utils/claudeHookSetup";
-
-const execAsync = promisify(exec);
 
 // Application state stored in main process
 interface UnifiedItem {
@@ -47,17 +42,22 @@ let appState: AppState = {
     editor: { theme: "vibe-term" },
     desktop: { notifications: true },
     webServer: { enabled: true, port: 6969 },
-    discord: { enabled: false, username: "Vibe Term", webhookUrl: "" }
+    discord: { enabled: false, username: "Vibe Term", webhookUrl: "" },
   },
-  storedItems: []
+  storedItems: [],
 };
 
 // Helper functions for state management
-const getDataFilePath = () => path.join(app.getPath("userData"), "app-data.json");
+const getDataFilePath = () =>
+  path.join(app.getPath("userData"), "app-data.json");
 
 const saveAppState = async () => {
   try {
-    await fs.promises.writeFile(getDataFilePath(), JSON.stringify(appState, null, 2), "utf8");
+    await fs.promises.writeFile(
+      getDataFilePath(),
+      JSON.stringify(appState, null, 2),
+      "utf8"
+    );
   } catch (error) {
     console.error("Failed to save app state:", error);
   }
@@ -68,7 +68,7 @@ const loadAppState = async () => {
     const data = await fs.promises.readFile(getDataFilePath(), "utf8");
     appState = { ...appState, ...JSON.parse(data) };
   } catch (error) {
-    console.log("No existing app data found, using defaults");
+    // Not an error - app data file doesn't exist on first run
   }
 };
 
@@ -81,26 +81,19 @@ async function checkDependencies(): Promise<string[]> {
 
   // Force missing dependencies for testing
   if (FORCE_SHOW_DEPENDENCIES_MODAL) {
-    console.log("🧪 TESTING: Forcing missing dependencies modal");
     return ["tmux", "claude"];
   }
 
   // Check tmux
   const tmuxAvailable = await ShellUtils.checkDependency("tmux");
-  if (tmuxAvailable) {
-    console.log("✅ tmux is installed");
-  } else {
+  if (!tmuxAvailable) {
     missing.push("tmux");
-    console.log("❌ tmux is not installed");
   }
 
   // Check claude
   const claudeAvailable = await ShellUtils.checkDependency("claude");
-  if (claudeAvailable) {
-    console.log("✅ claude is installed");
-  } else {
+  if (!claudeAvailable) {
     missing.push("claude");
-    console.log("❌ claude is not installed");
   }
 
   return missing;
@@ -124,7 +117,6 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   : RENDERER_DIST;
 
 let win: BrowserWindow | null;
-const processes = new Map<string, ChildProcess>(); // Legacy - kept for compatibility
 const sharedPtyProcesses = new Map<string, any>(); // Shared PTY processes for both desktop and web
 const backgroundProcesses = new Map<string, ChildProcess>(); // Background processes for runCommand
 const terminalBuffers = new Map<string, string>(); // Store terminal history for each project
@@ -132,20 +124,29 @@ const terminalBuffers = new Map<string, string>(); // Store terminal history for
 // Power save blocker to keep PC awake
 let powerSaveBlockerId: number | null = null;
 
-// Track currently selected project for notifications
-let currentlySelectedProject: string | null = null;
-
 // Web server variables
 let webServer: any = null;
-
-
-
 
 // Helper function to read state from file (outside web server to avoid app naming conflict)
 const readStateFile = () => {
   return appState;
 };
 
+// Notification debouncing
+const NOTIFICATION_DEBOUNCE_MS = 5000; // 5 seconds debounce period
+const lastNotificationTime = new Map<string, number>();
+
+function shouldSendNotification(projectId: string): boolean {
+  const now = Date.now();
+  const lastTime = lastNotificationTime.get(projectId);
+
+  if (!lastTime || now - lastTime > NOTIFICATION_DEBOUNCE_MS) {
+    lastNotificationTime.set(projectId, now);
+    return true;
+  }
+
+  return false;
+}
 
 // Shared PTY process management
 async function getOrCreateSharedPty(
@@ -158,21 +159,14 @@ async function getOrCreateSharedPty(
   try {
     // Set up Claude hooks for status detection
     await setupClaudeHooks(projectPath);
-    
+
     // If PTY already exists, send current buffer and return success
     if (sharedPtyProcesses.has(projectId)) {
-      console.log(`[${projectId}] Using existing shared PTY process`);
-
       // Send current terminal buffer to ensure UI is synced
       const currentBuffer = terminalBuffers.get(projectId) || "";
       if (currentBuffer) {
         // Send to desktop if window exists
         if (win && !win.isDestroyed()) {
-          console.log(`[Main Process] Sending existing buffer to renderer:`, {
-            projectId,
-            bufferLength: currentBuffer.length,
-            timestamp: new Date().toISOString(),
-          });
           win.webContents.send("terminal-output", {
             projectId,
             data: currentBuffer,
@@ -194,31 +188,25 @@ async function getOrCreateSharedPty(
     const sessionBase = projectName || projectId;
     const tmuxSessionName = ShellUtils.generateTmuxSessionName(sessionBase);
 
-    console.log(
-      `[${projectId}] Creating shared PTY for tmux session: ${tmuxSessionName}`
-    );
-
     // Check if session exists first to determine if we should send Claude command
     const sessionExists = await ShellUtils.checkTmuxSession(tmuxSessionName);
     const shouldStartClaude = !sessionExists;
-    
+
     // Use a more robust approach: try to attach first, fallback to create if session doesn't exist
     // This avoids race conditions where session state changes between check and action
     const attachCommand = ShellUtils.tmuxCommand({
       action: "attach",
       sessionName: tmuxSessionName,
     });
-    
+
     const createCommand = ShellUtils.tmuxCommand({
-      action: "new-attach", 
+      action: "new-attach",
       sessionName: tmuxSessionName,
       projectPath,
     });
-    
+
     // Try attach first, fallback to create on failure
     const tmuxCommand = `(${attachCommand}) || (${createCommand})`;
-    
-    console.log(`[${projectId}] Tmux command: ${tmuxCommand} (shouldStartClaude: ${shouldStartClaude})`);
 
     const proc = pty.spawn(
       ShellUtils.getPreferredShell(),
@@ -244,116 +232,63 @@ async function getOrCreateSharedPty(
 
     sharedPtyProcesses.set(projectId, proc);
 
-    // Send initial message to both desktop and web
-    const initialMessage = `Connecting to tmux session "${tmuxSessionName}" and starting Claude ${
-      yoloMode ? "(yolo mode) " : ""
-    }in ${projectPath}\r\n`;
-
     // Add a small delay to ensure UI handlers are ready
-    setTimeout(() => {
-      // Send to desktop if window exists
-      if (win && !win.isDestroyed()) {
-        console.log(`[Main Process] Sending initial message to renderer:`, {
-          projectId,
-          message: initialMessage.trim(),
-          timestamp: new Date().toISOString(),
-        });
-        win.webContents.send("terminal-output", {
-          projectId,
-          data: initialMessage,
-          type: "system",
-        });
-      } else {
-        console.warn(
-          `[Main Process] Cannot send initial message - window destroyed or missing`
-        );
-      }
-
-      // Send to web clients
-      broadcastToWebClients({
-        type: "project-started",
-        projectId: projectId,
-        data: initialMessage,
+    if (win && !win.isDestroyed()) {
+      win.webContents.send("terminal-output", {
+        projectId,
+        data: "",
+        type: "system",
       });
-    }, 100);
+    }
 
-    // Session established successfully
-    console.log(`[${projectId}] Tmux session connected`);
+    // Send to web clients
+    broadcastToWebClients({
+      type: "project-started",
+      projectId: projectId,
+      data: "",
+    });
 
     // Send Claude command only if we created a new session
     if (shouldStartClaude) {
-      setTimeout(() => {
-        const claudeCommand = yoloMode
-          ? "claude --dangerously-skip-permissions\r"
-          : "claude\r";
-        console.log(
-          `[${projectId}] Sending Claude command to new session: ${claudeCommand.trim()}`
-        );
-        proc.write(claudeCommand);
-      }, 1000);
-    } else {
-      console.log(
-        `[${projectId}] Skipping Claude command - attaching to existing session`
-      );
+      const claudeCommand = yoloMode
+        ? "claude --dangerously-skip-permissions\r"
+        : "claude\r";
+      proc.write(claudeCommand);
     }
 
     // Start background runCommand if provided
     if (runCommand && runCommand.trim()) {
-      setTimeout(() => {
-        console.log(
-          `[${projectId}] Starting background command: ${runCommand}`
+      try {
+        const backgroundProc = spawn(
+          ShellUtils.getPreferredShell(),
+          ["-l", "-c", runCommand],
+          {
+            cwd: projectPath,
+            env: {
+              ...process.env,
+              PATH: `${process.env.PATH}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`,
+            },
+            detached: false,
+            stdio: ["ignore", "pipe", "pipe"],
+          }
         );
-        try {
-          const backgroundProc = spawn(
-            ShellUtils.getPreferredShell(),
-            ["-l", "-c", runCommand],
-            {
-              cwd: projectPath,
-              env: {
-                ...process.env,
-                PATH: `${process.env.PATH}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`,
-              },
-              detached: false,
-              stdio: ["ignore", "pipe", "pipe"],
-            }
-          );
 
-          backgroundProcesses.set(projectId, backgroundProc);
+        backgroundProcesses.set(projectId, backgroundProc);
 
-          // Log background process output for debugging
-          backgroundProc.stdout?.on("data", (data) => {
-            console.log(
-              `[${projectId}] Background stdout:`,
-              data.toString().substring(0, 100)
-            );
-          });
+        backgroundProc.on("exit", (code) => {
+          backgroundProcesses.delete(projectId);
+        });
 
-          backgroundProc.stderr?.on("data", (data) => {
-            console.log(
-              `[${projectId}] Background stderr:`,
-              data.toString().substring(0, 100)
-            );
-          });
-
-          backgroundProc.on("exit", (code) => {
-            console.log(
-              `[${projectId}] Background process exited with code:`,
-              code
-            );
-            backgroundProcesses.delete(projectId);
-          });
-
-          backgroundProc.on("error", (error) => {
-            console.error(`[${projectId}] Background process error:`, error);
-            backgroundProcesses.delete(projectId);
-          });
-        } catch (error) {
-          console.error(
-            `[${projectId}] Failed to start background command:`,
-            error
-          );
-        }
-      }, 1500); // Start background command after Claude
+        backgroundProc.on("error", (error) => {
+          console.error(`[${projectId}] Background process error:`, error);
+          backgroundProcesses.delete(projectId);
+        });
+      } catch (error) {
+        console.error(
+          `[${projectId}] Failed to start background command:`,
+          error
+        );
+      }
     }
 
     // Track the most recent state indicator
@@ -388,11 +323,11 @@ async function getOrCreateSharedPty(
           const desktopNotificationsEnabled = true; // Default to true
           const windowFocused = win && !win.isDestroyed() && win.isFocused();
 
-          console.log(
-            `[${projectId}] Notification check: windowFocused="${windowFocused}", notificationsEnabled="${desktopNotificationsEnabled}"`
-          );
-
-          if (!windowFocused && desktopNotificationsEnabled) {
+          if (
+            !windowFocused &&
+            desktopNotificationsEnabled &&
+            shouldSendNotification(projectId)
+          ) {
             // Get the actual project name from saved projects
             // TODO: Connect to proper data source
             const projectDisplayName = projectId;
@@ -483,30 +418,17 @@ async function getOrCreateSharedPty(
         ) {
           if (lastStateIndicator !== "ready") {
             lastStateIndicator = "ready";
-            console.log(
-              `[${projectId}] *** CLAUDE IS READY FOR INPUT (initial) ***`
-            );
             sendStatusChange("ready");
           }
         }
 
         // Send to desktop
         if (win && !win.isDestroyed()) {
-          console.log(`[Main Process] Sending terminal output to renderer:`, {
-            projectId,
-            dataLength: data?.length,
-            dataPreview: data?.substring(0, 50),
-            timestamp: new Date().toISOString(),
-          });
           win.webContents.send("terminal-output", {
             projectId,
             data: data,
             type: "stdout",
           });
-        } else {
-          console.warn(
-            `[Main Process] Cannot send terminal output - window destroyed or missing`
-          );
         }
 
         // Send to web clients
@@ -550,7 +472,11 @@ async function getOrCreateSharedPty(
         const desktopNotificationsEnabled = true; // Default to true
         const windowFocused = win && !win.isDestroyed() && win.isFocused();
 
-        if (!windowFocused && desktopNotificationsEnabled) {
+        if (
+          !windowFocused &&
+          desktopNotificationsEnabled &&
+          shouldSendNotification(`${projectId}-error`)
+        ) {
           // TODO: Connect to proper data source
           const projectDisplayName = projectId;
           const notification = new Notification({
@@ -590,7 +516,11 @@ async function getOrCreateSharedPty(
       const desktopNotificationsEnabled = true; // Default to true
       const windowFocused = win && !win.isDestroyed() && win.isFocused();
 
-      if (!windowFocused && desktopNotificationsEnabled) {
+      if (
+        !windowFocused &&
+        desktopNotificationsEnabled &&
+        shouldSendNotification(`${projectId}-error`)
+      ) {
         // TODO: Connect to proper data source
         const projectDisplayName = projectId;
         const notification = new Notification({
@@ -617,7 +547,6 @@ async function getOrCreateSharedPty(
   }
 }
 
-
 function createWindow() {
   // Try multiple possible icon paths
   const iconPaths = [
@@ -629,12 +558,6 @@ function createWindow() {
 
   let iconPath = null;
   for (const testPath of iconPaths) {
-    console.log(
-      "Testing icon path:",
-      testPath,
-      "exists:",
-      fs.existsSync(testPath)
-    );
     if (fs.existsSync(testPath)) {
       iconPath = testPath;
       break;
@@ -669,7 +592,7 @@ function createWindow() {
     try {
       app.dock.setIcon(iconPath);
     } catch (error) {
-      console.log("Failed to set dock icon:", error);
+      console.error("Failed to set dock icon:", error);
     }
   }
 
@@ -685,14 +608,9 @@ function createWindow() {
     win.loadURL(VITE_DEV_SERVER_URL);
   } else {
     const indexPath = path.join(RENDERER_DIST, "index.html");
-    console.log("Loading index.html from:", indexPath);
-
     // Use loadFile instead of loadURL for local files - it handles the protocol correctly
     win.loadFile(indexPath);
   }
-
-  // Log when content loads
-  win.webContents.once("did-finish-load", () => {});
 }
 
 // Clean up all tmux sessions and processes before quitting
@@ -706,7 +624,6 @@ app.on("before-quit", async (event) => {
     powerSaveBlocker.isStarted(powerSaveBlockerId)
   ) {
     powerSaveBlocker.stop(powerSaveBlockerId);
-    console.log("✅ Power save blocker stopped");
   }
 
   // Kill all tmux sessions associated with projects (silently fail if not running)
@@ -725,8 +642,7 @@ app.on("before-quit", async (event) => {
   sharedPtyProcesses.clear();
 
   // Clean up background processes
-  backgroundProcesses.forEach((proc, projectId) => {
-    console.log(`[${projectId}] Killing background process on app exit`);
+  backgroundProcesses.forEach((proc) => {
     proc.kill("SIGTERM");
   });
   backgroundProcesses.clear();
@@ -756,10 +672,9 @@ app.on("activate", () => {
 app.whenReady().then(async () => {
   // Load app state from disk
   await loadAppState();
-  
+
   // Start power save blocker to keep PC awake while app is running
   powerSaveBlockerId = powerSaveBlocker.start("prevent-app-suspension");
-  console.log("✅ Power save blocker started - PC will stay awake");
 
   createWindow();
 
@@ -782,14 +697,19 @@ app.whenReady().then(async () => {
       saveAppState();
     },
     updateStoredItem: (id: string, updates: Partial<UnifiedItem>) => {
-      const index = appState.storedItems.findIndex(item => item.id === id);
+      const index = appState.storedItems.findIndex((item) => item.id === id);
       if (index !== -1) {
-        appState.storedItems[index] = { ...appState.storedItems[index], ...updates };
+        appState.storedItems[index] = {
+          ...appState.storedItems[index],
+          ...updates,
+        };
         saveAppState();
       }
     },
     deleteStoredItem: (id: string) => {
-      appState.storedItems = appState.storedItems.filter(item => item.id !== id);
+      appState.storedItems = appState.storedItems.filter(
+        (item) => item.id !== id
+      );
       saveAppState();
     },
   });
@@ -809,10 +729,13 @@ app.whenReady().then(async () => {
     const enabled = true; // Default to enabled
 
     if (enabled) {
-      const result = await createWebServer({
-        ipcHandlers,
-        app,
-      }, port);
+      const result = await createWebServer(
+        {
+          ipcHandlers,
+          app,
+        },
+        port
+      );
       webServer = result.server;
       const actualPort = result.port;
 

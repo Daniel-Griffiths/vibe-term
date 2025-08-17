@@ -109,12 +109,6 @@ export class TerminalService {
       terminal.loadAddon(fitAddon);
       terminal.open(element);
 
-      console.log(`[Terminal Debug] Terminal created successfully:`, {
-        terminalExists: !!terminal,
-        elementExists: !!element,
-        containerExists: !!container,
-        fitAddonExists: !!fitAddon,
-      });
     } catch (error) {
       console.error(`[Terminal Debug] Error creating terminal:`, error);
       throw error;
@@ -136,7 +130,6 @@ export class TerminalService {
   static focusTerminal(instance: TerminalInstance): void {
     try {
       instance.terminal.focus();
-      console.log(`[Terminal Debug] Terminal focused`);
     } catch (error) {
       console.error(`[Terminal Debug] Error focusing terminal:`, error);
     }

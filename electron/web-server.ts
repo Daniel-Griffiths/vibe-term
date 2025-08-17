@@ -177,7 +177,6 @@ export async function createWebServer(
   return new Promise((resolve, reject) => {
     server
       .listen(port, "0.0.0.0", () => {
-        console.log(`Web server started on http://0.0.0.0:${port}`);
         resolve({ server, port });
       })
       .on("error", (error) => {

@@ -1,0 +1,44 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/danielgriffiths/Documents/personal/vibe-term/hooks/status-hook.sh Stop \"/Users/danielgriffiths/Documents/personal/vibe-term\" \"$CLAUDE_SESSION_ID\""
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/danielgriffiths/Documents/personal/vibe-term/hooks/status-hook.sh SubagentStop \"/Users/danielgriffiths/Documents/personal/vibe-term\" \"$CLAUDE_SESSION_ID\""
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/danielgriffiths/Documents/personal/vibe-term/hooks/status-hook.sh UserPromptSubmit \"/Users/danielgriffiths/Documents/personal/vibe-term\" \"$CLAUDE_SESSION_ID\""
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/danielgriffiths/Documents/personal/vibe-term/hooks/status-hook.sh Notification \"/Users/danielgriffiths/Documents/personal/vibe-term\" \"$CLAUDE_SESSION_ID\""
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -364,7 +364,6 @@ class ElectronCommunicationAPI implements ICommunicationAPI {
 export const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
 export const isWeb = !isElectron;
 
-console.log('[Communication Debug] Environment detection - isElectron:', isElectron, 'isWeb:', isWeb);
 
 // Create the appropriate API instance
 export const communicationAPI: ICommunicationAPI = isElectron 

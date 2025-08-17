@@ -6,6 +6,7 @@ import { promisify } from "util";
 import { exec, ChildProcess } from "child_process";
 import { ShellUtils } from "../src/utils/shellUtils";
 import type { IPty } from "node-pty";
+import { broadcastToWebClients } from "./web-server";
 
 const execAsync = promisify(exec);
 
@@ -184,6 +185,22 @@ interface IPCHandlerDependencies {
   deleteStoredItem: (id: string) => void;
 }
 
+// Notification debouncing
+const NOTIFICATION_DEBOUNCE_MS = 5000; // 5 seconds debounce period
+const lastNotificationTime = new Map<string, number>();
+
+function shouldSendNotification(projectId: string): boolean {
+  const now = Date.now();
+  const lastTime = lastNotificationTime.get(projectId);
+  
+  if (!lastTime || now - lastTime > NOTIFICATION_DEBOUNCE_MS) {
+    lastNotificationTime.set(projectId, now);
+    return true;
+  }
+  
+  return false;
+}
+
 export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
   const {
     win,
@@ -219,129 +236,139 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
     }
   );
 
-  registerIPCHandler("claude-hook", async (...args: unknown[]): Promise<BasicResult> => {
-    const [hookType, projectId] = args as [string, string];
-    
-    try {
-      console.log(`[Claude Hook] Received ${hookType} hook for project ${projectId}`);
-      
-      // Determine status based on hook type
-      let status: string;
-      switch (hookType) {
-        case 'Stop':
-        case 'SubagentStop':
-          status = 'ready';
-          break;
-        case 'UserPromptSubmit':
-          status = 'working';
-          break;
-        case 'Notification':
-          status = 'waiting';
-          break;
-        default:
-          status = 'unknown';
-      }
-      
-      // Send immediate status updates to both desktop and web clients
-      if (win && !win.isDestroyed()) {
-        if (status === 'ready') {
-          win.webContents.send("claude-ready", {
-            projectId,
-            timestamp: Date.now(),
-          });
-          
-          // Send desktop notification if window is not focused
-          const windowFocused = win.isFocused();
-          if (!windowFocused) {
-            const notification = new Notification({
-              title: `${projectId} finished`,
-              body: "Claude Code task completed",
-              silent: false,
+  registerIPCHandler(
+    "claude-hook",
+    async (...args: unknown[]): Promise<BasicResult> => {
+      const [hookType, projectId] = args as [string, string];
+
+      try {
+        // Determine status based on hook type
+        let status: string;
+        switch (hookType) {
+          case "Stop":
+          case "SubagentStop":
+            status = "ready";
+            break;
+          case "UserPromptSubmit":
+            status = "working";
+            break;
+          case "Notification":
+            status = "waiting";
+            break;
+          default:
+            status = "unknown";
+        }
+
+        // Send immediate status updates to both desktop and web clients
+        if (win && !win.isDestroyed()) {
+          if (status === "ready") {
+            win.webContents.send("claude-ready", {
+              projectId,
+              timestamp: Date.now(),
             });
-            notification.show();
-            notification.on("click", () => {
-              if (win && !win.isDestroyed()) {
-                if (win.isMinimized()) win.restore();
-                win.focus();
-              }
+
+            // Send desktop notification if window is not focused and not recently sent
+            const windowFocused = win.isFocused();
+            if (!windowFocused && shouldSendNotification(projectId)) {
+              const notification = new Notification({
+                title: `${projectId} finished`,
+                body: "Claude Code task completed",
+                silent: false,
+              });
+              notification.show();
+              notification.on("click", () => {
+                if (win && !win.isDestroyed()) {
+                  if (win.isMinimized()) win.restore();
+                  win.focus();
+                }
+              });
+            }
+          } else if (status === "working") {
+            win.webContents.send("claude-working", {
+              projectId,
+              timestamp: Date.now(),
             });
           }
-        } else if (status === 'working') {
-          win.webContents.send("claude-working", {
-            projectId,
-            timestamp: Date.now(),
-          });
         }
+
+        // Broadcast to web clients
+        const eventType =
+          status === "ready"
+            ? "project-ready"
+            : status === "working"
+            ? "project-working"
+            : "claude-status-change";
+
+        broadcastToWebClients({
+          type: eventType,
+          projectId: projectId,
+          data: status,
+          timestamp: Date.now(),
+        });
+
+        return { success: true };
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        console.error("Error processing Claude hook:", error);
+        return { success: false, error: errorMessage };
       }
-      
-      // Broadcast to web clients
-      const eventType = status === 'ready' ? 'project-ready' : 
-                       status === 'working' ? 'project-working' : 
-                       'claude-status-change';
-      
-      broadcastToWebClients({
-        type: eventType,
-        projectId: projectId,
-        data: status,
-        timestamp: Date.now()
-      });
-      
-      return { success: true };
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      console.error('Error processing Claude hook:', error);
-      return { success: false, error: errorMessage };
     }
-  });
+  );
 
-  registerIPCHandler("stop-claude-process", async (...args: unknown[]): Promise<BasicResult> => {
-    const [projectId] = args as [string];
-    const proc = sharedPtyProcesses.get(projectId);
+  registerIPCHandler(
+    "stop-claude-process",
+    async (...args: unknown[]): Promise<BasicResult> => {
+      const [projectId] = args as [string];
+      const proc = sharedPtyProcesses.get(projectId);
 
-    // Kill PTY process
-    if (proc) {
-      proc.kill();
-      sharedPtyProcesses.delete(projectId);
-    }
+      // Kill PTY process
+      if (proc) {
+        proc.kill();
+        sharedPtyProcesses.delete(projectId);
+      }
 
-    // Kill background process if running
-    const backgroundProc = backgroundProcesses.get(projectId);
-    if (backgroundProc) {
-      console.log(`[${projectId}] Killing background process`);
-      backgroundProc.kill("SIGTERM");
-      backgroundProcesses.delete(projectId);
-    }
+      // Kill background process if running
+      const backgroundProc = backgroundProcesses.get(projectId);
+      if (backgroundProc) {
+        backgroundProc.kill("SIGTERM");
+        backgroundProcesses.delete(projectId);
+      }
 
-    // Kill the tmux session (silently fails if not running)
-    const state = readStateFile();
-    const projects =
-      state.storedItems?.filter((item: Project) => item.type === "project") || [];
-    const project = projects.find((p: Project) => p.id === projectId);
+      // Kill the tmux session (silently fails if not running)
+      const state = readStateFile();
+      const projects =
+        state.storedItems?.filter((item: Project) => item.type === "project") ||
+        [];
+      const project = projects.find((p: Project) => p.id === projectId);
 
-    if (project) {
-      const sessionBase = project.name || projectId;
-      const tmuxSessionName = ShellUtils.generateTmuxSessionName(sessionBase);
-      ShellUtils.killTmuxSession(tmuxSessionName);
-    }
+      if (project) {
+        const sessionBase = project.name || projectId;
+        const tmuxSessionName = ShellUtils.generateTmuxSessionName(sessionBase);
+        ShellUtils.killTmuxSession(tmuxSessionName);
+      }
 
-    return { success: true };
-  });
-
-  registerIPCHandler("send-input", async (...args: unknown[]): Promise<BasicResult> => {
-    const [projectId, input] = args as [string, string];
-    const proc = sharedPtyProcesses.get(projectId);
-    if (proc) {
-      proc.write(input);
       return { success: true };
     }
-    return { success: false, error: "Process not found" };
-  });
+  );
+
+  registerIPCHandler(
+    "send-input",
+    async (...args: unknown[]): Promise<BasicResult> => {
+      const [projectId, input] = args as [string, string];
+      const proc = sharedPtyProcesses.get(projectId);
+      if (proc) {
+        proc.write(input);
+        return { success: true };
+      }
+      return { success: false, error: "Process not found" };
+    }
+  );
 
   registerIPCHandler(
     "test-command",
     async (...args: unknown[]): Promise<CommandResult> => {
       const [projectPath, command] = args as [string, string];
-      console.log(`[Test] Testing command "${command}" in ${projectPath}`);
 
       const result = await ShellUtils.execute(command, {
         cwd: projectPath,
@@ -357,202 +384,213 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
   );
 
   // Write state file for web server access
-  registerIPCHandler("write-state-file", async (...args: unknown[]): Promise<BasicResult> => {
-    const [state] = args as [AppState];
-    try {
-      const stateFilePath = path.join(
-        app.getPath("userData"),
-        "web-server-state.json"
-      );
-      await fs.promises.writeFile(
-        stateFilePath,
-        JSON.stringify(state, null, 2),
-        "utf8"
-      );
-      return { success: true };
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      console.error("Error writing state file:", error);
-      return { success: false, error: errorMessage };
+  registerIPCHandler(
+    "write-state-file",
+    async (...args: unknown[]): Promise<BasicResult> => {
+      const [state] = args as [AppState];
+      try {
+        const stateFilePath = path.join(
+          app.getPath("userData"),
+          "web-server-state.json"
+        );
+        await fs.promises.writeFile(
+          stateFilePath,
+          JSON.stringify(state, null, 2),
+          "utf8"
+        );
+        return { success: true };
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        console.error("Error writing state file:", error);
+        return { success: false, error: errorMessage };
+      }
     }
-  });
+  );
 
   // Directory selection
-  registerIPCHandler("select-directory", async (): Promise<DataResult<{ path: string }>> => {
-    if (!win) {
-      console.warn("Window not available for directory selection");
-      return { success: false, error: "Window not available" };
-    }
-    try {
-      const result = await dialog.showOpenDialog(win, {
-        properties: ["openDirectory"],
-      });
-      
-      if (result.canceled || !result.filePaths[0]) {
-        return { success: false, error: "Directory selection cancelled" };
+  registerIPCHandler(
+    "select-directory",
+    async (): Promise<DataResult<{ path: string }>> => {
+      if (!win) {
+        return { success: false, error: "Window not available" };
       }
-      
-      return { 
-        success: true, 
-        data: { path: result.filePaths[0] }
-      };
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      console.error("Directory selection error:", error);
-      return { success: false, error: errorMessage };
+      try {
+        const result = await dialog.showOpenDialog(win, {
+          properties: ["openDirectory"],
+        });
+
+        if (result.canceled || !result.filePaths[0]) {
+          return { success: false, error: "Directory selection cancelled" };
+        }
+
+        return {
+          success: true,
+          data: { path: result.filePaths[0] },
+        };
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        console.error("Directory selection error:", error);
+        return { success: false, error: errorMessage };
+      }
     }
-  });
+  );
 
   // Git operations
-  registerIPCHandler("get-git-diff", async (...args: unknown[]): Promise<DataResult<GitDiffResult>> => {
-    const [projectPath] = args as [string];
-    try {
-      // Check if directory is a git repo
-      const { stdout: isGitRepo } = await execAsync(
-        "git rev-parse --is-inside-work-tree",
-        { cwd: projectPath }
-      ).catch(() => ({ stdout: "" }));
-
-      if (!isGitRepo.trim()) {
-        return { success: false, error: "Not a git repository" };
-      }
-
-      // Get current branch
-      const { stdout: branch } = await execAsync("git branch --show-current", {
-        cwd: projectPath,
-      });
-
-      // Get ahead/behind count
-      let ahead = 0,
-        behind = 0;
+  registerIPCHandler(
+    "get-git-diff",
+    async (...args: unknown[]): Promise<DataResult<GitDiffResult>> => {
+      const [projectPath] = args as [string];
       try {
-        const { stdout: revList } = await execAsync(
-          "git rev-list --left-right --count HEAD...@{u}",
+        // Check if directory is a git repo
+        const { stdout: isGitRepo } = await execAsync(
+          "git rev-parse --is-inside-work-tree",
           { cwd: projectPath }
+        ).catch(() => ({ stdout: "" }));
+
+        if (!isGitRepo.trim()) {
+          return { success: false, error: "Not a git repository" };
+        }
+
+        // Get current branch
+        const { stdout: branch } = await execAsync(
+          "git branch --show-current",
+          {
+            cwd: projectPath,
+          }
         );
-        const [aheadStr, behindStr] = revList.trim().split("\t");
-        ahead = parseInt(aheadStr) || 0;
-        behind = parseInt(behindStr) || 0;
-      } catch (error) {
-        console.error("Failed to get git ahead/behind count:", error);
-      }
 
-      // Get list of changed files
-      const { stdout: statusOutput } = await execAsync(
-        "git status --porcelain",
-        {
-          cwd: projectPath,
+        // Get ahead/behind count
+        let ahead = 0,
+          behind = 0;
+        try {
+          const { stdout: revList } = await execAsync(
+            "git rev-list --left-right --count HEAD...@{u}",
+            { cwd: projectPath }
+          );
+          const [aheadStr, behindStr] = revList.trim().split("\t");
+          ahead = parseInt(aheadStr) || 0;
+          behind = parseInt(behindStr) || 0;
+        } catch (error) {
+          console.error("Failed to get git ahead/behind count:", error);
         }
-      );
-      const files: GitFile[] = [];
 
-      if (statusOutput.trim()) {
-        const lines = statusOutput.trim().split("\n");
+        // Get list of changed files
+        const { stdout: statusOutput } = await execAsync(
+          "git status --porcelain",
+          {
+            cwd: projectPath,
+          }
+        );
+        const files: GitFile[] = [];
 
-        for (const line of lines) {
-          // Handle git status format: XY filename (where X and Y are status codes)
-          // Some lines might be missing the leading space for index status
-          let status: string, filePath: string;
-          if (line.length >= 3 && line[2] === " ") {
-            // Standard format: "XY filename"
-            status = line.substring(0, 2).trim();
-            filePath = line.substring(3);
-          } else if (line.length >= 2 && line[1] === " ") {
-            // Format with single character status: "X filename"
-            status = line.substring(0, 1).trim();
-            filePath = line.substring(2);
-          } else {
-            // Fallback - try to find the first space
-            const spaceIndex = line.indexOf(" ");
-            if (spaceIndex > 0) {
-              status = line.substring(0, spaceIndex).trim();
-              filePath = line.substring(spaceIndex + 1);
+        if (statusOutput.trim()) {
+          const lines = statusOutput.trim().split("\n");
+
+          for (const line of lines) {
+            // Handle git status format: XY filename (where X and Y are status codes)
+            // Some lines might be missing the leading space for index status
+            let status: string, filePath: string;
+            if (line.length >= 3 && line[2] === " ") {
+              // Standard format: "XY filename"
+              status = line.substring(0, 2).trim();
+              filePath = line.substring(3);
+            } else if (line.length >= 2 && line[1] === " ") {
+              // Format with single character status: "X filename"
+              status = line.substring(0, 1).trim();
+              filePath = line.substring(2);
             } else {
-              console.warn(
-                `[GIT DIFF] Could not parse git status line: "${line}"`
-              );
-              continue;
-            }
-          }
-
-          let fileStatus: "added" | "modified" | "deleted" = "modified";
-          if (status.includes("A") || status.includes("?"))
-            fileStatus = "added";
-          else if (status.includes("D")) fileStatus = "deleted";
-          else fileStatus = "modified";
-
-          let oldContent = "";
-          let newContent = "";
-
-          try {
-            // Get the current file content
-            if (fileStatus !== "deleted") {
-              newContent = fs.readFileSync(
-                path.join(projectPath, filePath),
-                "utf8"
-              );
+              // Fallback - try to find the first space
+              const spaceIndex = line.indexOf(" ");
+              if (spaceIndex > 0) {
+                status = line.substring(0, spaceIndex).trim();
+                filePath = line.substring(spaceIndex + 1);
+              } else {
+                continue;
+              }
             }
 
-            // Get the original content from git
-            if (fileStatus !== "added") {
-              const { stdout } = await execAsync(
-                `git show HEAD:"${filePath}"`,
-                {
-                  cwd: projectPath,
-                }
-              ).catch(() => ({ stdout: "" }));
-              oldContent = stdout;
+            let fileStatus: "added" | "modified" | "deleted" = "modified";
+            if (status.includes("A") || status.includes("?"))
+              fileStatus = "added";
+            else if (status.includes("D")) fileStatus = "deleted";
+            else fileStatus = "modified";
+
+            let oldContent = "";
+            let newContent = "";
+
+            try {
+              // Get the current file content
+              if (fileStatus !== "deleted") {
+                newContent = fs.readFileSync(
+                  path.join(projectPath, filePath),
+                  "utf8"
+                );
+              }
+
+              // Get the original content from git
+              if (fileStatus !== "added") {
+                const { stdout } = await execAsync(
+                  `git show HEAD:"${filePath}"`,
+                  {
+                    cwd: projectPath,
+                  }
+                ).catch(() => ({ stdout: "" }));
+                oldContent = stdout;
+              }
+            } catch (e) {
+              console.error(`Error reading file ${filePath}:`, e);
             }
-          } catch (e) {
-            console.error(`Error reading file ${filePath}:`, e);
-          }
 
-          // Count additions and deletions
-          let additions = 0;
-          let deletions = 0;
+            // Count additions and deletions
+            let additions = 0;
+            let deletions = 0;
 
-          if (fileStatus === "added") {
-            additions = newContent.split("\n").length;
-          } else if (fileStatus === "deleted") {
-            deletions = oldContent.split("\n").length;
-          } else {
-            // Simple line count diff for modified files
-            const oldLines = oldContent.split("\n");
-            const newLines = newContent.split("\n");
-            const diff = newLines.length - oldLines.length;
-            if (diff > 0) {
-              additions = diff;
+            if (fileStatus === "added") {
+              additions = newContent.split("\n").length;
+            } else if (fileStatus === "deleted") {
+              deletions = oldContent.split("\n").length;
             } else {
-              deletions = Math.abs(diff);
+              // Simple line count diff for modified files
+              const oldLines = oldContent.split("\n");
+              const newLines = newContent.split("\n");
+              const diff = newLines.length - oldLines.length;
+              if (diff > 0) {
+                additions = diff;
+              } else {
+                deletions = Math.abs(diff);
+              }
             }
-          }
 
-          files.push({
-            path: filePath,
-            status: fileStatus,
-            additions,
-            deletions,
-            oldContent,
-            newContent,
-          });
+            files.push({
+              path: filePath,
+              status: fileStatus,
+              additions,
+              deletions,
+              oldContent,
+              newContent,
+            });
+          }
         }
-      }
 
-      return {
-        success: true,
-        data: {
-          files,
-          branch: branch.trim(),
-          ahead,
-          behind,
-        },
-      };
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      console.error("Git diff error:", error);
-      return { success: false, error: errorMessage };
+        return {
+          success: true,
+          data: {
+            files,
+            branch: branch.trim(),
+            ahead,
+            behind,
+          },
+        };
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        console.error("Git diff error:", error);
+        return { success: false, error: errorMessage };
+      }
     }
-  });
+  );
 
   registerIPCHandler(
     "save-file",
@@ -563,7 +601,8 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
         fs.writeFileSync(fullPath, content, "utf8");
         return { success: true };
       } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         console.error("Save file error:", error);
         return { success: false, error: errorMessage };
       }
@@ -586,7 +625,8 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
 
         return { success: true };
       } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         console.error("Revert file error:", error);
         return { success: false, error: errorMessage };
       }
@@ -594,72 +634,76 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
   );
 
   // File operations
-  registerIPCHandler("get-project-files", async (...args: unknown[]): Promise<DataResult<FileTreeItem[]>> => {
-    const [projectPath] = args as [string];
-    try {
-      const getFileTree = async (
-        dirPath: string,
-        relativePath: string = ""
-      ): Promise<FileTreeItem[]> => {
-        const items: FileTreeItem[] = [];
-        const files = fs.readdirSync(dirPath);
+  registerIPCHandler(
+    "get-project-files",
+    async (...args: unknown[]): Promise<DataResult<FileTreeItem[]>> => {
+      const [projectPath] = args as [string];
+      try {
+        const getFileTree = async (
+          dirPath: string,
+          relativePath: string = ""
+        ): Promise<FileTreeItem[]> => {
+          const items: FileTreeItem[] = [];
+          const files = fs.readdirSync(dirPath);
 
-        for (const file of files) {
-          // Skip common ignore patterns
-          if (
-            file.startsWith(".") &&
-            !file.startsWith(".env") &&
-            file !== ".gitignore"
-          )
-            continue;
-          if (
-            file === "node_modules" ||
-            file === ".git" ||
-            file === "dist" ||
-            file === "build"
-          )
-            continue;
+          for (const file of files) {
+            // Skip common ignore patterns
+            if (
+              file.startsWith(".") &&
+              !file.startsWith(".env") &&
+              file !== ".gitignore"
+            )
+              continue;
+            if (
+              file === "node_modules" ||
+              file === ".git" ||
+              file === "dist" ||
+              file === "build"
+            )
+              continue;
 
-          const fullPath = path.join(dirPath, file);
-          const relativeFilePath = relativePath
-            ? path.join(relativePath, file)
-            : file;
-          const stats = fs.statSync(fullPath);
+            const fullPath = path.join(dirPath, file);
+            const relativeFilePath = relativePath
+              ? path.join(relativePath, file)
+              : file;
+            const stats = fs.statSync(fullPath);
 
-          if (stats.isDirectory()) {
-            const children = await getFileTree(fullPath, relativeFilePath);
-            items.push({
-              name: file,
-              path: relativeFilePath,
-              isDirectory: true,
-              children: children.length > 0 ? children : undefined,
-              isExpanded: false,
-            });
-          } else {
-            items.push({
-              name: file,
-              path: relativeFilePath,
-              isDirectory: false,
-            });
+            if (stats.isDirectory()) {
+              const children = await getFileTree(fullPath, relativeFilePath);
+              items.push({
+                name: file,
+                path: relativeFilePath,
+                isDirectory: true,
+                children: children.length > 0 ? children : undefined,
+                isExpanded: false,
+              });
+            } else {
+              items.push({
+                name: file,
+                path: relativeFilePath,
+                isDirectory: false,
+              });
+            }
           }
-        }
 
-        // Sort: directories first, then files, both alphabetically
-        return items.sort((a, b) => {
-          if (a.isDirectory && !b.isDirectory) return -1;
-          if (!a.isDirectory && b.isDirectory) return 1;
-          return a.name.localeCompare(b.name);
-        });
-      };
+          // Sort: directories first, then files, both alphabetically
+          return items.sort((a, b) => {
+            if (a.isDirectory && !b.isDirectory) return -1;
+            if (!a.isDirectory && b.isDirectory) return 1;
+            return a.name.localeCompare(b.name);
+          });
+        };
 
-      const fileTree = await getFileTree(projectPath);
-      return { success: true, data: fileTree };
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      console.error("Get project files error:", error);
-      return { success: false, error: errorMessage };
+        const fileTree = await getFileTree(projectPath);
+        return { success: true, data: fileTree };
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        console.error("Get project files error:", error);
+        return { success: false, error: errorMessage };
+      }
     }
-  });
+  );
 
   registerIPCHandler(
     "read-project-file",
@@ -683,7 +727,8 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
         const content = fs.readFileSync(fullPath, "utf8");
         return { success: true, data: content };
       } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         console.error("Read project file error:", error);
         return { success: false, error: errorMessage };
       }
@@ -731,7 +776,8 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
 
         return { success: true, data: base64, mimeType };
       } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         console.error("Read image file error:", error);
         return { success: false, error: errorMessage };
       }
@@ -752,120 +798,129 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
 
         return { success: true };
       } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         console.error("Git commit error:", error);
         return { success: false, error: errorMessage };
       }
     }
   );
 
-  registerIPCHandler("git-push", async (...args: unknown[]): Promise<CommandResult> => {
-    const [projectPath] = args as [string];
-    try {
-      const { stdout } = await execAsync("git push", { cwd: projectPath });
-      return { success: true, output: stdout };
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      console.error("Git push error:", error);
-      return { success: false, error: errorMessage };
-    }
-  });
-
   registerIPCHandler(
-    "set-selected-project",
-    async (): Promise<BasicResult> => {
-      // Note: This would need to be passed from main.ts or handled differently
-      // const [projectId] = args as [string | null];
-      // currentlySelectedProject = projectId;
-      return { success: true };
+    "git-push",
+    async (...args: unknown[]): Promise<CommandResult> => {
+      const [projectPath] = args as [string];
+      try {
+        const { stdout } = await execAsync("git push", { cwd: projectPath });
+        return { success: true, output: stdout };
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        console.error("Git push error:", error);
+        return { success: false, error: errorMessage };
+      }
     }
   );
 
-  registerIPCHandler("get-local-ip", async (): Promise<DataResult<LocalIpResult>> => {
-    const interfaces = os.networkInterfaces();
+  registerIPCHandler("set-selected-project", async (): Promise<BasicResult> => {
+    // Note: This would need to be passed from main.ts or handled differently
+    // const [projectId] = args as [string | null];
+    // currentlySelectedProject = projectId;
+    return { success: true };
+  });
 
-    let localIp = "localhost";
-    let tailscaleRunning = false;
+  registerIPCHandler(
+    "get-local-ip",
+    async (): Promise<DataResult<LocalIpResult>> => {
+      const interfaces = os.networkInterfaces();
 
-    // Simple check: just see if tailscale status command works
-    try {
-      await execAsync("tailscale status");
-      tailscaleRunning = true;
-    } catch (error) {
-      // Silently fail - tailscale not available
-    }
+      let localIp = "localhost";
+      let tailscaleRunning = false;
 
-    // Get local network IP
-    const priorityInterfaces = [
-      "en0",
-      "en1", 
-      "eth0",
-      "wlan0",
-      "Wi-Fi",
-      "Ethernet",
-    ];
-
-    // Try priority interfaces first
-    for (const name of priorityInterfaces) {
-      if (interfaces[name]) {
-        for (const iface of interfaces[name]!) {
-          if (iface.family === "IPv4" && !iface.internal) {
-            localIp = iface.address;
-            break;
-          }
-        }
-        if (localIp !== "localhost") break;
+      // Simple check: just see if tailscale status command works
+      try {
+        await execAsync("tailscale status");
+        tailscaleRunning = true;
+      } catch (error) {
+        console.error("Tailscale not available:", error);
       }
-    }
 
-    // Fallback: Look for any 192.168.x.x address
-    if (localIp === "localhost") {
-      for (const name of Object.keys(interfaces)) {
+      // Get local network IP
+      const priorityInterfaces = [
+        "en0",
+        "en1",
+        "eth0",
+        "wlan0",
+        "Wi-Fi",
+        "Ethernet",
+      ];
+
+      // Try priority interfaces first
+      for (const name of priorityInterfaces) {
         if (interfaces[name]) {
           for (const iface of interfaces[name]!) {
-            if (
-              iface.family === "IPv4" &&
-              !iface.internal &&
-              iface.address.startsWith("192.168.")
-            ) {
+            if (iface.family === "IPv4" && !iface.internal) {
               localIp = iface.address;
               break;
             }
           }
+          if (localIp !== "localhost") break;
         }
-        if (localIp !== "localhost") break;
       }
-    }
 
-    return {
-      success: true,
-      data: {
-        localIp,
-        hasTailscale: tailscaleRunning,
+      // Fallback: Look for any 192.168.x.x address
+      if (localIp === "localhost") {
+        for (const name of Object.keys(interfaces)) {
+          if (interfaces[name]) {
+            for (const iface of interfaces[name]!) {
+              if (
+                iface.family === "IPv4" &&
+                !iface.internal &&
+                iface.address.startsWith("192.168.")
+              ) {
+                localIp = iface.address;
+                break;
+              }
+            }
+          }
+          if (localIp !== "localhost") break;
+        }
       }
-    };
-  });
+
+      return {
+        success: true,
+        data: {
+          localIp,
+          hasTailscale: tailscaleRunning,
+        },
+      };
+    }
+  );
 
   // Discord notification handlers
-  registerIPCHandler("test-discord-notification", async (...args: unknown[]): Promise<BasicResult> => {
-    const [discordSettings] = args as [DiscordSettings];
-    try {
-      if (!discordSettings.webhookUrl) {
-        return { success: false, error: "No webhook URL provided" };
+  registerIPCHandler(
+    "test-discord-notification",
+    async (...args: unknown[]): Promise<BasicResult> => {
+      const [discordSettings] = args as [DiscordSettings];
+      try {
+        if (!discordSettings.webhookUrl) {
+          return { success: false, error: "No webhook URL provided" };
+        }
+
+        await sendDiscordNotification(
+          discordSettings.webhookUrl,
+          discordSettings.username || "Vibe Term",
+          "🧪 **Test Notification**\n\nThis is a test notification from Vibe Term. Your Discord notifications are working correctly!"
+        );
+
+        return { success: true };
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        return { success: false, error: errorMessage };
       }
-
-      await sendDiscordNotification(
-        discordSettings.webhookUrl,
-        discordSettings.username || "Vibe Term",
-        "🧪 **Test Notification**\n\nThis is a test notification from Vibe Term. Your Discord notifications are working correctly!"
-      );
-
-      return { success: true };
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      return { success: false, error: errorMessage };
     }
-  });
+  );
 
   registerIPCHandler(
     "send-discord-notification",
@@ -887,48 +942,65 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
 
         return { success: true };
       } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         return { success: false, error: errorMessage };
       }
     }
   );
 
   // Data management IPC handlers
-  registerIPCHandler("get-stored-items", async (): Promise<{ success: boolean; data: UnifiedItem[] }> => {
-    const state = getAppState();
-    console.log('[IPC Debug] get-stored-items called, returning:', state.storedItems);
-    return { success: true, data: state.storedItems };
-  });
+  registerIPCHandler(
+    "get-stored-items",
+    async (): Promise<{ success: boolean; data: UnifiedItem[] }> => {
+      const state = getAppState();
+      return { success: true, data: state.storedItems };
+    }
+  );
 
-  registerIPCHandler("add-stored-item", async (...args: unknown[]): Promise<{ success: boolean }> => {
-    const [item] = args as [UnifiedItem];
-    addStoredItem(item);
-    return { success: true };
-  });
+  registerIPCHandler(
+    "add-stored-item",
+    async (...args: unknown[]): Promise<{ success: boolean }> => {
+      const [item] = args as [UnifiedItem];
+      addStoredItem(item);
+      return { success: true };
+    }
+  );
 
-  registerIPCHandler("update-stored-item", async (...args: unknown[]): Promise<{ success: boolean }> => {
-    const [id, updates] = args as [string, Partial<UnifiedItem>];
-    updateStoredItem(id, updates);
-    return { success: true };
-  });
+  registerIPCHandler(
+    "update-stored-item",
+    async (...args: unknown[]): Promise<{ success: boolean }> => {
+      const [id, updates] = args as [string, Partial<UnifiedItem>];
+      updateStoredItem(id, updates);
+      return { success: true };
+    }
+  );
 
-  registerIPCHandler("delete-stored-item", async (...args: unknown[]): Promise<{ success: boolean }> => {
-    const [id] = args as [string];
-    deleteStoredItem(id);
-    return { success: true };
-  });
+  registerIPCHandler(
+    "delete-stored-item",
+    async (...args: unknown[]): Promise<{ success: boolean }> => {
+      const [id] = args as [string];
+      deleteStoredItem(id);
+      return { success: true };
+    }
+  );
 
-  registerIPCHandler("get-app-settings", async (): Promise<{ success: boolean; data: any }> => {
-    const state = getAppState();
-    console.log('[IPC Debug] get-app-settings called, returning:', state.settings);
-    return { success: true, data: state.settings };
-  });
+  registerIPCHandler(
+    "get-app-settings",
+    async (): Promise<{ success: boolean; data: any }> => {
+      const state = getAppState();
+      return { success: true, data: state.settings };
+    }
+  );
 
-  registerIPCHandler("update-app-settings", async (...args: unknown[]): Promise<{ success: boolean }> => {
-    const [settings] = args as [any];
-    updateAppState({ settings });
-    return { success: true };
-  });
+  registerIPCHandler(
+    "update-app-settings",
+    async (...args: unknown[]): Promise<{ success: boolean }> => {
+      const [settings] = args as [any];
+      updateAppState({ settings });
+      return { success: true };
+    }
+  );
 }
 
 export { ipcHandlers };

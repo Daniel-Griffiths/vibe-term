@@ -70,7 +70,7 @@ export class ShellUtils {
           return result;
         }
       } catch (error) {
-        // Continue to next fallback
+        console.error(`Command failed, trying next fallback: ${command}`, error);
         continue;
       }
     }

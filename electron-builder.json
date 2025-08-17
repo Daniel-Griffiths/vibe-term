@@ -9,7 +9,8 @@
     "dist-electron",
     "dist-web",
     "public",
-    "web"
+    "web",
+    "hooks"
   ],
   "mac": {
     "target": ["dmg"],

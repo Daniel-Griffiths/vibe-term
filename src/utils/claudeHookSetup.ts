@@ -5,6 +5,10 @@
 
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export interface ClaudeHookConfig {
   hooks: {
@@ -24,17 +28,35 @@ export async function setupClaudeHooks(projectPath: string): Promise<boolean> {
   try {
     const claudeDir = path.join(projectPath, '.claude');
     const settingsFile = path.join(claudeDir, 'settings.json');
-    const hookScriptPath = path.join(__dirname, '../../hooks/status-hook.sh');
+    
+    // Find the hook script - try multiple possible locations
+    const possibleHookPaths = [
+      // Development: from src/utils/ to hooks/
+      path.join(__dirname, '../../hooks/status-hook.sh'),
+      // Production: from dist-electron/ to hooks/
+      path.join(__dirname, '../hooks/status-hook.sh'),
+      // Packaged app: relative to app.getAppPath()
+      path.join(process.env.APP_ROOT || '', 'hooks/status-hook.sh'),
+      // Fallback: try current working directory
+      path.join(process.cwd(), 'hooks/status-hook.sh'),
+    ];
+    
+    let hookScriptPath = '';
+    for (const testPath of possibleHookPaths) {
+      if (fs.existsSync(testPath)) {
+        hookScriptPath = testPath;
+        break;
+      }
+    }
+    
+    if (!hookScriptPath) {
+      console.warn('Hook script not found in any expected location:', possibleHookPaths);
+      return false;
+    }
     
     // Ensure .claude directory exists
     if (!fs.existsSync(claudeDir)) {
       fs.mkdirSync(claudeDir, { recursive: true });
-    }
-    
-    // Check if hook script exists and is executable
-    if (!fs.existsSync(hookScriptPath)) {
-      console.warn(`Hook script not found at ${hookScriptPath}`);
-      return false;
     }
     
     // Create hook configuration
@@ -90,7 +112,6 @@ export async function setupClaudeHooks(projectPath: string): Promise<boolean> {
     // Write settings file
     fs.writeFileSync(settingsFile, JSON.stringify(mergedSettings, null, 2));
     
-    console.log(`[Claude Hooks] Configured hooks for project: ${projectPath}`);
     return true;
     
   } catch (error) {
@@ -146,7 +167,6 @@ export async function removeClaudeHooks(projectPath: string): Promise<boolean> {
       fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2));
     }
     
-    console.log(`[Claude Hooks] Removed hooks for project: ${projectPath}`);
     return true;
     
   } catch (error) {

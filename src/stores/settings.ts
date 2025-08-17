@@ -57,20 +57,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   initialize: async () => {
     const state = get();
     if (state.isInitialized) {
-      console.log('[Zustand] Already initialized, skipping...');
       return;
     }
 
     try {
-      console.log('[Zustand] Initializing from Electron storage...', { isElectron: typeof window !== 'undefined' && !!(window as any).electronAPI });
       
       // Load items from Electron
       const itemsResult = await communicationAPI.getStoredItems();
-      console.log('[Zustand] Loaded items:', itemsResult);
       
       // Load settings from Electron
       const settingsResult = await communicationAPI.getAppSettings();
-      console.log('[Zustand] Loaded settings:', settingsResult);
       
       // Update Zustand state with loaded data
       set({
@@ -85,7 +81,6 @@ export const useAppStore = create<AppState>((set, get) => ({
         isInitialized: true
       });
 
-      console.log('[Zustand] Initialization complete');
     } catch (error) {
       console.error('[Zustand] Failed to initialize:', error);
       set({ isLoading: false, isInitialized: true });
@@ -190,6 +185,5 @@ export async function initializeStore() {
 // Auto-initialize on module load for web
 // This ensures data is loaded as soon as possible
 if (typeof window !== 'undefined' && !(window as any).electronAPI) {
-  console.log('[Zustand] Auto-initializing for web environment');
   initializeStore();
 }

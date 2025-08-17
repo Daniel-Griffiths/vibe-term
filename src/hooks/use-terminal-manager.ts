@@ -33,7 +33,6 @@ export function useTerminalManager(
     const existing = manager.getTerminal(projectId);
     
     if (!existing) {
-      console.log(`[Terminal Debug] Creating terminal for project ${projectId}`);
       const instance = manager.createTerminal(projectId, containerRef.current, config);
       
       // Set up data handler if provided
@@ -54,7 +53,6 @@ export function useTerminalManager(
       // Replay any pending output that arrived before terminal was created
       const pendingOutput = pendingOutputRef.current.get(projectId);
       if (pendingOutput && pendingOutput.length > 0) {
-        console.log(`[Terminal Debug] Replaying ${pendingOutput.length} pending outputs for ${projectId}`);
         pendingOutput.forEach(data => {
           instance.terminal.write(data);
         });
@@ -73,25 +71,13 @@ export function useTerminalManager(
     if (!communicationAPI.onTerminalOutput) return;
 
     const unsubscribe = communicationAPI.onTerminalOutput((output: any) => {
-      console.log(`[Terminal Debug] Received output for project ${output.projectId}:`, {
-        dataLength: output.data?.length,
-        dataPreview: output.data?.substring(0, 100),
-        timestamp: new Date().toISOString()
-      });
       
       const manager = managerRef.current;
       const instance = manager.getTerminal(output.projectId);
       if (instance) {
-        console.log(`[Terminal Debug] Writing to terminal:`, {
-          projectId: output.projectId,
-          terminalExists: !!instance.terminal,
-          elementVisible: instance.element.style.display !== 'none',
-          bufferLength: instance.terminal.buffer.active.length
-        });
         instance.terminal.write(output.data);
       } else {
         // Store output for when terminal is created
-        console.log(`[Terminal Debug] Storing output for future terminal ${output.projectId}`);
         const pending = pendingOutputRef.current.get(output.projectId) || [];
         pending.push(output.data);
         pendingOutputRef.current.set(output.projectId, pending);
@@ -167,7 +153,7 @@ export function useTerminalManager(
       try {
         instance.fitAddon.fit();
       } catch (error) {
-        console.log('[Terminal Debug] Fit addon error (expected on initial load):', error);
+        console.error('Fit addon error (expected on initial load):', error);
       }
     }
   }, []);
