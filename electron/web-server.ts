@@ -28,6 +28,7 @@ interface WebServerDependencies {
   ipcHandlers: Map<string, (...args: any[]) => Promise<any>>;
   readStateFile: () => AppState;
   __dirname: string;
+  app: Electron.App;
 }
 
 // Helper function to broadcast messages to all web clients
@@ -73,7 +74,7 @@ export async function createWebServer(
   deps: WebServerDependencies,
   preferredPort = DEFAULT_WEB_SERVER_PORT
 ): Promise<{ server: any; port: number }> {
-  const { ipcHandlers, readStateFile, __dirname } = deps;
+  const { ipcHandlers, readStateFile, __dirname, app } = deps;
 
   const port = await checkPortAvailable(preferredPort);
   const expressApp = express();
@@ -84,12 +85,22 @@ export async function createWebServer(
   expressApp.use(express.json());
 
   // Serve static files (both simple interface and React app)
-  const webStaticPath = path.join(__dirname, "..", "web");
+  // Use app.getAppPath() to get the correct path in packaged apps
+  const appPath = app.getAppPath();
+  const webStaticPath = path.join(appPath, "web");
+  const distWebPath = path.join(appPath, "dist-web");
+  
   expressApp.use(express.static(webStaticPath));
   
-  // Serve React app static files
-  const distWebPath = path.join(__dirname, "..", "dist-web");
-  expressApp.use("/dist", express.static(distWebPath));
+  expressApp.use("/dist", express.static(distWebPath, {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.css')) {
+        res.setHeader('Content-Type', 'text/css');
+      } else if (filePath.endsWith('.js')) {
+        res.setHeader('Content-Type', 'application/javascript');
+      }
+    }
+  }));
 
   // Automatic API endpoint generation from IPC handlers
   expressApp.post("/api/ipc/:handlerName", async (req, res) => {
@@ -151,9 +162,9 @@ export async function createWebServer(
     res.json({ success: true, handlers });
   });
 
-  // Serve the main React app
-  expressApp.get("/app", (_req, res) => {
-    res.sendFile(path.join(webStaticPath, "app.html"));
+  // Serve the main React app (both root and /app routes)
+  expressApp.get(["/", "/app"], (_req, res) => {
+    res.sendFile(path.join(webStaticPath, "index.html"));
   });
 
   // WebSocket setup

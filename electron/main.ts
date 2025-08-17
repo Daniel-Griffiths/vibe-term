@@ -808,6 +808,7 @@ app.whenReady().then(async () => {
         ipcHandlers,
         readStateFile,
         __dirname,
+        app,
       }, port);
       webServer = result.server;
       const actualPort = result.port;

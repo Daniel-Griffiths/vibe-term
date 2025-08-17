@@ -2,34 +2,66 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Vibe Term - Mobile</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css" />
-    <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'gray-950': '#0a0a0b',
-                        'gray-900': '#111111',
-                        'gray-800': '#1f1f23',
-                        'gray-700': '#2a2a2f'
-                    }
-                }
-            }
-        }
-    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+    <title>Vibe Term</title>
     <style>
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
             background: #030303;
             color: #e5e7eb;
+            touch-action: pan-x pan-y;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
         
-        /* Glass morphism effects matching Electron app */
+        * {
+            touch-action: manipulation;
+        }
+        
+        /* Loading screen */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #030303;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        
+        .loading-content {
+            text-align: center;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #374151;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            color: #9ca3af;
+            font-size: 14px;
+        }
+        
+        /* Glass morphism effects */
         .glass-sidebar {
             background: rgba(17, 17, 17, 0.7);
             backdrop-filter: blur(20px);
@@ -50,728 +82,40 @@
             -webkit-backdrop-filter: blur(20px);
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
-        
-        .project-card {
-            background: rgba(17, 17, 17, 0.7);
-            border: 1px solid rgba(55, 65, 81, 0.5);
-            backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
-        }
-        
-        .project-card:hover {
-            background: rgba(31, 41, 55, 0.5);
-            border-color: rgba(59, 130, 246, 0.5);
-            transform: translateY(-2px);
-        }
-        
-        .project-card.active {
-            border-color: #3b82f6;
-            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
-        }
-        
-        /* Rainbow glow for selected items */
-        .rainbow-glow {
-            background: linear-gradient(45deg, 
-                rgba(255, 0, 150, 0.1),
-                rgba(0, 255, 255, 0.1),
-                rgba(255, 255, 0, 0.1),
-                rgba(255, 0, 150, 0.1)
-            );
-            background-size: 400% 400%;
-            animation: rainbow 3s ease infinite;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        
-        @keyframes rainbow {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-        
-        /* Button styles matching Electron app */
-        .raycast-button {
-            background: rgba(55, 65, 81, 0.8);
-            border: 1px solid rgba(75, 85, 99, 0.5);
-            transition: all 0.2s ease;
-        }
-        
-        .raycast-button:hover {
-            background: rgba(75, 85, 99, 0.8);
-            transform: translateY(-1px);
-        }
-        
-        .raycast-button-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: 1px solid rgba(102, 126, 234, 0.5);
-            transition: all 0.2s ease;
-        }
-        
-        .raycast-button-primary:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-        }
-        
-        .terminal-output {
-            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
-            font-size: 14px;
-            line-height: 1.5;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-        
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-        }
-        
-        .status-running { background: #3b82f6; animation: pulse 2s infinite; }
-        .status-ready { background: #10b981; animation: pulse 2s infinite; }
-        .status-working { background: #f59e0b; animation: pulse 2s infinite; }
-        .status-error { background: #ef4444; }
-        .status-idle { background: #6b7280; }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        
-        .input-container {
-            background: rgba(17, 17, 17, 0.95);
-            backdrop-filter: blur(20px);
-            border-top: 1px solid #374151;
-        }
-        
-        /* Hide scrollbar but keep functionality */
-        .scrollable {
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-        }
-        .scrollable::-webkit-scrollbar {
-            display: none;
-        }
     </style>
 </head>
-<body class="bg-gray-950 text-gray-100">
-    <div id="app" class="h-screen flex flex-col overflow-hidden">
-        <!-- Header -->
-        <div class="glass-titlebar px-4 py-4 flex-shrink-0">
-            <div class="flex items-center justify-center relative">
-                <h1 class="text-lg font-medium text-gray-200">Vibe Term</h1>
-                <div class="absolute right-0 flex items-center gap-2">
-                    <div id="connection-status" class="flex items-center gap-2 text-xs">
-                        <div class="status-dot status-idle" id="status-dot"></div>
-                        <span id="status-text" class="text-gray-400">Connecting...</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Projects List -->
-        <div id="projects-view" class="flex-1 glass-sidebar p-4 overflow-y-auto scrollable">
-            <div class="space-y-3" id="projects-container">
-                <!-- Projects will be loaded here -->
-            </div>
-        </div>
-
-        <!-- Project Detail View -->
-        <div id="project-detail" class="hidden flex-col h-full overflow-hidden">
-            <!-- Project Header - Fixed at top -->
-            <div class="glass-card border-b border-gray-800 px-4 py-3 flex-shrink-0">
-                <div class="flex items-center justify-between">
-                    <button id="back-button" class="text-blue-400 hover:text-blue-300 text-sm font-medium">
-                        ← Back to Projects
-                    </button>
-                    <div class="flex items-center gap-2">
-                        <div class="status-dot status-idle" id="project-status-dot"></div>
-                        <span id="project-name" class="text-white font-medium"></span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Project Status - Fixed at top -->
-            <div class="glass-card border-b border-gray-700 px-4 py-3 flex-shrink-0">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <span id="connection-state" class="text-sm text-gray-400">Connecting...</span>
-                    </div>
-                    <button id="toggle-button" class="px-3 py-1 raycast-button text-white text-xs font-medium rounded">
-                        Start
-                    </button>
-                </div>
-            </div>
-
-            <!-- Terminal Output - xterm.js container -->
-            <div class="flex-1 min-h-0 max-h-full" style="background: #000000; padding: 16px 16px 16px 16px;">
-                <div id="terminal-container" class="h-full w-full"></div>
-            </div>
+<body>
+    <!-- Loading screen shown while React app loads -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading Vibe Term...</div>
         </div>
     </div>
 
+    <!-- React app will mount here -->
+    <div id="root"></div>
+
     <script>
-        class VibeTerm {
-            constructor() {
-                this.ws = null;
-                this.projects = [];
-                this.selectedProject = null;
-                this.reconnectAttempts = 0;
-                this.maxReconnectAttempts = 5;
-                this.reconnectDelay = 1000;
-                this.terminal = null;
-                this.fitAddon = null;
-                this.isProjectRunning = false;
-                
-                this.init();
-            }
-            
-            // Helper method to call IPC endpoints
-            async callIPC(handlerName, args = []) {
-                const response = await fetch(`/api/ipc/${handlerName}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ args })
-                });
-                return await response.json();
-            }
-            
-            init() {
-                this.connectWebSocket();
-                this.setupEventListeners();
-                this.loadProjects();
-            }
-            
-            connectWebSocket() {
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${protocol}//${window.location.host}`;
-                
-                try {
-                    this.ws = new WebSocket(wsUrl);
-                    
-                    this.ws.onopen = () => {
-                        this.updateConnectionStatus('ready', 'Connected');
-                        this.reconnectAttempts = 0;
-                    };
-                    
-                    this.ws.onmessage = (event) => {
-                        try {
-                            const message = JSON.parse(event.data);
-                            this.handleWebSocketMessage(message);
-                        } catch (error) {
-                            console.error('Failed to parse WebSocket message:', error);
-                        }
-                    };
-                    
-                    this.ws.onclose = () => {
-                        this.updateConnectionStatus('error', 'Disconnected');
-                        this.attemptReconnect();
-                    };
-                    
-                    this.ws.onerror = (error) => {
-                        console.error('WebSocket error:', error);
-                        this.updateConnectionStatus('error', 'Connection Error');
-                    };
-                } catch (error) {
-                    console.error('Failed to connect WebSocket:', error);
-                    this.updateConnectionStatus('error', 'Connection Failed');
-                    this.attemptReconnect();
-                }
-            }
-            
-            attemptReconnect() {
-                if (this.reconnectAttempts < this.maxReconnectAttempts) {
-                    this.reconnectAttempts++;
-                    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-                    
-                    this.updateConnectionStatus('idle', `Reconnecting in ${delay/1000}s...`);
-                    
+        // Hide loading screen when React app is ready
+        window.addEventListener('load', () => {
+            const loadingScreen = document.getElementById('loading-screen');
+            if (loadingScreen) {
+                setTimeout(() => {
+                    loadingScreen.style.opacity = '0';
+                    loadingScreen.style.transition = 'opacity 0.3s ease-out';
                     setTimeout(() => {
-                        this.connectWebSocket();
-                    }, delay);
-                } else {
-                    this.updateConnectionStatus('error', 'Connection Failed');
-                }
+                        loadingScreen.remove();
+                    }, 300);
+                }, 100);
             }
-            
-            updateConnectionStatus(status, text) {
-                const dot = document.getElementById('status-dot');
-                const statusText = document.getElementById('status-text');
-                
-                dot.className = `status-dot status-${status}`;
-                statusText.textContent = text;
-            }
-            
-            handleWebSocketMessage(message) {
-                switch (message.type) {
-                    case 'projects-state':
-                        this.projects = message.data;
-                        this.renderProjects();
-                        break;
-                    case 'terminal-output':
-                        this.appendTerminalOutput(message.projectId, message.data);
-                        break;
-                    case 'project-ready':
-                        this.updateProjectStatus(message.projectId, 'ready');
-                        break;
-                    case 'project-working':
-                        this.updateProjectStatus(message.projectId, 'working');
-                        break;
-                    case 'project-started':
-                        this.updateProjectStatus(message.projectId, 'running');
-                        this.appendTerminalOutput(message.projectId, message.data);
-                        this.isProjectRunning = true;
-                        this.updateToggleButton();
-                        break;
-                    case 'project-stopped':
-                        this.updateProjectStatus(message.projectId, 'idle');
-                        this.isProjectRunning = false;
-                        this.updateToggleButton();
-                        break;
-                    case 'process-exit':
-                        this.updateProjectStatus(message.projectId, 'idle');
-                        break;
-                }
-            }
-            
-            async loadProjects() {
-                try {
-                    const response = await fetch('/api/projects');
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        this.projects = result.data;
-                        this.renderProjects();
-                    }
-                } catch (error) {
-                    console.error('Failed to load projects:', error);
-                }
-            }
-            
-            renderProjects() {
-                const container = document.getElementById('projects-container');
-                
-                if (this.projects.length === 0) {
-                    container.innerHTML = `
-                        <div class="text-center py-8 text-gray-400">
-                            <p>No projects found</p>
-                            <p class="text-sm mt-1">Add projects using the desktop app</p>
-                        </div>
-                    `;
-                    return;
-                }
-                
-                container.innerHTML = this.projects.map(project => `
-                    <div class="project-card rounded-lg p-3 cursor-pointer transition-all" 
-                         onclick="app.selectProject('${project.id}')">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
-                                </svg>
-                                <span class="text-sm font-medium text-gray-200">${project.name}</span>
-                            </div>
-                            <div class="status-dot status-${this.getProjectStatus(project)}"></div>
-                        </div>
-                        <p class="text-xs text-gray-500 truncate mt-1">${project.path}</p>
-                        <div class="flex items-center justify-between mt-2">
-                            <span class="text-xs text-gray-500">${project.lastActivity || 'Never'}</span>
-                        </div>
-                    </div>
-                `).join('');
-            }
-            
-            getProjectStatus(project) {
-                // Since we don't have runtime status from the API, assume idle for now
-                return 'idle';
-            }
-            
-            selectProject(projectId) {
-                this.selectedProject = this.projects.find(p => p.id === projectId);
-                if (!this.selectedProject) return;
-                
-                this.showProjectDetail();
-                this.updateProjectControls();
-                
-                // Check if session is already running and auto-join
-                this.checkAndAutoJoinSession();
-            }
-            
-            showProjectDetail() {
-                document.getElementById('projects-view').classList.add('hidden');
-                document.getElementById('project-detail').classList.remove('hidden');
-                document.getElementById('project-detail').classList.add('flex');
-                
-                document.getElementById('project-name').textContent = this.selectedProject.name;
-                
-                // Reset terminal state completely before initializing
-                this.resetTerminalState();
-                
-                // Initialize fresh terminal for this project
-                this.initializeTerminal();
-                
-                this.updateProjectStatus(this.selectedProject.id, 'idle');
-            }
-            
-            showProjectsList() {
-                document.getElementById('project-detail').classList.add('hidden');
-                document.getElementById('project-detail').classList.remove('flex');
-                document.getElementById('projects-view').classList.remove('hidden');
-                
-                // Clean up terminal when leaving project view
-                if (this.terminal) {
-                    this.terminal.dispose();
-                    this.terminal = null;
-                }
-                
-                this.selectedProject = null;
-            }
-            
-            updateProjectControls() {
-                // Update connection state text
-                const stateElement = document.getElementById('connection-state');
-                if (stateElement) {
-                    stateElement.textContent = 'Connecting to session...';
-                }
-            }
-            
-            async startProject() {
-                if (!this.selectedProject) return;
-                
-                const stateElement = document.getElementById('connection-state');
-                this.clearOutput();
-                
-                // Load terminal history first
-                await this.loadTerminalHistory();
-                
-                try {
-                    // Use the new IPC endpoint to start Claude process
-                    const runCommand = this.selectedProject.runCommand;
-                    const result = await this.callIPC('start-claude-process', [
-                        this.selectedProject.id,
-                        this.selectedProject.path,
-                        runCommand,
-                        this.selectedProject.name,
-                        this.selectedProject.yoloMode || false
-                    ]);
-                    
-                    if (result.success) {
-                        this.isProjectRunning = true;
-                        this.updateToggleButton();
-                        if (stateElement) {
-                            stateElement.textContent = 'Connected to session';
-                            stateElement.className = 'text-sm text-green-400';
-                        }
-                        // Ensure terminal is focused after successful connection
-                        setTimeout(() => {
-                            if (this.terminal) {
-                                this.terminal.focus();
-                            }
-                        }, 200);
-                    } else {
-                        if (stateElement) {
-                            stateElement.textContent = 'Failed to connect';
-                            stateElement.className = 'text-sm text-red-400';
-                        }
-                    }
-                } catch (error) {
-                    console.error('Failed to start project:', error);
-                    if (stateElement) {
-                        stateElement.textContent = 'Connection error';
-                        stateElement.className = 'text-sm text-red-400';
-                    }
-                }
-            }
-            
-            async stopProject() {
-                if (!this.selectedProject) return;
-                
-                try {
-                    // Use the new IPC endpoint to stop Claude process
-                    const result = await this.callIPC('stop-claude-process', [
-                        this.selectedProject.id
-                    ]);
-                    
-                    if (result.success) {
-                        this.isProjectRunning = false;
-                        this.updateToggleButton();
-                        const stateElement = document.getElementById('connection-state');
-                        if (stateElement) {
-                            stateElement.textContent = 'Session stopped';
-                            stateElement.className = 'text-sm text-gray-400';
-                        }
-                    } else {
-                        alert('Failed to stop project: ' + result.error);
-                    }
-                } catch (error) {
-                    console.error('Failed to stop project:', error);
-                    alert('Failed to stop project');
-                }
-            }
-            
-            updateProjectStatus(projectId, status) {
-                if (this.selectedProject && this.selectedProject.id === projectId) {
-                    const dot = document.getElementById('project-status-dot');
-                    dot.className = `status-dot status-${status}`;
-                    
-                    // Update connection state based on status
-                    const stateElement = document.getElementById('connection-state');
-                    if (stateElement) {
-                        if (status === 'ready') {
-                            stateElement.textContent = 'Claude is ready';
-                            stateElement.className = 'text-sm text-green-400';
-                            // Focus terminal when Claude is ready for input
-                            setTimeout(() => {
-                                if (this.terminal) {
-                                    this.terminal.focus();
-                                }
-                            }, 100);
-                        } else if (status === 'working') {
-                            stateElement.textContent = 'Claude is working...';
-                            stateElement.className = 'text-sm text-yellow-400';
-                        } else if (status === 'running') {
-                            stateElement.textContent = 'Session active';
-                            stateElement.className = 'text-sm text-blue-400';
-                        }
-                    }
-                }
-            }
-            
-            initializeTerminal() {
-                if (window.Terminal && window.FitAddon) {
-                    // Clean up existing terminal and all event listeners
-                    if (this.terminal) {
-                        this.terminal.dispose();
-                        this.terminal = null;
-                    }
-                    if (this.fitAddon) {
-                        this.fitAddon = null;
-                    }
-                    
-                    // Clear container completely
-                    const container = document.getElementById('terminal-container');
-                    container.innerHTML = '';
-                    
-                    // Create terminal with theme matching the Electron app
-                    this.terminal = new Terminal({
-                        theme: {
-                            background: "#000000",
-                            foreground: "#22c55e",
-                            cursor: "#22c55e",
-                            selectionBackground: "rgba(255, 255, 255, 0.3)",
-                        },
-                        fontFamily: '"JetBrains Mono", "SF Mono", Monaco, Consolas, monospace',
-                        fontSize: 14,
-                        cursorBlink: true,
-                        convertEol: false,
-                        scrollback: 1000,
-                        disableStdin: false
-                    });
-
-                    // Add fit addon for responsive sizing
-                    this.fitAddon = new FitAddon.FitAddon();
-                    this.terminal.loadAddon(this.fitAddon);
-
-                    // Open terminal in the cleared container
-                    this.terminal.open(container);
-                    
-                    // Fit terminal to container and sync dimensions with server
-                    if (this.fitAddon) {
-                        this.fitAddon.fit();
-                        
-                        // Get the fitted dimensions
-                        const dims = this.fitAddon.proposeDimensions();
-                        if (dims) {
-                            // Ensure minimum size for Claude's interface
-                            const cols = Math.max(dims.cols, 80);
-                            const rows = Math.max(dims.rows, 24);
-                            
-                            // Resize terminal to fitted dimensions
-                            this.terminal.resize(cols, rows);
-                            
-                            // Sync these dimensions with the server PTY
-                            this.syncTerminalSize(cols, rows);
-                        }
-                    }
-
-                    // Handle input from terminal - pass all input directly to PTY
-                    this.terminal.onData((data) => {
-                        if (this.selectedProject) {
-                            this.sendInput(data);
-                        }
-                    });
-
-                    // Handle resize with dimension sync
-                    window.addEventListener('resize', () => {
-                        if (this.fitAddon && this.terminal) {
-                            this.fitAddon.fit();
-                            
-                            // Sync new dimensions with server
-                            const dims = this.fitAddon.proposeDimensions();
-                            if (dims) {
-                                const cols = Math.max(dims.cols, 80);
-                                const rows = Math.max(dims.rows, 24);
-                                this.terminal.resize(cols, rows);
-                                this.syncTerminalSize(cols, rows);
-                            }
-                        }
-                    });
-                    
-                    // Focus the terminal after a short delay to ensure it's ready
-                    setTimeout(() => {
-                        if (this.terminal) {
-                            this.terminal.focus();
-                        }
-                    }, 100);
-                }
-            }
-            
-            appendTerminalOutput(projectId, data) {
-                if (this.selectedProject && this.selectedProject.id === projectId && this.terminal) {
-                    // Write raw data directly to xterm.js (it handles ANSI codes properly)
-                    this.terminal.write(data);
-                }
-            }
-            
-            clearOutput() {
-                if (this.selectedProject && this.terminal) {
-                    this.terminal.clear();
-                }
-            }
-            
-            resetTerminalState() {
-                // Clear any existing terminal completely
-                if (this.terminal) {
-                    this.terminal.dispose();
-                    this.terminal = null;
-                }
-                if (this.fitAddon) {
-                    this.fitAddon = null;
-                }
-                
-                // Clear the container
-                const container = document.getElementById('terminal-container');
-                if (container) {
-                    container.innerHTML = '';
-                }
-            }
-            
-            async checkAndAutoJoinSession() {
-                if (!this.selectedProject) return;
-                
-                try {
-                    // Check if session exists by querying the server
-                    const response = await fetch(`/api/projects/${this.selectedProject.id}/status`);
-                    const result = await response.json();
-                    
-                    // If we get a 404 or the session doesn't exist, just update the button
-                    if (!response.ok || !result.sessionExists) {
-                        this.isProjectRunning = false;
-                        this.updateToggleButton();
-                        return;
-                    }
-                    
-                    // If session exists, auto-join it
-                    if (result.sessionExists) {
-                        await this.startProject();
-                    }
-                } catch (error) {
-                    // If we can't check status, assume session doesn't exist
-                    console.log('Could not check session status, assuming not running');
-                    this.isProjectRunning = false;
-                    this.updateToggleButton();
-                }
-            }
-            
-            updateToggleButton() {
-                const button = document.getElementById('toggle-button');
-                if (button) {
-                    if (this.isProjectRunning) {
-                        button.textContent = 'Stop';
-                        button.className = 'px-3 py-1 text-white text-xs font-medium rounded bg-red-600 hover:bg-red-700';
-                    } else {
-                        button.textContent = 'Start';
-                        button.className = 'px-3 py-1 raycast-button text-white text-xs font-medium rounded';
-                    }
-                }
-            }
-            
-            async sendInput(data) {
-                if (!this.selectedProject) return;
-                
-                try {
-                    // Use the new IPC endpoint to send input
-                    const result = await this.callIPC('send-input', [
-                        this.selectedProject.id,
-                        data
-                    ]);
-                    
-                    if (!result.success) {
-                        console.error('Failed to send input:', result.error);
-                    }
-                } catch (error) {
-                    console.error('Failed to send input:', error);
-                }
-            }
-            
-            async syncTerminalSize(cols, rows) {
-                if (!this.selectedProject) return;
-                
-                try {
-                    const response = await fetch(`/api/projects/${this.selectedProject.id}/resize`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ cols, rows })
-                    });
-                    
-                    const result = await response.json();
-                    if (!result.success) {
-                        console.error('Failed to sync terminal size:', result.error);
-                    }
-                } catch (error) {
-                    console.error('Failed to sync terminal size:', error);
-                }
-            }
-            
-            async loadTerminalHistory() {
-                if (!this.selectedProject || !this.terminal) return;
-                
-                try {
-                    const response = await fetch(`/api/projects/${this.selectedProject.id}/history`);
-                    const result = await response.json();
-                    
-                    if (result.success && result.data) {
-                        // Write the historical terminal output
-                        this.terminal.write(result.data);
-                    }
-                } catch (error) {
-                    console.error('Failed to load terminal history:', error);
-                }
-            }
-            
-            setupEventListeners() {
-                // Back button
-                document.getElementById('back-button').addEventListener('click', () => {
-                    this.showProjectsList();
-                });
-                
-                // Toggle button (Start/Stop)
-                document.getElementById('toggle-button').addEventListener('click', () => {
-                    if (this.isProjectRunning) {
-                        this.stopProject();
-                    } else {
-                        this.startProject();
-                    }
-                });
-                
-                // Viewport is already configured in HTML head
-            }
-        }
-        
-        // Initialize app when DOM is loaded
-        let app;
-        document.addEventListener('DOMContentLoaded', () => {
-            app = new VibeTerm();
         });
     </script>
+
+    <!-- Load the CSS bundle -->
+    <link rel="stylesheet" href="/dist/web-app.css">
+    
+    <!-- Load the React app bundle -->
+    <script type="module" src="/dist/web-app.js"></script>
 </body>
 </html>

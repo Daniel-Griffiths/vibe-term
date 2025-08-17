@@ -29726,7 +29726,8 @@ const defaultDiffOptions = {
   fontFamily: '"JetBrains Mono", "SF Mono", Monaco, Consolas, monospace',
   minimap: { enabled: false },
   scrollBeyondLastLine: false,
-  renderSideBySide: true
+  renderSideBySide: true,
+  wordWrap: "off"
 };
 function getLanguageFromPath(path) {
   const ext = path.split(".").pop()?.toLowerCase();
@@ -30026,9 +30027,15 @@ function SharedDiffEditor({
   const theme = useEditorTheme();
   const [monacoInstance, setMonacoInstance] = React.useState(null);
   const [editorInstance, setEditorInstance] = React.useState(null);
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
   const mergedOptions = {
     ...defaultDiffOptions,
     readOnly,
+    // Mobile-specific overrides
+    renderSideBySide: !isMobile,
+    // Inline view on mobile
+    fontSize: isMobile ? 12 : 14,
+    wordWrap: isMobile ? "on" : "off",
     ...options
   };
   React.useEffect(() => {
@@ -30287,8 +30294,8 @@ function ViewGitDiff({ selectedProject }) {
     ) });
   }
   const hasChanges = diffData && diffData.files.length > 0;
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "h-full flex pt-0", children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "w-80 bg-gray-950 border-r border-t border-gray-800 overflow-y-auto rounded-tr-lg max-h-screen", children: [
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "h-full flex flex-col lg:flex-row pt-0", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "w-full lg:w-80 bg-gray-950 lg:border-r border-t lg:border-t border-gray-800 overflow-y-auto rounded-tr-lg max-h-64 lg:max-h-screen flex-shrink-0", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "p-4 border-b border-gray-800", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between mb-2", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-2 text-sm text-gray-400", children: [
@@ -30395,13 +30402,13 @@ function ViewGitDiff({ selectedProject }) {
         /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "text-xs text-gray-600 mt-1", children: "Your working directory is clean" })
       ] }) })
     ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 flex flex-col h-full p-4 pt-0", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Card, { className: "flex-1 flex flex-col glass-card overflow-hidden", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 flex flex-col h-full p-4 pt-0 min-h-0", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Card, { className: "flex-1 flex flex-col glass-card overflow-hidden", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsx(CardHeader, { className: "flex-shrink-0 py-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800 rounded-t-lg", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center justify-between", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs(CardTitle, { className: "flex items-center gap-2 text-gray-200 font-semibold", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx(FileText, { className: "h-5 w-5 text-green-400" }),
-          selectedFile?.path || "Select a file",
-          hasUnsavedChanges && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-yellow-400 text-xs", children: "●" }),
-          selectedFile && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1 text-xs ml-2", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(CardTitle, { className: "flex items-center gap-2 text-gray-200 font-semibold min-w-0 flex-1", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(FileText, { className: "h-5 w-5 text-green-400 flex-shrink-0" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "truncate", children: selectedFile?.path || "Select a file" }),
+          hasUnsavedChanges && /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "text-yellow-400 text-xs flex-shrink-0", children: "●" }),
+          selectedFile && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex items-center gap-1 text-xs ml-2 flex-shrink-0", children: [
             selectedFile.additions > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "text-green-400", children: [
               "+",
               selectedFile.additions
@@ -30412,16 +30419,16 @@ function ViewGitDiff({ selectedProject }) {
             ] })
           ] })
         ] }),
-        selectedFile && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center gap-2", children: !editMode ? /* @__PURE__ */ jsxRuntimeExports.jsxs(
+        selectedFile && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center gap-2 flex-shrink-0", children: !editMode ? /* @__PURE__ */ jsxRuntimeExports.jsxs(
           Button,
           {
             size: "sm",
             onClick: handleEditMode,
             variant: "primary",
-            className: "h-7 px-3",
+            className: "h-7 px-2 lg:px-3",
             children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx(SquarePen, { className: "h-3 w-3 mr-1" }),
-              "Edit"
+              /* @__PURE__ */ jsxRuntimeExports.jsx(SquarePen, { className: "h-3 w-3 lg:mr-1" }),
+              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "hidden lg:inline", children: "Edit" })
             ]
           }
         ) : /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
@@ -30432,10 +30439,10 @@ function ViewGitDiff({ selectedProject }) {
               onClick: handleSaveFile,
               disabled: !hasUnsavedChanges,
               variant: "success",
-              className: "h-7 px-3",
+              className: "h-7 px-2 lg:px-3",
               children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx(Save, { className: "h-3 w-3 mr-1" }),
-                "Save"
+                /* @__PURE__ */ jsxRuntimeExports.jsx(Save, { className: "h-3 w-3 lg:mr-1" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "hidden lg:inline", children: "Save" })
               ]
             }
           ),
@@ -30445,10 +30452,10 @@ function ViewGitDiff({ selectedProject }) {
               size: "sm",
               onClick: handleViewMode,
               variant: "outline",
-              className: "h-7 px-3",
+              className: "h-7 px-2 lg:px-3",
               children: [
-                /* @__PURE__ */ jsxRuntimeExports.jsx(X, { className: "h-3 w-3 mr-1" }),
-                "Cancel"
+                /* @__PURE__ */ jsxRuntimeExports.jsx(X, { className: "h-3 w-3 lg:mr-1" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "hidden lg:inline", children: "Cancel" })
               ]
             }
           )
