@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./card";
 import { Terminal as TerminalIcon } from "lucide-react";
 import { useTerminalManager } from "../hooks/use-terminal-manager";
@@ -13,10 +13,14 @@ interface IViewTerminalProps {
   projects: UnifiedItem[];
 }
 
-export default function ViewTerminal({
+export interface ViewTerminalRef {
+  fitTerminal: (projectId: string) => void;
+}
+
+const ViewTerminal = forwardRef<ViewTerminalRef, IViewTerminalProps>(({
   selectedProject,
   projects,
-}: IViewTerminalProps) {
+}, ref) => {
   const prevProjectsRef = useRef<UnifiedItem[]>([]);
 
   // Use the terminal manager hook with Claude configuration
@@ -29,6 +33,11 @@ export default function ViewTerminal({
         communicationAPI.sendInput(output.projectId, output.data);
       }
     );
+
+  // Expose fitTerminal function to parent component
+  useImperativeHandle(ref, () => ({
+    fitTerminal,
+  }), [fitTerminal]);
 
   // Show terminals based on selected project
   useEffect(() => {
@@ -141,4 +150,8 @@ export default function ViewTerminal({
       </Card>
     </div>
   );
-}
+});
+
+ViewTerminal.displayName = 'ViewTerminal';
+
+export default ViewTerminal;

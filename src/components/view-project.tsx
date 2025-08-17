@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Tabs, TabsList, TabsTrigger } from "./tabs";
 import { Input } from "./input";
 import { Button } from "./button";
-import ViewTerminal from "./view-terminal";
+import ViewTerminal, { type ViewTerminalRef } from "./view-terminal";
 import ViewGitDiff from "./view-git-diff";
 import ViewFileEditor from "./view-file-editor";
 import ViewWebview from "./view-webview";
@@ -29,6 +29,7 @@ export default function ViewProject({
   });
   const [localIp, setLocalIp] = useState<string>("localhost");
   const [webPort] = useState(6969); // Default web server port
+  const terminalRef = useRef<ViewTerminalRef>(null);
 
   const currentItem = selectedItem;
   const previewUrl = useMemo(() => currentItem?.url, [currentItem?.url]);
@@ -56,6 +57,18 @@ export default function ViewProject({
   useEffect(() => {
     fetchLocalIp();
   }, [fetchLocalIp]);
+
+  // Handle terminal resize when switching back to terminal tab
+  useEffect(() => {
+    if (activeTab === "terminal" && currentItem && terminalRef.current) {
+      // Small delay to ensure the terminal container is visible before resizing
+      const timer = setTimeout(() => {
+        terminalRef.current?.fitTerminal(currentItem.id);
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab, currentItem?.id]);
 
 
   // Shared component for no URL state
@@ -147,27 +160,16 @@ export default function ViewProject({
 
         {/* Content area */}
         <div className="h-full flex-1 flex flex-col">
-          {isPanel ? (
-            /* Panel mode - show preview directly */
+          {/* Panel mode - show preview directly */}
+          {isPanel && (
             <div className="h-full flex-1 flex flex-col p-0 md:p-4">
               <WebViewContent />
             </div>
-          ) : (
-            /* Project mode - show tabbed content */
-            <>
-              {/* Terminal tab */}
-              <div
-                className="flex-1 h-full"
-                style={{
-                  display: activeTab === "terminal" ? "block" : "none",
-                }}
-              >
-                <ViewTerminal
-                  selectedProject={currentItem}
-                  projects={items.filter((item) => item.type === "project")}
-                />
-              </div>
+          )}
 
+          {/* Project mode - show tabbed content */}
+          {!isPanel && (
+            <>
               {/* Git diff tab */}
               {activeTab === "git-diff" && (
                 <div className="flex-1 h-full">
@@ -190,6 +192,20 @@ export default function ViewProject({
               )}
             </>
           )}
+
+          {/* Always render ViewTerminal to preserve terminal state */}
+          <div 
+            className="flex-1 h-full"
+            style={{
+              display: !isPanel && activeTab === "terminal" ? "block" : "none",
+            }}
+          >
+            <ViewTerminal
+              ref={terminalRef}
+              selectedProject={currentItem}
+              projects={items.filter((item) => item.type === "project")}
+            />
+          </div>
         </div>
       </Tabs>
     </div>
