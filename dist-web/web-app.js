@@ -28188,14 +28188,8 @@ class TerminalService {
   /**
    * Show a terminal and fit it to container
    */
-  static showTerminal(instance, delay = 10) {
+  static showTerminal(instance) {
     instance.element.style.display = "block";
-    try {
-      instance.fitAddon.fit();
-      console.log(`[Terminal Debug] Terminal shown and fitted, buffer length:`, instance.terminal.buffer.active.length);
-    } catch (error) {
-      console.error(`[Terminal Debug] Error fitting terminal:`, error);
-    }
   }
   /**
    * Focus a terminal instance
@@ -28213,16 +28207,6 @@ class TerminalService {
    */
   static hideTerminal(instance) {
     instance.element.style.display = "none";
-  }
-  /**
-   * Resize all terminals in a collection
-   */
-  static resizeTerminals(terminals) {
-    terminals.forEach((instance) => {
-      if (instance.element.style.display === "block") {
-        instance.fitAddon.fit();
-      }
-    });
   }
   /**
    * Clean up a terminal instance
@@ -28269,7 +28253,10 @@ class TerminalService {
   static setupDataHandler(terminal, onData) {
     const disposable = terminal.onData((data) => {
       if (this.shouldIgnoreData(data)) {
-        console.log(`[Terminal Debug] Ignoring terminal sequence:`, { data, preview: data.substring(0, 50) });
+        console.log(`[Terminal Debug] Ignoring terminal sequence:`, {
+          data,
+          preview: data.substring(0, 50)
+        });
         return;
       }
       onData(data);
@@ -28313,16 +28300,6 @@ class TerminalService {
     return false;
   }
   /**
-   * Set up window resize handler for a collection of terminals
-   */
-  static setupResizeHandler(terminals) {
-    const handleResize = () => this.resizeTerminals(terminals);
-    window.addEventListener("resize", handleResize);
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
-  }
-  /**
    * Create terminal manager for managing multiple project terminals
    */
   static createTerminalManager() {
@@ -28340,10 +28317,10 @@ class TerminalService {
       getTerminal: (projectId) => {
         return terminals.get(projectId);
       },
-      showTerminal: (projectId, delay) => {
+      showTerminal: (projectId) => {
         const instance = terminals.get(projectId);
         if (instance) {
-          this.showTerminal(instance, delay);
+          this.showTerminal(instance);
         }
       },
       focusTerminal: (projectId) => {
@@ -28362,9 +28339,6 @@ class TerminalService {
         terminals.forEach((instance) => {
           this.hideTerminal(instance);
         });
-      },
-      resizeAll: () => {
-        this.resizeTerminals(terminals);
       },
       clearTerminal: (projectId, delay) => {
         const instance = terminals.get(projectId);
@@ -28736,13 +28710,6 @@ function useTerminalManager(projects, config2 = {}, onOutput) {
     return existing;
   }, [config2, onOutput]);
   reactExports.useEffect(() => {
-    const manager = managerRef.current;
-    const resizeUnsubscriber = TerminalService.setupResizeHandler(manager.terminals);
-    return () => {
-      resizeUnsubscriber();
-    };
-  }, []);
-  reactExports.useEffect(() => {
     if (!communicationAPI.onTerminalOutput) return;
     const unsubscribe = communicationAPI.onTerminalOutput((output) => {
       console.log(`[Terminal Debug] Received output for project ${output.projectId}:`, {
@@ -28814,8 +28781,16 @@ function useTerminalManager(projects, config2 = {}, onOutput) {
       unsubscribersRef.current.set(projectId, projectUnsubscribers);
     }
   }, []);
-  const resizeTerminals = reactExports.useCallback(() => {
-    managerRef.current.resizeAll();
+  const fitTerminal = reactExports.useCallback((projectId) => {
+    const manager = managerRef.current;
+    const instance = manager.getTerminal(projectId);
+    if (instance) {
+      try {
+        instance.fitAddon.fit();
+      } catch (error) {
+        console.log("[Terminal Debug] Fit addon error (expected on initial load):", error);
+      }
+    }
   }, []);
   return {
     containerRef,
@@ -28825,7 +28800,7 @@ function useTerminalManager(projects, config2 = {}, onOutput) {
     clearTerminal,
     writeToTerminal,
     setupDataHandler,
-    resizeTerminals
+    fitTerminal
   };
 }
 function ViewTerminal({
@@ -28833,7 +28808,7 @@ function ViewTerminal({
   projects
 }) {
   const prevProjectsRef = reactExports.useRef([]);
-  const { containerRef, showTerminal, focusTerminal, clearTerminal } = useTerminalManager(
+  const { containerRef, showTerminal, focusTerminal, clearTerminal, fitTerminal } = useTerminalManager(
     projects,
     TerminalService.getClaudeConfig(),
     (output) => {
@@ -28866,6 +28841,14 @@ function ViewTerminal({
     });
     prevProjectsRef.current = [...projects];
   }, [projects, clearTerminal]);
+  reactExports.useLayoutEffect(() => {
+    if (selectedProject) {
+      const timer = setTimeout(() => {
+        fitTerminal(selectedProject.id);
+      }, 1e3);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedProject, fitTerminal]);
   if (!selectedProject) {
     return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 h-full flex items-center justify-center", children: /* @__PURE__ */ jsxRuntimeExports.jsx(
       NonIdealState,
@@ -31530,8 +31513,8 @@ function ViewProject({
   const fetchLocalIp = reactExports.useCallback(async () => {
     try {
       const result = await communicationAPI.getLocalIp();
-      if (result?.success) {
-        setLocalIp(result.localIp);
+      if (result?.success && result?.data) {
+        setLocalIp(result.data.localIp);
       }
     } catch (error) {
       console.error("Failed to fetch local IP:", error);
@@ -32188,9 +32171,9 @@ function FormSettings({ onClose }) {
     setLocalSettings(settings);
     setHasChanges(false);
     communicationAPI.getLocalIp().then((result) => {
-      if (result?.success) {
-        setLocalIp(result.localIp);
-        setHasTailscale(result.hasTailscale);
+      if (result?.success && result?.data) {
+        setLocalIp(result.data.localIp);
+        setHasTailscale(result.data.hasTailscale);
       }
     }).catch((error) => {
       console.error("Failed to get local IP:", error);
@@ -32827,12 +32810,23 @@ function App() {
           }
         }
       );
+      const unsubscribeClaudeStatusChange = webSocketManager.on(
+        "claude-status-change",
+        (message) => {
+          console.log(`[Web App] Claude status changed for ${message.projectId}: ${message.data}`);
+          updateItem(message.projectId, {
+            status: message.data,
+            lastActivity: (/* @__PURE__ */ new Date()).toLocaleTimeString()
+          });
+        }
+      );
       unsubscribeFunctions.push(
         unsubscribeProjectReady,
         unsubscribeProjectWorking,
         unsubscribeProjectStarted,
         unsubscribeProjectStopped,
-        unsubscribeProjectsState
+        unsubscribeProjectsState,
+        unsubscribeClaudeStatusChange
       );
     }
     return () => {
@@ -33053,7 +33047,7 @@ function App() {
     /* @__PURE__ */ jsxRuntimeExports.jsxs(
       "div",
       {
-        className: "glass-titlebar flex items-center px-4 select-none relative",
+        className: "h-16 glass-titlebar flex items-center px-4 select-none relative",
         style: { WebkitAppRegion: "drag" },
         children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { className: "text-lg font-medium text-gray-200 absolute left-1/2 transform -translate-x-1/2", children: "Vibe Term" }),

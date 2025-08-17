@@ -38,9 +38,9 @@ export default function FormSettings({ onClose }: IFormSettingsProps) {
     setHasChanges(false);
     
     communicationAPI.getLocalIp().then((result) => {
-      if (result?.success) {
-        setLocalIp(result.localIp);
-        setHasTailscale(result.hasTailscale);
+      if (result?.success && result?.data) {
+        setLocalIp(result.data.localIp);
+        setHasTailscale(result.data.hasTailscale);
       }
     }).catch((error) => {
       console.error("Failed to get local IP:", error);

@@ -45,8 +45,8 @@ export default function ViewProject({
   const fetchLocalIp = useCallback(async () => {
     try {
       const result = await communicationAPI.getLocalIp();
-      if (result?.success) {
-        setLocalIp(result.localIp);
+      if (result?.success && result?.data) {
+        setLocalIp(result.data.localIp);
       }
     } catch (error) {
       console.error("Failed to fetch local IP:", error);

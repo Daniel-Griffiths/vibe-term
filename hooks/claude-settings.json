@@ -1,0 +1,44 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/hooks/status-hook.sh Stop $CLAUDE_PROJECT_DIR $CLAUDE_SESSION_ID"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command", 
+            "command": "$CLAUDE_PROJECT_DIR/hooks/status-hook.sh SubagentStop $CLAUDE_PROJECT_DIR $CLAUDE_SESSION_ID"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/hooks/status-hook.sh UserPromptSubmit $CLAUDE_PROJECT_DIR $CLAUDE_SESSION_ID"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/hooks/status-hook.sh Notification $CLAUDE_PROJECT_DIR $CLAUDE_SESSION_ID"
+          }
+        ]
+      }
+    ]
+  }
+}

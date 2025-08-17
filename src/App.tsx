@@ -222,12 +222,24 @@ function App() {
         }
       );
 
+      const unsubscribeClaudeStatusChange = webSocketManager.on(
+        "claude-status-change",
+        (message: any) => {
+          console.log(`[Web App] Claude status changed for ${message.projectId}: ${message.data}`);
+          updateItem(message.projectId, {
+            status: message.data,
+            lastActivity: new Date().toLocaleTimeString(),
+          });
+        }
+      );
+
       unsubscribeFunctions.push(
         unsubscribeProjectReady,
         unsubscribeProjectWorking,
         unsubscribeProjectStarted,
         unsubscribeProjectStopped,
-        unsubscribeProjectsState
+        unsubscribeProjectsState,
+        unsubscribeClaudeStatusChange
       );
     }
 

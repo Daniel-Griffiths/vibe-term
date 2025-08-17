@@ -1,4 +1,4 @@
-import { ipcMain, dialog, BrowserWindow, app } from "electron";
+import { ipcMain, dialog, BrowserWindow, app, Notification } from "electron";
 import fs from "fs";
 import path from "path";
 import os from "os";
@@ -218,6 +218,81 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
       );
     }
   );
+
+  registerIPCHandler("claude-hook", async (...args: unknown[]): Promise<BasicResult> => {
+    const [hookType, projectId] = args as [string, string];
+    
+    try {
+      console.log(`[Claude Hook] Received ${hookType} hook for project ${projectId}`);
+      
+      // Determine status based on hook type
+      let status: string;
+      switch (hookType) {
+        case 'Stop':
+        case 'SubagentStop':
+          status = 'ready';
+          break;
+        case 'UserPromptSubmit':
+          status = 'working';
+          break;
+        case 'Notification':
+          status = 'waiting';
+          break;
+        default:
+          status = 'unknown';
+      }
+      
+      // Send immediate status updates to both desktop and web clients
+      if (win && !win.isDestroyed()) {
+        if (status === 'ready') {
+          win.webContents.send("claude-ready", {
+            projectId,
+            timestamp: Date.now(),
+          });
+          
+          // Send desktop notification if window is not focused
+          const windowFocused = win.isFocused();
+          if (!windowFocused) {
+            const notification = new Notification({
+              title: `${projectId} finished`,
+              body: "Claude Code task completed",
+              silent: false,
+            });
+            notification.show();
+            notification.on("click", () => {
+              if (win && !win.isDestroyed()) {
+                if (win.isMinimized()) win.restore();
+                win.focus();
+              }
+            });
+          }
+        } else if (status === 'working') {
+          win.webContents.send("claude-working", {
+            projectId,
+            timestamp: Date.now(),
+          });
+        }
+      }
+      
+      // Broadcast to web clients
+      const eventType = status === 'ready' ? 'project-ready' : 
+                       status === 'working' ? 'project-working' : 
+                       'claude-status-change';
+      
+      broadcastToWebClients({
+        type: eventType,
+        projectId: projectId,
+        data: status,
+        timestamp: Date.now()
+      });
+      
+      return { success: true };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error('Error processing Claude hook:', error);
+      return { success: false, error: errorMessage };
+    }
+  });
 
   registerIPCHandler("stop-claude-process", async (...args: unknown[]): Promise<BasicResult> => {
     const [projectId] = args as [string];
@@ -697,7 +772,7 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
     }
   );
 
-  registerIPCHandler("get-local-ip", async (): Promise<LocalIpResult> => {
+  registerIPCHandler("get-local-ip", async (): Promise<DataResult<LocalIpResult>> => {
     const interfaces = os.networkInterfaces();
 
     let localIp = "localhost";
@@ -708,13 +783,13 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
       await execAsync("tailscale status");
       tailscaleRunning = true;
     } catch (error) {
-      console.error("Tailscale not available:", error);
+      // Silently fail - tailscale not available
     }
 
     // Get local network IP
     const priorityInterfaces = [
       "en0",
-      "en1",
+      "en1", 
       "eth0",
       "wlan0",
       "Wi-Fi",
@@ -724,7 +799,7 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
     // Try priority interfaces first
     for (const name of priorityInterfaces) {
       if (interfaces[name]) {
-        for (const iface of interfaces[name]) {
+        for (const iface of interfaces[name]!) {
           if (iface.family === "IPv4" && !iface.internal) {
             localIp = iface.address;
             break;
@@ -737,14 +812,16 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
     // Fallback: Look for any 192.168.x.x address
     if (localIp === "localhost") {
       for (const name of Object.keys(interfaces)) {
-        for (const iface of interfaces[name]) {
-          if (
-            iface.family === "IPv4" &&
-            !iface.internal &&
-            iface.address.startsWith("192.168.")
-          ) {
-            localIp = iface.address;
-            break;
+        if (interfaces[name]) {
+          for (const iface of interfaces[name]!) {
+            if (
+              iface.family === "IPv4" &&
+              !iface.internal &&
+              iface.address.startsWith("192.168.")
+            ) {
+              localIp = iface.address;
+              break;
+            }
           }
         }
         if (localIp !== "localhost") break;
@@ -752,8 +829,11 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
     }
 
     return {
-      localIp,
-      hasTailscale: tailscaleRunning,
+      success: true,
+      data: {
+        localIp,
+        hasTailscale: tailscaleRunning,
+      }
     };
   });
 

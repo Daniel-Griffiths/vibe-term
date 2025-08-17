@@ -14,6 +14,7 @@ import * as pty from "node-pty";
 import { ShellUtils } from "../src/utils/shellUtils";
 import { setupIPCHandlers, ipcHandlers } from "./ipc-handlers";
 import { createWebServer, broadcastToWebClients, closeWebServer } from "./web-server";
+import { setupClaudeHooks } from "../src/utils/claudeHookSetup";
 
 const execAsync = promisify(exec);
 
@@ -155,6 +156,9 @@ async function getOrCreateSharedPty(
   runCommand?: string
 ) {
   try {
+    // Set up Claude hooks for status detection
+    await setupClaudeHooks(projectPath);
+    
     // If PTY already exists, send current buffer and return success
     if (sharedPtyProcesses.has(projectId)) {
       console.log(`[${projectId}] Using existing shared PTY process`);
@@ -807,8 +811,6 @@ app.whenReady().then(async () => {
     if (enabled) {
       const result = await createWebServer({
         ipcHandlers,
-        readStateFile,
-        __dirname,
         app,
       }, port);
       webServer = result.server;

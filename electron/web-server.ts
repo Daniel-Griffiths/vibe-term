@@ -26,8 +26,6 @@ interface AppState {
 
 interface WebServerDependencies {
   ipcHandlers: Map<string, (...args: any[]) => Promise<any>>;
-  readStateFile: () => AppState;
-  __dirname: string;
   app: Electron.App;
 }
 
@@ -74,7 +72,7 @@ export async function createWebServer(
   deps: WebServerDependencies,
   preferredPort = DEFAULT_WEB_SERVER_PORT
 ): Promise<{ server: any; port: number }> {
-  const { ipcHandlers, readStateFile, __dirname, app } = deps;
+  const { ipcHandlers, app } = deps;
 
   const port = await checkPortAvailable(preferredPort);
   const expressApp = express();
@@ -127,31 +125,6 @@ export async function createWebServer(
     }
   });
 
-  // Legacy API endpoints for backward compatibility
-  expressApp.get("/api/projects", async (req, res) => {
-    try {
-      // Use IPC handler to get the latest state instead of reading from file
-      const handler = ipcHandlers.get("get-stored-items");
-      if (handler) {
-        const result = await handler();
-        if (result.success) {
-          const projects = result.data?.filter((item: any) => item.type === "project") || [];
-          res.json({ success: true, data: projects });
-        } else {
-          res.json({ success: true, data: [] });
-        }
-      } else {
-        // Fallback to reading state file
-        const state = readStateFile();
-        const projects =
-          state.storedItems?.filter((item: any) => item.type === "project") || [];
-        res.json({ success: true, data: projects });
-      }
-    } catch (error) {
-      console.error("Error getting projects:", error);
-      res.json({ success: true, data: [] });
-    }
-  });
 
   // Note: Project status, resize, and history endpoints are now handled
   // automatically via the /api/ipc/:handlerName endpoint above
@@ -163,7 +136,7 @@ export async function createWebServer(
   });
 
   // Serve the main React app (both root and /app routes)
-  expressApp.get(["/", "/app"], (_req, res) => {
+  expressApp.get(["/", "/app"], (_, res) => {
     res.sendFile(path.join(webStaticPath, "index.html"));
   });
 
