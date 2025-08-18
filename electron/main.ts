@@ -12,64 +12,16 @@ import {
   closeWebServer,
 } from "./web-server";
 import { setupClaudeHooks } from "../src/utils/claudeHookSetup";
+import { SettingsManager, AppState } from "./settingsManager";
+import { ErrorHandler } from "./errorHandler";
+import type { UnifiedItem } from "../src/types";
 
-// Application state stored in main process
-interface UnifiedItem {
-  id: string;
-  name: string;
-  type: "project" | "panel";
-  path?: string;
-  url?: string;
-  icon?: string;
-  runCommand?: string;
-  yoloMode?: boolean;
-  restrictedBranches?: string;
-}
+// Global settings manager instance
+let settingsManager: SettingsManager;
 
-interface AppState {
-  settings: {
-    editor: { theme: string };
-    desktop: { notifications: boolean };
-    webServer: { enabled: boolean; port: number };
-    discord: { enabled: boolean; username: string; webhookUrl: string };
-  };
-  storedItems: UnifiedItem[];
-}
-
-// In-memory application state
-let appState: AppState = {
-  settings: {
-    editor: { theme: "vibe-term" },
-    desktop: { notifications: true },
-    webServer: { enabled: true, port: 6969 },
-    discord: { enabled: false, username: "Vibe Term", webhookUrl: "" },
-  },
-  storedItems: [],
-};
-
-// Helper functions for state management
-const getDataFilePath = () =>
-  path.join(app.getPath("userData"), "app-data.json");
-
-const saveAppState = async () => {
-  try {
-    await fs.promises.writeFile(
-      getDataFilePath(),
-      JSON.stringify(appState, null, 2),
-      "utf8"
-    );
-  } catch (error) {
-    console.error("Failed to save app state:", error);
-  }
-};
-
-const loadAppState = async () => {
-  try {
-    const data = await fs.promises.readFile(getDataFilePath(), "utf8");
-    appState = { ...appState, ...JSON.parse(data) };
-  } catch (error) {
-    // Not an error - app data file doesn't exist on first run
-  }
+// Initialize settings manager
+const initializeSettingsManager = () => {
+  settingsManager = SettingsManager.getInstance();
 };
 
 // Test variable to force missing dependencies modal
@@ -99,10 +51,8 @@ async function checkDependencies(): Promise<string[]> {
   return missing;
 }
 
-const DEFAULT_WEB_SERVER_PORT = 6969;
-
-// Safely import liquid glass with fallback
-const liquidGlass: any = null;
+// Safely import liquid glass with fallback (unused placeholder)
+// const liquidGlass: unknown = null;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -117,7 +67,7 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   : RENDERER_DIST;
 
 let win: BrowserWindow | null;
-const sharedPtyProcesses = new Map<string, any>(); // Shared PTY processes for both desktop and web
+const sharedPtyProcesses = new Map<string, unknown>(); // Shared PTY processes for both desktop and web
 const backgroundProcesses = new Map<string, ChildProcess>(); // Background processes for runCommand
 const terminalBuffers = new Map<string, string>(); // Store terminal history for each project
 
@@ -125,11 +75,23 @@ const terminalBuffers = new Map<string, string>(); // Store terminal history for
 let powerSaveBlockerId: number | null = null;
 
 // Web server variables
-let webServer: any = null;
+let webServer: unknown = null;
 
 // Helper function to read state from file (outside web server to avoid app naming conflict)
 const readStateFile = () => {
-  return appState;
+  if (!settingsManager) {
+    // Return minimal default state if settings manager not initialized yet
+    return {
+      settings: {
+        editor: { theme: "vibe-term" },
+        desktop: { notifications: true },
+        webServer: { enabled: true, port: 6969 },
+        discord: { enabled: false, username: "Vibe Term", webhookUrl: "" },
+      },
+      storedItems: [],
+    };
+  }
+  return settingsManager.getAppState();
 };
 
 // Notification debouncing
@@ -272,7 +234,7 @@ async function getOrCreateSharedPty(
 
         backgroundProcesses.set(projectId, backgroundProc);
 
-        backgroundProc.on("exit", (code) => {
+        backgroundProc.on("exit", () => {
           backgroundProcesses.delete(projectId);
         });
 
@@ -356,8 +318,7 @@ async function getOrCreateSharedPty(
 
       // Send desktop notification for non-zero exit codes if window is not focused
       if (code !== 0) {
-        // TODO: Connect to proper settings source
-        const desktopNotificationsEnabled = true; // Default to true
+        const desktopNotificationsEnabled = settingsManager?.getSettings()?.desktop?.notifications ?? true;
         const windowFocused = win && !win.isDestroyed() && win.isFocused();
 
         if (
@@ -365,8 +326,8 @@ async function getOrCreateSharedPty(
           desktopNotificationsEnabled &&
           shouldSendNotification(`${projectId}-error`)
         ) {
-          // TODO: Connect to proper data source
-          const projectDisplayName = projectId;
+          const project = settingsManager?.findStoredItem(projectId);
+          const projectDisplayName = project?.name ?? projectId;
           const notification = new Notification({
             title: `${projectDisplayName} failed`,
             body: `Process exited with code ${code}`,
@@ -400,8 +361,7 @@ async function getOrCreateSharedPty(
       }
 
       // Send desktop notification for errors if window is not focused
-      // TODO: Connect to proper settings source
-      const desktopNotificationsEnabled = true; // Default to true
+      const desktopNotificationsEnabled = settingsManager?.getSettings()?.desktop?.notifications ?? true;
       const windowFocused = win && !win.isDestroyed() && win.isFocused();
 
       if (
@@ -409,8 +369,8 @@ async function getOrCreateSharedPty(
         desktopNotificationsEnabled &&
         shouldSendNotification(`${projectId}-error`)
       ) {
-        // TODO: Connect to proper data source
-        const projectDisplayName = projectId;
+        const project = settingsManager?.findStoredItem(projectId);
+        const projectDisplayName = project?.name ?? projectId;
         const notification = new Notification({
           title: `${projectDisplayName} error`,
           body: error.message,
@@ -517,7 +477,7 @@ app.on("before-quit", async (event) => {
   // Kill all tmux sessions associated with projects (silently fail if not running)
   const state = readStateFile();
   const projects =
-    state.storedItems?.filter((item: any) => item.type === "project") || [];
+    state.storedItems?.filter((item: UnifiedItem) => item.type === "project") || [];
 
   for (const project of projects) {
     const sessionBase = project.name || project.id;
@@ -558,8 +518,8 @@ app.on("activate", () => {
 });
 
 app.whenReady().then(async () => {
-  // Load app state from disk
-  await loadAppState();
+  // Initialize settings manager
+  initializeSettingsManager();
 
   // Start power save blocker to keep PC awake while app is running
   powerSaveBlockerId = powerSaveBlocker.start("prevent-app-suspension");
@@ -575,30 +535,18 @@ app.whenReady().then(async () => {
     getOrCreateSharedPty,
     readStateFile,
     broadcastToWebClients,
-    getAppState: () => appState,
+    getAppState: () => settingsManager?.getAppState() ?? readStateFile(),
     updateAppState: (newState: Partial<AppState>) => {
-      appState = { ...appState, ...newState };
-      saveAppState();
+      settingsManager?.updateAppState(newState);
     },
     addStoredItem: (item: UnifiedItem) => {
-      appState.storedItems.push(item);
-      saveAppState();
+      settingsManager?.addStoredItem(item);
     },
     updateStoredItem: (id: string, updates: Partial<UnifiedItem>) => {
-      const index = appState.storedItems.findIndex((item) => item.id === id);
-      if (index !== -1) {
-        appState.storedItems[index] = {
-          ...appState.storedItems[index],
-          ...updates,
-        };
-        saveAppState();
-      }
+      settingsManager?.updateStoredItem(id, updates);
     },
     deleteStoredItem: (id: string) => {
-      appState.storedItems = appState.storedItems.filter(
-        (item) => item.id !== id
-      );
-      saveAppState();
+      settingsManager?.deleteStoredItem(id);
     },
   });
 
@@ -611,10 +559,11 @@ app.whenReady().then(async () => {
     });
   }
 
-  // Start web server with default settings
+  // Start web server with settings from SettingsManager
   try {
-    const port = DEFAULT_WEB_SERVER_PORT;
-    const enabled = true; // Default to enabled
+    const webServerSettings = settingsManager?.getSettings()?.webServer ?? { enabled: true, port: 6969 };
+    const port = webServerSettings.port;
+    const enabled = webServerSettings.enabled;
 
     if (enabled) {
       const result = await createWebServer(
@@ -633,7 +582,10 @@ app.whenReady().then(async () => {
       }
     }
   } catch (error) {
-    console.error("Failed to start web server:", error);
+    ErrorHandler.logError(error, {
+      operation: 'start-web-server',
+      additionalData: { port: settingsManager?.getSettings()?.webServer?.port ?? 6969 }
+    });
   }
 });
 

@@ -7,79 +7,36 @@ import { exec, ChildProcess } from "child_process";
 import { ShellUtils } from "../src/utils/shellUtils";
 import type { IPty } from "node-pty";
 import { broadcastToWebClients } from "./web-server";
+import type { UnifiedItem } from "../src/types";
+import type {
+  BaseResponse,
+  DataResponse,
+  PTYResult,
+  CommandResult,
+  GitFile,
+  GitDiffResult,
+  FileTreeItem,
+  LocalIpResult,
+  DiscordSettings,
+  ImageResult,
+  AppSettings
+} from "../src/types/ipc";
 
 const execAsync = promisify(exec);
 
-// Type definitions
-interface GitFile {
-  path: string;
-  status: "added" | "modified" | "deleted";
-  additions: number;
-  deletions: number;
-  oldContent: string;
-  newContent: string;
-}
-
-interface GitDiffResult {
-  files: GitFile[];
-  branch: string;
-  ahead: number;
-  behind: number;
-}
-
-interface FileTreeItem {
-  name: string;
-  path: string;
-  isDirectory: boolean;
-  children?: FileTreeItem[];
-  isExpanded?: boolean;
-}
-
-interface LocalIpResult {
-  localIp: string;
-  hasTailscale: boolean;
-}
-
-interface DiscordSettings {
-  webhookUrl?: string;
-  username?: string;
-  enabled?: boolean;
-}
-
-interface CommandResult {
-  success: boolean;
-  output?: string;
-  error?: string;
-}
-
-interface BasicResult {
-  success: boolean;
-  error?: string;
-}
-
-interface DataResult<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-}
-
-interface ImageResult {
-  success: boolean;
-  data?: string;
-  mimeType?: string;
-  error?: string;
-}
-
-// IPC handler type
-type IPCHandler = (...args: unknown[]) => Promise<unknown>;
+// Generic IPC handler type - now properly typed
+type IPCHandler<TArgs extends any[] = any[], TResult = any> = (...args: TArgs) => Promise<TResult>;
 
 // IPC handlers registry for automatic endpoint generation
 const ipcHandlers = new Map<string, IPCHandler>();
 
-// Helper function to register IPC handlers
-function registerIPCHandler(name: string, handler: IPCHandler) {
-  ipcHandlers.set(name, handler);
-  ipcMain.handle(name, async (_event, ...args) => handler(...args));
+// Helper function to register IPC handlers with proper typing
+function registerIPCHandler<TArgs extends any[], TResult>(
+  name: string, 
+  handler: IPCHandler<TArgs, TResult>
+) {
+  ipcHandlers.set(name, handler as IPCHandler);
+  ipcMain.handle(name, async (_event, ...args) => handler(...(args as TArgs)));
 }
 
 // Discord notification function
@@ -87,7 +44,7 @@ const sendDiscordNotification = async (
   webhookUrl: string,
   username: string,
   content: string
-): Promise<BasicResult> => {
+): Promise<BaseResponse> => {
   const https = await import("https");
   const url = await import("url");
 
@@ -126,25 +83,7 @@ const sendDiscordNotification = async (
   });
 };
 
-interface Project {
-  id: string;
-  type: string;
-  name: string;
-  path: string;
-  runCommand?: string;
-}
-
-interface AppState {
-  settings?: Record<string, unknown>;
-  storedItems?: Array<Project>;
-}
-
-interface PTYResult {
-  success: boolean;
-  projectId?: string;
-  error?: string;
-}
-
+// Internal interfaces for this file
 interface WebSocketMessage {
   type: string;
   projectId?: string;
@@ -152,16 +91,9 @@ interface WebSocketMessage {
   timestamp?: number;
 }
 
-interface UnifiedItem {
-  id: string;
-  name: string;
-  type: "project" | "panel";
-  path?: string;
-  url?: string;
-  icon?: string;
-  runCommand?: string;
-  yoloMode?: boolean;
-  restrictedBranches?: string;
+interface AppState {
+  settings?: AppSettings;
+  storedItems?: UnifiedItem[];
 }
 
 interface IPCHandlerDependencies {
@@ -216,16 +148,9 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
   } = deps;
 
   // Process management
-  registerIPCHandler(
+  registerIPCHandler<[string, string, string?, string?, boolean?], PTYResult>(
     "start-claude-process",
-    async (...args: unknown[]): Promise<PTYResult> => {
-      const [projectId, projectPath, command, projectName, yoloMode] = args as [
-        string,
-        string,
-        string | undefined,
-        string | undefined,
-        boolean | undefined
-      ];
+    async (projectId, projectPath, command, projectName, yoloMode): Promise<PTYResult> => {
       return await getOrCreateSharedPty(
         projectId,
         projectPath,
@@ -236,10 +161,9 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
     }
   );
 
-  registerIPCHandler(
+  registerIPCHandler<[string, string], BaseResponse>(
     "claude-hook",
-    async (...args: unknown[]): Promise<BasicResult> => {
-      const [hookType, projectId] = args as [string, string];
+    async (hookType, projectId): Promise<BaseResponse> => {
 
       try {
         // Determine status based on hook type
@@ -316,10 +240,9 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
     }
   );
 
-  registerIPCHandler(
+  registerIPCHandler<[string], BaseResponse>(
     "stop-claude-process",
-    async (...args: unknown[]): Promise<BasicResult> => {
-      const [projectId] = args as [string];
+    async (projectId): Promise<BaseResponse> => {
       const proc = sharedPtyProcesses.get(projectId);
 
       // Kill PTY process
@@ -338,9 +261,9 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
       // Kill the tmux session (silently fails if not running)
       const state = readStateFile();
       const projects =
-        state.storedItems?.filter((item: Project) => item.type === "project") ||
+        state.storedItems?.filter((item: UnifiedItem) => item.type === "project") ||
         [];
-      const project = projects.find((p: Project) => p.id === projectId);
+      const project = projects.find((p: UnifiedItem) => p.id === projectId);
 
       if (project) {
         const sessionBase = project.name || projectId;
@@ -352,10 +275,9 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
     }
   );
 
-  registerIPCHandler(
+  registerIPCHandler<[string, string], BaseResponse>(
     "send-input",
-    async (...args: unknown[]): Promise<BasicResult> => {
-      const [projectId, input] = args as [string, string];
+    async (projectId, input): Promise<BaseResponse> => {
       const proc = sharedPtyProcesses.get(projectId);
       if (proc) {
         proc.write(input);
@@ -365,11 +287,9 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
     }
   );
 
-  registerIPCHandler(
+  registerIPCHandler<[string, string], CommandResult>(
     "test-command",
-    async (...args: unknown[]): Promise<CommandResult> => {
-      const [projectPath, command] = args as [string, string];
-
+    async (projectPath, command): Promise<CommandResult> => {
       const result = await ShellUtils.execute(command, {
         cwd: projectPath,
         timeout: 30000,
@@ -384,10 +304,9 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
   );
 
   // Write state file for web server access
-  registerIPCHandler(
+  registerIPCHandler<[AppState], BaseResponse>(
     "write-state-file",
-    async (...args: unknown[]): Promise<BasicResult> => {
-      const [state] = args as [AppState];
+    async (state): Promise<BaseResponse> => {
       try {
         const stateFilePath = path.join(
           app.getPath("userData"),
@@ -409,9 +328,9 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
   );
 
   // Directory selection
-  registerIPCHandler(
+  registerIPCHandler<[], DataResponse<{ path: string }>>(
     "select-directory",
-    async (): Promise<DataResult<{ path: string }>> => {
+    async (): Promise<DataResponse<{ path: string }>> => {
       if (!win) {
         return { success: false, error: "Window not available" };
       }
@@ -438,10 +357,9 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
   );
 
   // Git operations
-  registerIPCHandler(
+  registerIPCHandler<[string], DataResponse<GitDiffResult>>(
     "get-git-diff",
-    async (...args: unknown[]): Promise<DataResult<GitDiffResult>> => {
-      const [projectPath] = args as [string];
+    async (projectPath): Promise<DataResponse<GitDiffResult>> => {
       try {
         // Check if directory is a git repo
         const { stdout: isGitRepo } = await execAsync(
@@ -592,10 +510,9 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
     }
   );
 
-  registerIPCHandler(
+  registerIPCHandler<[string, string, string], BaseResponse>(
     "save-file",
-    async (...args: unknown[]): Promise<BasicResult> => {
-      const [projectPath, filePath, content] = args as [string, string, string];
+    async (projectPath, filePath, content): Promise<BaseResponse> => {
       try {
         const fullPath = path.join(projectPath, filePath);
         fs.writeFileSync(fullPath, content, "utf8");
@@ -609,10 +526,9 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
     }
   );
 
-  registerIPCHandler(
+  registerIPCHandler<[string, string], BaseResponse>(
     "revert-file",
-    async (...args: unknown[]): Promise<BasicResult> => {
-      const [projectPath, filePath] = args as [string, string];
+    async (projectPath, filePath): Promise<BaseResponse> => {
       try {
         // Get the original content from git
         const { stdout } = await execAsync(`git show HEAD:"${filePath}"`, {
