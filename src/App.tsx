@@ -90,16 +90,8 @@ function App() {
     const unsubscribeFunctions: (() => void)[] = [];
 
     if (communicationAPI.onTerminalOutput) {
-      console.log(`[Debug] Setting up terminal output listener...`);
       const unsubscribeOutput = communicationAPI.onTerminalOutput(
         (output: TerminalOutput) => {
-          console.log(`[App Debug] *** TERMINAL OUTPUT RECEIVED ***`, {
-            projectId: output.projectId,
-            dataLength: output.data?.length,
-            dataPreview: output.data?.substring(0, 50),
-            timestamp: new Date().toISOString(),
-          });
-
           // Get current items from store and update
           const currentItem = items.find(
             (item) => item.id === output.projectId
@@ -225,7 +217,9 @@ function App() {
       const unsubscribeClaudeStatusChange = webSocketManager.on(
         "claude-status-change",
         (message: any) => {
-          console.log(`[Web App] Claude status changed for ${message.projectId}: ${message.data}`);
+          console.log(
+            `[Web App] Claude status changed for ${message.projectId}: ${message.data}`
+          );
           updateItem(message.projectId, {
             status: message.data,
             lastActivity: new Date().toLocaleTimeString(),
@@ -357,6 +351,12 @@ function App() {
           output: [`Error: ${result.error}`],
         });
         toast.error(`Failed to start process: ${result.error}`);
+      } else {
+        // Successfully started - assume ready state initially
+        updateItem(projectId, {
+          status: "ready",
+          lastActivity: new Date().toLocaleTimeString(),
+        });
       }
     } catch (error) {
       updateItem(projectId, {

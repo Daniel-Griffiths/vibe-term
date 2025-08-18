@@ -291,85 +291,8 @@ async function getOrCreateSharedPty(
       }
     }
 
-    // Track the most recent state indicator
-    let lastStateIndicator = null;
-    let statusChangeTimeout = null;
-
-    // Debounced status change function
-    const sendStatusChange = (status, delay = 1000) => {
-      if (statusChangeTimeout) {
-        clearTimeout(statusChangeTimeout);
-      }
-
-      statusChangeTimeout = setTimeout(() => {
-        if (status === "ready") {
-          // Send to desktop
-          if (win && !win.isDestroyed()) {
-            win.webContents.send("claude-ready", {
-              projectId,
-              timestamp: Date.now(),
-            });
-          }
-
-          // Send to web clients
-          broadcastToWebClients({
-            type: "project-ready",
-            projectId: projectId,
-            timestamp: Date.now(),
-          });
-
-          // Send desktop notification if window is not focused and notifications are enabled
-          // TODO: Connect to proper settings source
-          const desktopNotificationsEnabled = true; // Default to true
-          const windowFocused = win && !win.isDestroyed() && win.isFocused();
-
-          if (
-            !windowFocused &&
-            desktopNotificationsEnabled &&
-            shouldSendNotification(projectId)
-          ) {
-            // Get the actual project name from saved projects
-            // TODO: Connect to proper data source
-            const projectDisplayName = projectId;
-            const notification = new Notification({
-              title: `${projectDisplayName} finished`,
-              body: "Claude Code process completed",
-              icon: path.join(process.env.APP_ROOT || "", "public", "icon.png"),
-              silent: false,
-            });
-
-            notification.show();
-
-            notification.on("click", () => {
-              if (win) {
-                if (win.isMinimized()) win.restore();
-                win.focus();
-              }
-            });
-
-            // Also send Discord notification if configured
-            // TODO: Connect to proper settings source
-            // Discord notifications disabled until proper integration
-          }
-        } else if (status === "working") {
-          // Send to desktop
-          if (win && !win.isDestroyed()) {
-            win.webContents.send("claude-working", {
-              projectId,
-              timestamp: Date.now(),
-            });
-          }
-
-          // Send to web clients
-          broadcastToWebClients({
-            type: "project-working",
-            projectId: projectId,
-            timestamp: Date.now(),
-          });
-        }
-        statusChangeTimeout = null;
-      }, delay);
-    };
+    // Status changes are now handled by Claude hooks
+    // No need for manual status tracking or debouncing here
 
     // Handle PTY output - send to both desktop and web
     proc.onData((data) => {
@@ -386,41 +309,9 @@ async function getOrCreateSharedPty(
         const trimmedBuffer =
           newBuffer.length > 10000 ? newBuffer.slice(-10000) : newBuffer;
         terminalBuffers.set(projectId, trimmedBuffer);
-        // Check for circle (⏺) - Claude finished
-        if (data.includes("⏺")) {
-          lastStateIndicator = "finished";
-
-          // Check if input box appears in the same data
-          if (
-            (data.includes("│") && data.includes(">")) ||
-            (data.includes("╭") && data.includes("╰"))
-          ) {
-            sendStatusChange("ready");
-          } else {
-            // Wait a bit for input box to appear
-            setTimeout(() => {
-              sendStatusChange("ready");
-            }, 100);
-          }
-        }
-        // Check for asterisk/star symbols - Claude working
-        else if (data.match(/[✳✽✻✶✢]/)) {
-          if (lastStateIndicator !== "working") {
-            lastStateIndicator = "working";
-            sendStatusChange("working");
-          }
-        }
-        // Check for input box (initial ready state)
-        else if (
-          (data.includes("│") && data.includes(">")) ||
-          (data.includes("╭") && data.includes("╰")) ||
-          data.includes("⏵⏵")
-        ) {
-          if (lastStateIndicator !== "ready") {
-            lastStateIndicator = "ready";
-            sendStatusChange("ready");
-          }
-        }
+        
+        // Status detection is now handled by Claude hooks
+        // No need to parse terminal output for status indicators
 
         // Send to desktop
         if (win && !win.isDestroyed()) {
