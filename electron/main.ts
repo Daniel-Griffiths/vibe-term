@@ -12,8 +12,8 @@ import {
   closeWebServer,
 } from "./web-server";
 import { setupClaudeHooks } from "../src/utils/claudeHookSetup";
-import { SettingsManager, AppState } from "./settingsManager";
-import { ErrorHandler } from "./errorHandler";
+import { SettingsManager, AppState } from "./settings-manager";
+import { ErrorHandler } from "./error-handler";
 import type { UnifiedItem } from "../src/types";
 
 // Global settings manager instance

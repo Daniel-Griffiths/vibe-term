@@ -8,7 +8,7 @@ import path from 'path'
 import { app } from 'electron'
 import type { AppSettings } from '../src/types/ipc'
 import type { UnifiedItem } from '../src/types'
-import { ErrorHandler } from './errorHandler'
+import { ErrorHandler } from './error-handler'
 
 export interface AppState {
   settings: AppSettings

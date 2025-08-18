@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { SettingsManager } from './settingsManager'
+import { SettingsManager } from './settings-manager'
 import fs from 'fs'
 
 // Mock electron and fs
