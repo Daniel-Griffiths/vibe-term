@@ -3,7 +3,7 @@ import fs from "fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { ChildProcess, spawn } from "child_process";
-import * as pty from "node-pty";
+import * as pty from "@lydell/node-pty";
 import { ShellUtils } from "../src/utils/shellUtils";
 import { setupIPCHandlers, ipcHandlers } from "./ipc-handlers";
 import {
@@ -318,7 +318,8 @@ async function getOrCreateSharedPty(
 
       // Send desktop notification for non-zero exit codes if window is not focused
       if (code !== 0) {
-        const desktopNotificationsEnabled = settingsManager?.getSettings()?.desktop?.notifications ?? true;
+        const desktopNotificationsEnabled =
+          settingsManager?.getSettings()?.desktop?.notifications ?? true;
         const windowFocused = win && !win.isDestroyed() && win.isFocused();
 
         if (
@@ -361,7 +362,8 @@ async function getOrCreateSharedPty(
       }
 
       // Send desktop notification for errors if window is not focused
-      const desktopNotificationsEnabled = settingsManager?.getSettings()?.desktop?.notifications ?? true;
+      const desktopNotificationsEnabled =
+        settingsManager?.getSettings()?.desktop?.notifications ?? true;
       const windowFocused = win && !win.isDestroyed() && win.isFocused();
 
       if (
@@ -477,7 +479,8 @@ app.on("before-quit", async (event) => {
   // Kill all tmux sessions associated with projects (silently fail if not running)
   const state = readStateFile();
   const projects =
-    state.storedItems?.filter((item: UnifiedItem) => item.type === "project") || [];
+    state.storedItems?.filter((item: UnifiedItem) => item.type === "project") ||
+    [];
 
   for (const project of projects) {
     const sessionBase = project.name || project.id;
@@ -561,7 +564,10 @@ app.whenReady().then(async () => {
 
   // Start web server with settings from SettingsManager
   try {
-    const webServerSettings = settingsManager?.getSettings()?.webServer ?? { enabled: true, port: 6969 };
+    const webServerSettings = settingsManager?.getSettings()?.webServer ?? {
+      enabled: true,
+      port: 6969,
+    };
     const port = webServerSettings.port;
     const enabled = webServerSettings.enabled;
 
@@ -583,8 +589,10 @@ app.whenReady().then(async () => {
     }
   } catch (error) {
     ErrorHandler.logError(error, {
-      operation: 'start-web-server',
-      additionalData: { port: settingsManager?.getSettings()?.webServer?.port ?? 6969 }
+      operation: "start-web-server",
+      additionalData: {
+        port: settingsManager?.getSettings()?.webServer?.port ?? 6969,
+      },
     });
   }
 });

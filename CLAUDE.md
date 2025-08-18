@@ -27,31 +27,31 @@ Vibe Term is a terminal multiplexer interface for Claude Code built with React a
 
 ```bash
 # Install dependencies
-yarn install
+pnpm install
 
 # Run development server (React only)
-yarn dev
+pnpm dev
 
 # Run with Electron in development
-yarn electron:dev
+pnpm electron:dev
 
 # Build the application
-yarn build
+pnpm build
 
 # Create release build for Mac
-yarn build --mac
+pnpm build --mac
 
 # Create release build for Linux
-yarn build --linux
+pnpm build --linux
 
 # Run type checking
-yarn tsc
+pnpm tsc
 
 # Run linting
-yarn lint
+pnpm lint
 
 # Run the built application (Mac)
-yarn electron:run
+pnpm electron:run
 ```
 
 ## Project Structure

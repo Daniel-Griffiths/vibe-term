@@ -5,7 +5,7 @@ import os from "os";
 import { promisify } from "util";
 import { exec, ChildProcess } from "child_process";
 import { ShellUtils } from "../src/utils/shellUtils";
-import type { IPty } from "node-pty";
+import type { IPty } from "@lydell/node-pty";
 import { broadcastToWebClients } from "./web-server";
 import type { UnifiedItem } from "../src/types";
 import type {
@@ -19,20 +19,22 @@ import type {
   LocalIpResult,
   DiscordSettings,
   ImageResult,
-  AppSettings
+  AppSettings,
 } from "../src/types/ipc";
 
 const execAsync = promisify(exec);
 
 // Generic IPC handler type - now properly typed
-type IPCHandler<TArgs extends any[] = any[], TResult = any> = (...args: TArgs) => Promise<TResult>;
+type IPCHandler<TArgs extends any[] = any[], TResult = any> = (
+  ...args: TArgs
+) => Promise<TResult>;
 
 // IPC handlers registry for automatic endpoint generation
 const ipcHandlers = new Map<string, IPCHandler>();
 
 // Helper function to register IPC handlers with proper typing
 function registerIPCHandler<TArgs extends any[], TResult>(
-  name: string, 
+  name: string,
   handler: IPCHandler<TArgs, TResult>
 ) {
   ipcHandlers.set(name, handler as IPCHandler);
@@ -124,12 +126,12 @@ const lastNotificationTime = new Map<string, number>();
 function shouldSendNotification(projectId: string): boolean {
   const now = Date.now();
   const lastTime = lastNotificationTime.get(projectId);
-  
+
   if (!lastTime || now - lastTime > NOTIFICATION_DEBOUNCE_MS) {
     lastNotificationTime.set(projectId, now);
     return true;
   }
-  
+
   return false;
 }
 
@@ -150,7 +152,13 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
   // Process management
   registerIPCHandler<[string, string, string?, string?, boolean?], PTYResult>(
     "start-claude-process",
-    async (projectId, projectPath, command, projectName, yoloMode): Promise<PTYResult> => {
+    async (
+      projectId,
+      projectPath,
+      command,
+      projectName,
+      yoloMode
+    ): Promise<PTYResult> => {
       return await getOrCreateSharedPty(
         projectId,
         projectPath,
@@ -164,7 +172,6 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
   registerIPCHandler<[string, string], BaseResponse>(
     "claude-hook",
     async (hookType, projectId): Promise<BaseResponse> => {
-
       try {
         // Determine status based on hook type
         let status: string;
@@ -261,8 +268,9 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
       // Kill the tmux session (silently fails if not running)
       const state = readStateFile();
       const projects =
-        state.storedItems?.filter((item: UnifiedItem) => item.type === "project") ||
-        [];
+        state.storedItems?.filter(
+          (item: UnifiedItem) => item.type === "project"
+        ) || [];
       const project = projects.find((p: UnifiedItem) => p.id === projectId);
 
       if (project) {

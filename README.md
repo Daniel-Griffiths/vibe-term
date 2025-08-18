@@ -38,15 +38,15 @@ Vibe Term provides a visual interface for managing multiple Claude Code sessions
 To run the project locally run the following command:
 
 ```bash
-yarn dev
+pnpm dev
 ```
 
 And to create a release build run the following command:
 
 ```bash
 # Mac
-yarn build --mac
+pnpm build --mac
 
 # Linux
-yarn build --linux
+pnpm build --linux
 ```

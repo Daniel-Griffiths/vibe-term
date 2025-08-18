@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { Button } from "./button";
 import { Input } from "./input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs";
-import { useAppStore } from "../stores/settings";
 import { communicationAPI } from "../utils/communication";
+import type { AppSettings } from "../types/ipc";
 import {
   Settings as SettingsIcon,
   MessageCircle,
@@ -20,8 +20,15 @@ interface IFormSettingsProps {
   onClose: () => void;
 }
 
+const defaultSettings: AppSettings = {
+  editor: { theme: 'vibe-term' },
+  desktop: { notifications: true },
+  webServer: { enabled: true, port: 6969 },
+  discord: { enabled: false, username: 'Vibe Term', webhookUrl: '' }
+};
+
 export default function FormSettings({ onClose }: IFormSettingsProps) {
-  const { settings, updateSettings } = useAppStore();
+  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [localSettings, setLocalSettings] = useState(settings);
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -32,10 +39,18 @@ export default function FormSettings({ onClose }: IFormSettingsProps) {
   const [hasTailscale, setHasTailscale] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Sync local settings with store when component mounts
+  // Load settings from backend when component mounts
   useEffect(() => {
-    setLocalSettings(settings);
-    setHasChanges(false);
+    communicationAPI.getAppSettings()
+      .then(result => {
+        if (result.success) {
+          setSettings(result.data);
+          setLocalSettings(result.data);
+        }
+      })
+      .catch(error => {
+        console.error('Failed to load settings:', error);
+      });
     
     communicationAPI.getLocalIp().then((result) => {
       if (result?.success && result?.data) {
@@ -45,7 +60,7 @@ export default function FormSettings({ onClose }: IFormSettingsProps) {
     }).catch((error) => {
       console.error("Failed to get local IP:", error);
     });
-  }, [settings]);
+  }, []);
 
   const handleSettingChange = (path: string, value: any) => {
     setLocalSettings((prev) => {
@@ -67,8 +82,9 @@ export default function FormSettings({ onClose }: IFormSettingsProps) {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Update Zustand store (automatically persists to localStorage)
-      updateSettings(localSettings);
+      // Save settings via IPC to backend
+      await communicationAPI.updateAppSettings(localSettings);
+      setSettings(localSettings);
       setHasChanges(false);
     } catch (error) {
       alert(`Error saving settings: ${error}`);

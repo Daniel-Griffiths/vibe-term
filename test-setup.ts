@@ -1,5 +1,5 @@
-import '@testing-library/jest-dom'
-import { vi } from 'vitest'
+import "@testing-library/jest-dom";
+import { vi } from "vitest";
 
 // Mock Electron APIs
 const mockElectronAPI = {
@@ -33,40 +33,40 @@ const mockElectronAPI = {
   onClaudeWorking: vi.fn(() => vi.fn()),
   onMissingDependencies: vi.fn(() => vi.fn()),
   onMainProcessReady: vi.fn(() => vi.fn()),
-}
+};
 
 // Setup global mocks
 global.window = Object.assign(global.window || {}, {
   electronAPI: mockElectronAPI,
-})
+});
 
 // Mock node modules for browser environment
-vi.mock('node:fs', () => ({
+vi.mock("node:fs", () => ({
   default: {},
-  promises: {}
-}))
+  promises: {},
+}));
 
-vi.mock('node:path', () => ({
+vi.mock("node:path", () => ({
   default: {
-    join: vi.fn((...args) => args.join('/')),
-    dirname: vi.fn((p) => p.split('/').slice(0, -1).join('/')),
-    basename: vi.fn((p) => p.split('/').pop() || ''),
-    resolve: vi.fn((...args) => args.join('/'))
-  }
-}))
+    join: vi.fn((...args) => args.join("/")),
+    dirname: vi.fn((p) => p.split("/").slice(0, -1).join("/")),
+    basename: vi.fn((p) => p.split("/").pop() || ""),
+    resolve: vi.fn((...args) => args.join("/")),
+  },
+}));
 
-vi.mock('node:os', () => ({
+vi.mock("node:os", () => ({
   default: {
-    platform: vi.fn(() => 'darwin'),
-    networkInterfaces: vi.fn(() => ({}))
-  }
-}))
+    platform: vi.fn(() => "darwin"),
+    networkInterfaces: vi.fn(() => ({})),
+  },
+}));
 
-vi.mock('child_process', () => ({
+vi.mock("child_process", () => ({
   spawn: vi.fn(),
-  exec: vi.fn()
-}))
+  exec: vi.fn(),
+}));
 
-vi.mock('node-pty', () => ({
-  spawn: vi.fn()
-}))
+vi.mock("@lydell/node-pty", () => ({
+  spawn: vi.fn(),
+}));

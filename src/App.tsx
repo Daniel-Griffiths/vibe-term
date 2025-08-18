@@ -9,7 +9,7 @@ import FormPanel from "./components/form-panel";
 import FormSettings from "./components/form-settings";
 import FormDependencies from "./components/form-dependencies";
 import FormConfirmation from "./components/form-confirmation";
-import { useAppStore, initializeStore } from "./stores/settings";
+import { useAppState } from "./hooks/use-app-state";
 import {
   communicationAPI,
   webSocketManager,
@@ -20,27 +20,25 @@ import type { UnifiedItem, TerminalOutput, ProcessExit } from "./types";
 import { ItemType } from "./types";
 
 function App() {
-  // Use Zustand store for persistent state
   const {
     items,
-    selectedItem,
-    setItems,
-    setSelectedItem,
     addItem,
+    setItems,
     updateItem,
-    updateStoredItem,
     deleteItem,
-  } = useAppStore();
+    selectedItem,
+    setSelectedItem,
+    updateStoredItem,
+  } = useAppState();
 
-  // Local UI state only
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [missingDeps, setMissingDeps] = useState<string[]>([]);
+  const [isPanelModalOpen, setIsPanelModalOpen] = useState(false);
+  const [editingPanel, setEditingPanel] = useState<UnifiedItem | null>(null);
   const [editingProject, setEditingProject] = useState<UnifiedItem | null>(
     null
   );
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isPanelModalOpen, setIsPanelModalOpen] = useState(false);
-  const [editingPanel, setEditingPanel] = useState<UnifiedItem | null>(null);
-  const [missingDeps, setMissingDeps] = useState<string[]>([]);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     isOpen: boolean;
     itemId: string | null;
@@ -83,9 +81,6 @@ function App() {
       "isWeb:",
       isWeb
     );
-
-    // Initialize the Zustand store with Electron backend data
-    initializeStore();
 
     // Set up event listeners - the communicationAPI handles environment detection
     const unsubscribeFunctions: (() => void)[] = [];
