@@ -3,9 +3,9 @@
  * Sets up hook configuration for status detection in vibe-term projects
  */
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'node:url';
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,94 +26,89 @@ export interface ClaudeHookConfig {
  */
 export async function setupClaudeHooks(projectPath: string): Promise<boolean> {
   try {
-    const claudeDir = path.join(projectPath, '.claude');
-    const settingsFile = path.join(claudeDir, 'settings.json');
-    
-    // Find the hook script - try multiple possible locations
-    const possibleHookPaths = [
-      // Development: from src/utils/ to hooks/
-      path.join(__dirname, '../../hooks/status-hook.sh'),
-      // Production: from dist-electron/ to hooks/
-      path.join(__dirname, '../hooks/status-hook.sh'),
-      // Packaged app: relative to app.getAppPath()
-      path.join(process.env.APP_ROOT || '', 'hooks/status-hook.sh'),
-      // Fallback: try current working directory
-      path.join(process.cwd(), 'hooks/status-hook.sh'),
-    ];
-    
-    let hookScriptPath = '';
-    for (const testPath of possibleHookPaths) {
-      if (fs.existsSync(testPath)) {
-        hookScriptPath = testPath;
-        break;
-      }
-    }
-    
-    if (!hookScriptPath) {
-      console.warn('Hook script not found in any expected location:', possibleHookPaths);
-      return false;
-    }
-    
+    const claudeDir = path.join(projectPath, ".claude");
+    const settingsFile = path.join(claudeDir, "settings.json");
+
     // Ensure .claude directory exists
     if (!fs.existsSync(claudeDir)) {
       fs.mkdirSync(claudeDir, { recursive: true });
     }
-    
-    // Create hook configuration
+
+    // Extract project ID from directory name
+    const projectId = path.basename(projectPath);
+    const vibeTermPort = process.env.VIBE_TERM_PORT || "6969";
+    const ipcEndpoint = `http://localhost:${vibeTermPort}/api/ipc/claude-hook`;
+
+    // Create hook configuration using direct curl commands
     const hookConfig: ClaudeHookConfig = {
       hooks: {
-        "Stop": [{
-          hooks: [{
-            type: "command",
-            command: `${hookScriptPath} Stop "${projectPath}" "$CLAUDE_SESSION_ID"`
-          }]
-        }],
-        "SubagentStop": [{
-          hooks: [{
-            type: "command", 
-            command: `${hookScriptPath} SubagentStop "${projectPath}" "$CLAUDE_SESSION_ID"`
-          }]
-        }],
-        "UserPromptSubmit": [{
-          hooks: [{
-            type: "command",
-            command: `${hookScriptPath} UserPromptSubmit "${projectPath}" "$CLAUDE_SESSION_ID"`
-          }]
-        }],
-        "Notification": [{
-          hooks: [{
-            type: "command",
-            command: `${hookScriptPath} Notification "${projectPath}" "$CLAUDE_SESSION_ID"`
-          }]
-        }]
-      }
+        Stop: [
+          {
+            hooks: [
+              {
+                type: "command",
+                command: `curl -s -X POST -H "Content-Type: application/json" -d '{"args":["Stop","${projectId}"]}' "${ipcEndpoint}" --max-time 1 --connect-timeout 1 || true`,
+              },
+            ],
+          },
+        ],
+        SubagentStop: [
+          {
+            hooks: [
+              {
+                type: "command",
+                command: `curl -s -X POST -H "Content-Type: application/json" -d '{"args":["SubagentStop","${projectId}"]}' "${ipcEndpoint}" --max-time 1 --connect-timeout 1 || true`,
+              },
+            ],
+          },
+        ],
+        UserPromptSubmit: [
+          {
+            hooks: [
+              {
+                type: "command",
+                command: `curl -s -X POST -H "Content-Type: application/json" -d '{"args":["UserPromptSubmit","${projectId}"]}' "${ipcEndpoint}" --max-time 1 --connect-timeout 1 || true`,
+              },
+            ],
+          },
+        ],
+        Notification: [
+          {
+            hooks: [
+              {
+                type: "command",
+                command: `curl -s -X POST -H "Content-Type: application/json" -d '{"args":["Notification","${projectId}"]}' "${ipcEndpoint}" --max-time 1 --connect-timeout 1 || true`,
+              },
+            ],
+          },
+        ],
+      },
     };
-    
+
     // Read existing settings if they exist
     let existingSettings: any = {};
     if (fs.existsSync(settingsFile)) {
       try {
-        const content = fs.readFileSync(settingsFile, 'utf-8');
+        const content = fs.readFileSync(settingsFile, "utf-8");
         existingSettings = JSON.parse(content);
       } catch (error) {
         console.warn(`Failed to parse existing Claude settings: ${error}`);
       }
     }
-    
+
     // Merge hook configuration with existing settings
     const mergedSettings = {
       ...existingSettings,
       hooks: {
         ...existingSettings.hooks,
-        ...hookConfig.hooks
-      }
+        ...hookConfig.hooks,
+      },
     };
-    
+
     // Write settings file
     fs.writeFileSync(settingsFile, JSON.stringify(mergedSettings, null, 2));
-    
+
     return true;
-    
   } catch (error) {
     console.error(`Failed to setup Claude hooks for ${projectPath}:`, error);
     return false;
@@ -125,40 +120,49 @@ export async function setupClaudeHooks(projectPath: string): Promise<boolean> {
  */
 export async function removeClaudeHooks(projectPath: string): Promise<boolean> {
   try {
-    const settingsFile = path.join(projectPath, '.claude', 'settings.json');
-    
+    const settingsFile = path.join(projectPath, ".claude", "settings.json");
+
     if (!fs.existsSync(settingsFile)) {
       return true; // Nothing to remove
     }
-    
+
     // Read existing settings
-    const content = fs.readFileSync(settingsFile, 'utf-8');
+    const content = fs.readFileSync(settingsFile, "utf-8");
     const settings = JSON.parse(content);
-    
+
     // Remove vibe-term hooks (keep other hooks if they exist)
     if (settings.hooks) {
-      const hooksToRemove = ['Stop', 'SubagentStop', 'UserPromptSubmit', 'Notification'];
-      
-      hooksToRemove.forEach(hookName => {
+      const hooksToRemove = [
+        "Stop",
+        "SubagentStop",
+        "UserPromptSubmit",
+        "Notification",
+      ];
+
+      hooksToRemove.forEach((hookName) => {
         if (settings.hooks[hookName]) {
-          // Filter out vibe-term hooks (those containing status-hook.sh)
-          settings.hooks[hookName] = settings.hooks[hookName].filter((hook: any) => {
-            return !hook.hooks?.some((h: any) => h.command?.includes('status-hook.sh'));
-          });
-          
+          // Filter out vibe-term hooks (those containing claude-hook endpoint)
+          settings.hooks[hookName] = settings.hooks[hookName].filter(
+            (hook: any) => {
+              return !hook.hooks?.some((h: any) =>
+                h.command?.includes("/api/ipc/claude-hook")
+              );
+            }
+          );
+
           // Remove empty hook arrays
           if (settings.hooks[hookName].length === 0) {
             delete settings.hooks[hookName];
           }
         }
       });
-      
+
       // Remove hooks object if empty
       if (Object.keys(settings.hooks).length === 0) {
         delete settings.hooks;
       }
     }
-    
+
     // Write back the cleaned settings
     if (Object.keys(settings).length === 0) {
       // Remove the file if it's empty
@@ -166,9 +170,8 @@ export async function removeClaudeHooks(projectPath: string): Promise<boolean> {
     } else {
       fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2));
     }
-    
+
     return true;
-    
   } catch (error) {
     console.error(`Failed to remove Claude hooks for ${projectPath}:`, error);
     return false;
@@ -180,23 +183,24 @@ export async function removeClaudeHooks(projectPath: string): Promise<boolean> {
  */
 export function areClaudeHooksConfigured(projectPath: string): boolean {
   try {
-    const settingsFile = path.join(projectPath, '.claude', 'settings.json');
-    
+    const settingsFile = path.join(projectPath, ".claude", "settings.json");
+
     if (!fs.existsSync(settingsFile)) {
       return false;
     }
-    
-    const content = fs.readFileSync(settingsFile, 'utf-8');
+
+    const content = fs.readFileSync(settingsFile, "utf-8");
     const settings = JSON.parse(content);
-    
+
     // Check if our hooks are configured
-    const requiredHooks = ['Stop', 'UserPromptSubmit'];
-    return requiredHooks.some(hookName => {
+    const requiredHooks = ["Stop", "UserPromptSubmit"];
+    return requiredHooks.some((hookName) => {
       return settings.hooks?.[hookName]?.some((hook: any) => {
-        return hook.hooks?.some((h: any) => h.command?.includes('status-hook.sh'));
+        return hook.hooks?.some((h: any) =>
+          h.command?.includes("/api/ipc/claude-hook")
+        );
       });
     });
-    
   } catch (error) {
     return false;
   }

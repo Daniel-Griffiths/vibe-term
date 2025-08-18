@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/danielgriffiths/Documents/personal/vibe-term/hooks/status-hook.sh Stop \"/Users/danielgriffiths/Documents/personal/vibe-term\" \"$CLAUDE_SESSION_ID\""
+            "command": "curl -s -X POST -H \"Content-Type: application/json\" -d '{\"args\":[\"Stop\",\"vibe-term\"]}' \"http://localhost:6969/api/ipc/claude-hook\" --max-time 1 --connect-timeout 1 || true"
           }
         ]
       }
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/danielgriffiths/Documents/personal/vibe-term/hooks/status-hook.sh SubagentStop \"/Users/danielgriffiths/Documents/personal/vibe-term\" \"$CLAUDE_SESSION_ID\""
+            "command": "curl -s -X POST -H \"Content-Type: application/json\" -d '{\"args\":[\"SubagentStop\",\"vibe-term\"]}' \"http://localhost:6969/api/ipc/claude-hook\" --max-time 1 --connect-timeout 1 || true"
           }
         ]
       }
@@ -25,7 +25,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/danielgriffiths/Documents/personal/vibe-term/hooks/status-hook.sh UserPromptSubmit \"/Users/danielgriffiths/Documents/personal/vibe-term\" \"$CLAUDE_SESSION_ID\""
+            "command": "curl -s -X POST -H \"Content-Type: application/json\" -d '{\"args\":[\"UserPromptSubmit\",\"vibe-term\"]}' \"http://localhost:6969/api/ipc/claude-hook\" --max-time 1 --connect-timeout 1 || true"
           }
         ]
       }
@@ -35,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/danielgriffiths/Documents/personal/vibe-term/hooks/status-hook.sh Notification \"/Users/danielgriffiths/Documents/personal/vibe-term\" \"$CLAUDE_SESSION_ID\""
+            "command": "curl -s -X POST -H \"Content-Type: application/json\" -d '{\"args\":[\"Notification\",\"vibe-term\"]}' \"http://localhost:6969/api/ipc/claude-hook\" --max-time 1 --connect-timeout 1 || true"
           }
         ]
       }
