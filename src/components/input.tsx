@@ -1,5 +1,5 @@
 import { useState, useCallback, forwardRef, InputHTMLAttributes } from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/utils/cn";
 import { Copy, Check } from "lucide-react";
 import { Button } from "./button";
 

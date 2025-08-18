@@ -1,34 +1,38 @@
-import * as React from "react"
-import { cn } from "../lib/utils"
+import * as React from "react";
+import { cn } from "../utils/cn";
 
 const TabsContext = React.createContext<{
-  value?: string
-  onValueChange?: (value: string) => void
-}>({})
+  value?: string;
+  onValueChange?: (value: string) => void;
+}>({});
 
 interface ITabsProps extends React.HTMLAttributes<HTMLDivElement> {
-  value?: string
-  defaultValue?: string
-  onValueChange?: (value: string) => void
+  value?: string;
+  defaultValue?: string;
+  onValueChange?: (value: string) => void;
 }
 
-export function Tabs({ 
-  value: controlledValue, 
-  defaultValue, 
-  onValueChange, 
+export function Tabs({
+  value: controlledValue,
+  defaultValue,
+  onValueChange,
   className,
   children,
-  ...props 
+  ...props
 }: ITabsProps) {
-  const [uncontrolledValue, setUncontrolledValue] = React.useState(defaultValue)
-  const value = controlledValue ?? uncontrolledValue
+  const [uncontrolledValue, setUncontrolledValue] =
+    React.useState(defaultValue);
+  const value = controlledValue ?? uncontrolledValue;
 
-  const handleValueChange = React.useCallback((newValue: string) => {
-    if (controlledValue === undefined) {
-      setUncontrolledValue(newValue)
-    }
-    onValueChange?.(newValue)
-  }, [controlledValue, onValueChange])
+  const handleValueChange = React.useCallback(
+    (newValue: string) => {
+      if (controlledValue === undefined) {
+        setUncontrolledValue(newValue);
+      }
+      onValueChange?.(newValue);
+    },
+    [controlledValue, onValueChange]
+  );
 
   return (
     <TabsContext.Provider value={{ value, onValueChange: handleValueChange }}>
@@ -36,10 +40,13 @@ export function Tabs({
         {children}
       </div>
     </TabsContext.Provider>
-  )
+  );
 }
 
-export function TabsList({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+export function TabsList({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={cn(
@@ -48,21 +55,22 @@ export function TabsList({ className, ...props }: React.HTMLAttributes<HTMLDivEl
       )}
       {...props}
     />
-  )
+  );
 }
 
-interface ITabsTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  value: string
+interface ITabsTriggerProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  value: string;
 }
 
-export function TabsTrigger({ 
-  value, 
+export function TabsTrigger({
+  value,
   className,
   children,
-  ...props 
+  ...props
 }: ITabsTriggerProps) {
-  const context = React.useContext(TabsContext)
-  const isSelected = context.value === value
+  const context = React.useContext(TabsContext);
+  const isSelected = context.value === value;
 
   return (
     <button
@@ -78,30 +86,33 @@ export function TabsTrigger({
     >
       {children}
     </button>
-  )
+  );
 }
 
 interface ITabsContentProps extends React.HTMLAttributes<HTMLDivElement> {
-  value: string
+  value: string;
 }
 
-export function TabsContent({ 
-  value, 
+export function TabsContent({
+  value,
   className,
   children,
-  ...props 
+  ...props
 }: ITabsContentProps) {
-  const context = React.useContext(TabsContext)
-  const isSelected = context.value === value
+  const context = React.useContext(TabsContext);
+  const isSelected = context.value === value;
 
-  if (!isSelected) return null
+  if (!isSelected) return null;
 
   return (
     <div
-      className={cn("mt-2 ring-offset-background focus-visible:outline-none", className)}
+      className={cn(
+        "mt-2 ring-offset-background focus-visible:outline-none",
+        className
+      )}
       {...props}
     >
       {children}
     </div>
-  )
+  );
 }
