@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "author": "Daniel Griffiths <contact@danielgriffiths.dev>",
   "description": "A terminal multiplexer interface for Claude Code",
+  "license": "MIT",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {

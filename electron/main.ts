@@ -199,10 +199,15 @@ async function getOrCreateSharedPty(
       sessionName: tmuxSessionName,
     });
 
+    const claudeCommand = yoloMode
+      ? "claude --dangerously-skip-permissions"
+      : "claude";
+
     const createCommand = ShellUtils.tmuxCommand({
       action: "new-attach",
       sessionName: tmuxSessionName,
       projectPath,
+      startCommand: shouldStartClaude ? claudeCommand : undefined,
     });
 
     // Try attach first, fallback to create on failure
@@ -247,14 +252,6 @@ async function getOrCreateSharedPty(
       projectId: projectId,
       data: "",
     });
-
-    // Send Claude command only if we created a new session
-    if (shouldStartClaude) {
-      const claudeCommand = yoloMode
-        ? "claude --dangerously-skip-permissions\r"
-        : "claude\r";
-      proc.write(claudeCommand);
-    }
 
     // Start background runCommand if provided
     if (runCommand && runCommand.trim()) {
@@ -309,7 +306,7 @@ async function getOrCreateSharedPty(
         const trimmedBuffer =
           newBuffer.length > 10000 ? newBuffer.slice(-10000) : newBuffer;
         terminalBuffers.set(projectId, trimmedBuffer);
-        
+
         // Status detection is now handled by Claude hooks
         // No need to parse terminal output for status indicators
 

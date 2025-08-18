@@ -217,7 +217,11 @@ export class ShellUtils {
       case 'new-attach':
         command = `tmux new-session -s "${sessionName}"`;
         if (projectPath) command += ` -c "${projectPath}"`;
-        if (startCommand) command += ` "${startCommand}"`;
+        if (startCommand) {
+          // Use the format: tmux new-session -s sessionName "zsh -i -c 'command; exec zsh'"
+          // This runs the command and then keeps an interactive shell open
+          command += ` "zsh -i -c '${startCommand}; exec zsh'"`;
+        }
         command += ` \\; ${allOptions.join(' \\; ')}`;
         break;
 
