@@ -9,7 +9,7 @@ interface IViewWebviewProps {
   showUrlBar?: boolean;
 }
 
-export default function ViewWebview({
+export function ViewWebview({
   url,
   title,
   showUrlBar = true,

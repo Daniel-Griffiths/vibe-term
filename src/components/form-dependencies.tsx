@@ -31,7 +31,7 @@ const getInstallCommand = (dep: string) => {
   }
 };
 
-export default function FormDependencies({
+export function FormDependencies({
   data,
   onClose,
 }: IFormDependenciesProps) {

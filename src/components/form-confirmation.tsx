@@ -11,7 +11,7 @@ interface IFormConfirmationProps {
   onCancel: () => void;
 }
 
-export default function FormConfirmation({
+export function FormConfirmation({
   data,
   onSubmit,
   onCancel,

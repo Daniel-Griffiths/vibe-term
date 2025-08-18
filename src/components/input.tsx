@@ -8,7 +8,7 @@ export interface IInputProps extends InputHTMLAttributes<HTMLInputElement> {
   onCopy?: () => void;
 }
 
-const Input = forwardRef<HTMLInputElement, IInputProps>(
+export const Input = forwardRef<HTMLInputElement, IInputProps>(
   ({ className, type, hasCopy, onCopy, ...props }, ref) => {
     const [copied, setCopied] = useState(false);
 
@@ -71,5 +71,3 @@ const Input = forwardRef<HTMLInputElement, IInputProps>(
   }
 );
 Input.displayName = "Input";
-
-export { Input };

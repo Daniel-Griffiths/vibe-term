@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { NonIdealState } from "./non-ideal-state";
 import { ContextMenu, ContextMenuItem } from "./context-menu";
-import Modal from "./modal";
+import { Modal } from "./modal";
 import type { UnifiedItem } from "../types";
 
 // Utility function to check if a file is an image
@@ -60,7 +60,7 @@ interface OpenFile {
   isDirty: boolean;
 }
 
-export default function ViewFileEditor({
+export function ViewFileEditor({
   selectedProject,
 }: IViewFileEditorProps) {
   const [fileTree, setFileTree] = useState<FileNode[]>([]);

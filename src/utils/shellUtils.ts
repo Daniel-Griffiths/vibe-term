@@ -1,4 +1,4 @@
-import { spawn, exec } from 'child_process';
+import { exec } from 'child_process';
 import { promisify } from 'util';
 import os from 'os';
 
@@ -105,7 +105,7 @@ export class ShellUtils {
         cwd,
         env,
         timeout,
-        shell
+        shell: shell
       });
 
       return {
@@ -114,12 +114,13 @@ export class ShellUtils {
         error: stderr || undefined,
         code: 0
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as Error & { stdout?: string; stderr?: string; code?: number };
       return {
         success: false,
-        output: error.stdout || undefined,
-        error: error.stderr || error.message,
-        code: error.code || 1
+        output: err.stdout || undefined,
+        error: err.stderr || err.message,
+        code: err.code || 1
       };
     }
   }
@@ -170,7 +171,7 @@ export class ShellUtils {
       ]
     };
 
-    const commands = baseCommands[name] || [`${name} --version`, `${name} -v`];
+    const commands = baseCommands[name as keyof typeof baseCommands] || [`${name} --version`, `${name} -v`];
     const fallbackCommands: string[] = [];
     
     // Add login shell variants for Unix-like systems
@@ -237,7 +238,7 @@ export class ShellUtils {
     try {
       const result = await this.execute(`tmux has-session -t "${sessionName}"`);
       return result.success;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -283,10 +284,11 @@ export class ShellUtils {
   static async killTmuxSession(sessionName: string): Promise<CommandResult> {
     try {
       return await this.execute(`tmux kill-session -t "${sessionName}"`);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as Error;
       return { 
         success: false, 
-        error: error.message || `Failed to kill tmux session ${sessionName}` 
+        error: err.message || `Failed to kill tmux session ${sessionName}` 
       };
     }
   }

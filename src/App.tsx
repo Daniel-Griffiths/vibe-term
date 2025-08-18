@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import ProjectList from "./components/project-list";
-import ViewProject from "./components/view-project";
-import Modal from "./components/modal";
-import FormProject from "./components/form-project";
-import FormPanel from "./components/form-panel";
-import FormSettings from "./components/form-settings";
-import FormDependencies from "./components/form-dependencies";
-import FormConfirmation from "./components/form-confirmation";
+import { ProjectList } from "./components/project-list";
+import { ViewProject } from "./components/view-project";
+import { Modal } from "./components/modal";
+import { FormProject } from "./components/form-project";
+import { FormPanel } from "./components/form-panel";
+import { FormSettings } from "./components/form-settings";
+import { FormDependencies } from "./components/form-dependencies";
+import { FormConfirmation } from "./components/form-confirmation";
 import { useAppState } from "./hooks/use-app-state";
 import {
   communicationAPI,

@@ -15,7 +15,7 @@ interface IFormPanelProps {
   onCancel: () => void;
 }
 
-export default function FormPanel({ data, onSubmit, onCancel }: IFormPanelProps) {
+export function FormPanel({ data, onSubmit, onCancel }: IFormPanelProps) {
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [selectedIcon, setSelectedIcon] = useState("globe");

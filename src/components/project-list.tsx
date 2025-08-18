@@ -338,7 +338,7 @@ function SortablePanelCard({
   );
 }
 
-export default function ProjectList({
+export function ProjectList({
   projects,
   selectedProject,
   panels,

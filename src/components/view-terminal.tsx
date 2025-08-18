@@ -23,7 +23,7 @@ export interface ViewTerminalRef {
   fitTerminal: (projectId: string) => void;
 }
 
-const ViewTerminal = forwardRef<ViewTerminalRef, IViewTerminalProps>(
+export const ViewTerminal = forwardRef<ViewTerminalRef, IViewTerminalProps>(
   ({ selectedProject, projects }, ref) => {
     const prevProjectsRef = useRef<UnifiedItem[]>([]);
 
@@ -151,5 +151,3 @@ const ViewTerminal = forwardRef<ViewTerminalRef, IViewTerminalProps>(
 );
 
 ViewTerminal.displayName = "ViewTerminal";
-
-export default ViewTerminal;

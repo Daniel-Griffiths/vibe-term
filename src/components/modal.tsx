@@ -38,7 +38,7 @@ const intentColors = {
   info: "text-blue-400",
 };
 
-export default function Modal({
+export function Modal({
   isOpen,
   onClose,
   title,

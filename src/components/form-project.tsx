@@ -27,7 +27,7 @@ interface IFormProjectProps {
   onCancel: () => void;
 }
 
-export default function FormProject({
+export function FormProject({
   data,
   onSubmit,
   onCancel,

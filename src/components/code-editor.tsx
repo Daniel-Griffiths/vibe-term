@@ -44,7 +44,7 @@ const defaultDiffOptions = {
   wordWrap: "off",
 };
 
-function getLanguageFromPath(path: string): string {
+export function getLanguageFromPath(path: string): string {
   const ext = path.split(".").pop()?.toLowerCase();
   const languageMap: Record<string, string> = {
     ts: "typescript",
@@ -361,8 +361,8 @@ export function SharedDiffEditor({
   const [editorInstance, setEditorInstance] = React.useState<any>(null);
 
   // Mobile-responsive options
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-  
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+
   const mergedOptions = {
     ...defaultDiffOptions,
     readOnly,
@@ -415,6 +415,3 @@ export function SharedDiffEditor({
     />
   );
 }
-
-// Helper function for language detection (can be used by both components)
-export { getLanguageFromPath };

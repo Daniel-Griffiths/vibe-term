@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Tabs, TabsList, TabsTrigger } from "./tabs";
 import { Input } from "./input";
-import ViewTerminal, { type ViewTerminalRef } from "./view-terminal";
-import ViewGitDiff from "./view-git-diff";
-import ViewFileEditor from "./view-file-editor";
-import ViewWebview from "./view-webview";
+import { ViewTerminal, type ViewTerminalRef } from "./view-terminal";
+import { ViewGitDiff } from "./view-git-diff";
+import { ViewFileEditor } from "./view-file-editor";
+import { ViewWebview } from "./view-webview";
 import { communicationAPI } from "../utils/communication";
 import { Terminal, GitBranch, Globe, FileText } from "lucide-react";
 import type { UnifiedItem } from "../types";
@@ -24,7 +24,7 @@ interface IViewProjectProps {
   setSidebarOpen?: (open: boolean) => void;
 }
 
-export default function ViewProject({
+export function ViewProject({
   selectedItem,
   items,
 }: IViewProjectProps) {

@@ -43,7 +43,7 @@ interface GitDiffData {
   behind: number;
 }
 
-export default function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
+export function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
   const [diffData, setDiffData] = useState<GitDiffData | null>(null);
   const [selectedFile, setSelectedFile] = useState<GitFile | null>(null);
   const [loading, setLoading] = useState(false);

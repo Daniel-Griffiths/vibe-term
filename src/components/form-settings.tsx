@@ -27,7 +27,7 @@ const defaultSettings: AppSettings = {
   discord: { enabled: false, username: 'Vibe Term', webhookUrl: '' }
 };
 
-export default function FormSettings({ onClose }: IFormSettingsProps) {
+export function FormSettings({ onClose }: IFormSettingsProps) {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [localSettings, setLocalSettings] = useState(settings);
   const [hasChanges, setHasChanges] = useState(false);
