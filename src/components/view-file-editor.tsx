@@ -80,13 +80,13 @@ export default function ViewFileEditor({
   }>({ isOpen: false, fileName: "", onConfirm: () => {} });
 
   const loadFileTree = useCallback(async () => {
-    if (!selectedProject) return;
+    if (!selectedProject || selectedProject.type !== 'project' || !selectedProject.path) return;
 
     setLoading(true);
     setError(null);
     try {
       const result = await communicationAPI.getProjectFiles(
-        selectedProject.path!
+        selectedProject.path
       );
       if (result?.success) {
         setFileTree(result.data || []);
@@ -137,7 +137,7 @@ export default function ViewFileEditor({
       return;
     }
 
-    if (!selectedProject) return;
+    if (!selectedProject || selectedProject.type !== 'project' || !selectedProject.path) return;
 
     // Check if current active file is unchanged and can be replaced
     const currentFile = activeFile
@@ -170,7 +170,7 @@ export default function ViewFileEditor({
 
     try {
       const result = await communicationAPI.readProjectFile(
-        selectedProject.path!,
+        selectedProject.path,
         filePath
       );
       if (result?.success) {
@@ -352,11 +352,11 @@ export default function ViewFileEditor({
   const saveFile = useCallback(
     async (filePath: string) => {
       const file = openFiles.find((f) => f.path === filePath);
-      if (!file || !selectedProject) return;
+      if (!file || !selectedProject || selectedProject.type !== 'project' || !selectedProject.path) return;
 
       try {
         const result = await communicationAPI.saveFile(
-          selectedProject.path!,
+          selectedProject.path,
           filePath,
           file.content
         );
@@ -710,7 +710,7 @@ function FileEditorContent({
     return (
       <CodeEditorImageViewer
         filePath={currentFile.path}
-        projectPath={selectedProject.path!}
+        projectPath={selectedProject.path || ''}
         fileName={currentFile.name}
       />
     );

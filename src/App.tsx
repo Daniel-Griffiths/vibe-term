@@ -17,6 +17,7 @@ import {
   isWeb,
 } from "./utils/communication";
 import type { UnifiedItem, TerminalOutput, ProcessExit } from "./types";
+import { ItemType } from "./types";
 
 function App() {
   // Use Zustand store for persistent state
@@ -72,8 +73,8 @@ function App() {
   }, []);
 
   // Get projects and panels from unified items
-  const projects = items.filter((item) => item.type === "project");
-  const panels = items.filter((item) => item.type === "panel");
+  const projects = items.filter((item) => item.type === ItemType.PROJECT);
+  const panels = items.filter((item) => item.type === ItemType.PANEL);
 
   useEffect(() => {
     console.log(
@@ -267,7 +268,7 @@ function App() {
       // Update using unified structure
       updateStoredItem(editingProject.id, {
         id: projectData.name,
-        type: "project",
+        type: ItemType.PROJECT,
         name: projectData.name,
         path: projectData.path,
         icon: projectData.icon,
@@ -292,7 +293,7 @@ function App() {
       // Create new project using unified structure
       const newItem: UnifiedItem = {
         id: projectData.name,
-        type: "project",
+        type: ItemType.PROJECT,
         name: projectData.name,
         path: projectData.path,
         icon: projectData.icon,
@@ -316,14 +317,14 @@ function App() {
     }
     // Notify about the project selection for notifications
     const item = items.find((i) => i.id === itemId);
-    if (item?.type === "project") {
+    if (item?.type === ItemType.PROJECT) {
       communicationAPI.setSelectedProject(itemId);
     }
   };
 
   const handleProjectStart = async (projectId: string, command: string) => {
     const project = items.find(
-      (item) => item.id === projectId && item.type === "project"
+      (item) => item.id === projectId && item.type === ItemType.PROJECT
     );
     if (!project) return;
 
@@ -381,7 +382,7 @@ function App() {
 
   const handleProjectEdit = (projectId: string) => {
     const project = items.find(
-      (item) => item.id === projectId && item.type === "project"
+      (item) => item.id === projectId && item.type === ItemType.PROJECT
     );
     if (project) {
       setEditingProject(project);
@@ -423,8 +424,8 @@ function App() {
   };
 
   const handleProjectReorder = (startIndex: number, endIndex: number) => {
-    const projectItems = items.filter((item) => item.type === "project");
-    const panelItems = items.filter((item) => item.type === "panel");
+    const projectItems = items.filter((item) => item.type === ItemType.PROJECT);
+    const panelItems = items.filter((item) => item.type === ItemType.PANEL);
 
     const reorderedProjects = Array.from(projectItems);
     const [removed] = reorderedProjects.splice(startIndex, 1);
@@ -434,8 +435,8 @@ function App() {
   };
 
   const handlePanelReorder = (startIndex: number, endIndex: number) => {
-    const projectItems = items.filter((item) => item.type === "project");
-    const panelItems = items.filter((item) => item.type === "panel");
+    const projectItems = items.filter((item) => item.type === ItemType.PROJECT);
+    const panelItems = items.filter((item) => item.type === ItemType.PANEL);
 
     const reorderedPanels = Array.from(panelItems);
     const [removed] = reorderedPanels.splice(startIndex, 1);
@@ -455,7 +456,7 @@ function App() {
 
   const handlePanelEdit = (panelId: string) => {
     const panel = items.find(
-      (item) => item.id === panelId && item.type === "panel"
+      (item) => item.id === panelId && item.type === ItemType.PANEL
     );
     if (panel) {
       setEditingPanel(panel);
@@ -483,7 +484,7 @@ function App() {
     } else {
       // Find the first available panel ID
       const existingIds = items
-        .filter((item) => item.type === "panel")
+        .filter((item) => item.type === ItemType.PANEL)
         .map((item) => parseInt(item.id))
         .filter((id) => !isNaN(id));
       const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 0;
@@ -491,7 +492,7 @@ function App() {
 
       const newItem: UnifiedItem = {
         id: newPanelId,
-        type: "panel",
+        type: ItemType.PANEL,
         name: panelData.name,
         url: panelData.url,
         icon: panelData.icon,

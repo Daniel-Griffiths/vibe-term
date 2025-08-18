@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "./button";
-import { RotateCcw, Code, ArrowLeft, ArrowRight, Home } from "lucide-react";
+import { NonIdealState } from "./non-ideal-state";
+import { RotateCcw, Code, ArrowLeft, ArrowRight, Home, Globe } from "lucide-react";
 
 interface IViewWebviewProps {
-  url: string;
-  title: string;
+  url?: string;
+  title?: string;
   showUrlBar?: boolean;
 }
 
@@ -18,6 +19,17 @@ export default function ViewWebview({
   const [originalUrl] = useState(url);
   const isElectron =
     typeof window !== "undefined" && (window as any).electronAPI;
+
+  // Handle undefined URL
+  if (!url) {
+    return (
+      <NonIdealState
+        icon={Globe}
+        title="No URL Configured"
+        description={title ? `Configure a URL for ${title}` : "Configure a URL to display content here"}
+      />
+    );
+  }
 
   const handleWebviewReload = () => {
     if (isElectron && webviewRef) {
@@ -73,11 +85,6 @@ export default function ViewWebview({
                 onClick={handleGoBack}
                 disabled={!isElectron}
                 className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                title={
-                  isElectron
-                    ? "Go back"
-                    : "Navigation not available in web mode"
-                }
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
@@ -86,11 +93,6 @@ export default function ViewWebview({
                 onClick={handleGoForward}
                 disabled={!isElectron}
                 className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                title={
-                  isElectron
-                    ? "Go forward"
-                    : "Navigation not available in web mode"
-                }
               >
                 <ArrowRight className="h-4 w-4" />
               </Button>
@@ -98,7 +100,6 @@ export default function ViewWebview({
                 size="sm"
                 onClick={handleWebviewReload}
                 className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white"
-                title="Reload webview"
               >
                 <RotateCcw className="h-4 w-4" />
               </Button>
@@ -106,7 +107,6 @@ export default function ViewWebview({
                 size="sm"
                 onClick={handleGoHome}
                 className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white"
-                title="Go home"
               >
                 <Home className="h-4 w-4" />
               </Button>
@@ -124,9 +124,6 @@ export default function ViewWebview({
               onClick={handleGoBack}
               disabled={!isElectron}
               className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-              title={
-                isElectron ? "Go back" : "Navigation not available in web mode"
-              }
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -135,11 +132,6 @@ export default function ViewWebview({
               onClick={handleGoForward}
               disabled={!isElectron}
               className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-              title={
-                isElectron
-                  ? "Go forward"
-                  : "Navigation not available in web mode"
-              }
             >
               <ArrowRight className="h-4 w-4" />
             </Button>
@@ -147,7 +139,6 @@ export default function ViewWebview({
               size="sm"
               onClick={handleWebviewReload}
               className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white"
-              title="Reload webview"
             >
               <RotateCcw className="h-4 w-4" />
             </Button>
@@ -155,7 +146,6 @@ export default function ViewWebview({
               size="sm"
               onClick={handleGoHome}
               className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white"
-              title="Go home"
             >
               <Home className="h-4 w-4" />
             </Button>
@@ -167,11 +157,6 @@ export default function ViewWebview({
               onClick={handleOpenDevTools}
               disabled={!isElectron}
               className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-              title={
-                isElectron
-                  ? "Open DevTools"
-                  : "DevTools not available in web mode"
-              }
             >
               <Code className="h-4 w-4" />
             </Button>
@@ -185,14 +170,12 @@ export default function ViewWebview({
           ref={setWebviewRef}
           src={url}
           className={`flex-1 bg-black`}
-          title={title}
         />
       ) : (
         <iframe
           ref={setIframeRef}
           src={url}
           className={`flex-1 bg-black`}
-          title={title}
           allow="fullscreen"
           sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-downloads"
         />

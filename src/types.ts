@@ -35,7 +35,10 @@ export interface ProcessExit {
   code: number | null;
 }
 
-export type ItemType = 'project' | 'panel';
+export enum ItemType {
+  PROJECT = 'project',
+  PANEL = 'panel',
+}
 
 export interface UnifiedItem {
   id: string;

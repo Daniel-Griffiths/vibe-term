@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { communicationAPI } from "../utils/communication";
 import type { UnifiedItem } from "../types";
+import { ItemType } from "../types";
 
 export interface AppSettings {
   editor: {
@@ -72,9 +73,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({
         items: itemsResult.success ? itemsResult.data.map((item: any) => ({
           ...item,
-          status: item.type === "project" ? "idle" : undefined,
-          lastActivity: item.type === "project" ? new Date().toISOString() : undefined,
-          output: item.type === "project" ? [] : undefined,
+          status: item.type === ItemType.PROJECT ? "idle" : undefined,
+          lastActivity: item.type === ItemType.PROJECT ? new Date().toISOString() : undefined,
+          output: item.type === ItemType.PROJECT ? [] : undefined,
         })) : [],
         settings: settingsResult.success ? settingsResult.data : state.settings,
         isLoading: false,

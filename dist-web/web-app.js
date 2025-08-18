@@ -29495,6 +29495,11 @@ const createImpl = (createState) => {
   return useBoundStore;
 };
 const create = (createState) => createState ? createImpl(createState) : createImpl;
+var ItemType = /* @__PURE__ */ ((ItemType2) => {
+  ItemType2["PROJECT"] = "project";
+  ItemType2["PANEL"] = "panel";
+  return ItemType2;
+})(ItemType || {});
 const useAppStore = create((set, get) => ({
   // Initial state
   items: [],
@@ -29519,9 +29524,9 @@ const useAppStore = create((set, get) => ({
       set({
         items: itemsResult.success ? itemsResult.data.map((item) => ({
           ...item,
-          status: item.type === "project" ? "idle" : void 0,
-          lastActivity: item.type === "project" ? (/* @__PURE__ */ new Date()).toISOString() : void 0,
-          output: item.type === "project" ? [] : void 0
+          status: item.type === ItemType.PROJECT ? "idle" : void 0,
+          lastActivity: item.type === ItemType.PROJECT ? (/* @__PURE__ */ new Date()).toISOString() : void 0,
+          output: item.type === ItemType.PROJECT ? [] : void 0
         })) : [],
         settings: settingsResult.success ? settingsResult.data : state.settings,
         isLoading: false,
@@ -30719,7 +30724,7 @@ function ViewFileEditor({
   const [confirmDialog, setConfirmDialog] = reactExports.useState({ isOpen: false, fileName: "", onConfirm: () => {
   } });
   const loadFileTree = reactExports.useCallback(async () => {
-    if (!selectedProject) return;
+    if (!selectedProject || selectedProject.type !== "project" || !selectedProject.path) return;
     setLoading(true);
     setError(null);
     try {
@@ -30767,7 +30772,7 @@ function ViewFileEditor({
       setActiveFile(filePath);
       return;
     }
-    if (!selectedProject) return;
+    if (!selectedProject || selectedProject.type !== "project" || !selectedProject.path) return;
     const currentFile2 = activeFile ? openFiles.find((f) => f.path === activeFile) : null;
     const shouldReplaceCurrentFile = currentFile2 && !currentFile2.isDirty;
     if (isImageFile(filePath)) {
@@ -30946,7 +30951,7 @@ function ViewFileEditor({
   const saveFile = reactExports.useCallback(
     async (filePath) => {
       const file = openFiles.find((f) => f.path === filePath);
-      if (!file || !selectedProject) return;
+      if (!file || !selectedProject || selectedProject.type !== "project" || !selectedProject.path) return;
       try {
         const result = await communicationAPI.saveFile(
           selectedProject.path,
@@ -31242,7 +31247,7 @@ function FileEditorContent({
       CodeEditorImageViewer,
       {
         filePath: currentFile.path,
-        projectPath: selectedProject.path,
+        projectPath: selectedProject.path || "",
         fileName: currentFile.name
       }
     );
@@ -31266,6 +31271,16 @@ function ViewWebview({
   const [iframeRef, setIframeRef] = reactExports.useState(null);
   const [originalUrl] = reactExports.useState(url);
   const isElectron2 = typeof window !== "undefined" && window.electronAPI;
+  if (!url) {
+    return /* @__PURE__ */ jsxRuntimeExports.jsx(
+      NonIdealState,
+      {
+        icon: Globe,
+        title: "No URL Configured",
+        description: title ? `Configure a URL for ${title}` : "Configure a URL to display content here"
+      }
+    );
+  }
   const handleWebviewReload = () => {
     if (isElectron2 && webviewRef) {
       webviewRef.reload();
@@ -31310,7 +31325,6 @@ function ViewWebview({
               onClick: handleGoBack,
               disabled: !isElectron2,
               className: "h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed",
-              title: isElectron2 ? "Go back" : "Navigation not available in web mode",
               children: /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowLeft, { className: "h-4 w-4" })
             }
           ),
@@ -31321,7 +31335,6 @@ function ViewWebview({
               onClick: handleGoForward,
               disabled: !isElectron2,
               className: "h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed",
-              title: isElectron2 ? "Go forward" : "Navigation not available in web mode",
               children: /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowRight, { className: "h-4 w-4" })
             }
           ),
@@ -31331,7 +31344,6 @@ function ViewWebview({
               size: "sm",
               onClick: handleWebviewReload,
               className: "h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white",
-              title: "Reload webview",
               children: /* @__PURE__ */ jsxRuntimeExports.jsx(RotateCcw, { className: "h-4 w-4" })
             }
           ),
@@ -31341,7 +31353,6 @@ function ViewWebview({
               size: "sm",
               onClick: handleGoHome,
               className: "h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white",
-              title: "Go home",
               children: /* @__PURE__ */ jsxRuntimeExports.jsx(House, { className: "h-4 w-4" })
             }
           )
@@ -31356,7 +31367,6 @@ function ViewWebview({
             onClick: handleGoBack,
             disabled: !isElectron2,
             className: "h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed",
-            title: isElectron2 ? "Go back" : "Navigation not available in web mode",
             children: /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowLeft, { className: "h-4 w-4" })
           }
         ),
@@ -31367,7 +31377,6 @@ function ViewWebview({
             onClick: handleGoForward,
             disabled: !isElectron2,
             className: "h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed",
-            title: isElectron2 ? "Go forward" : "Navigation not available in web mode",
             children: /* @__PURE__ */ jsxRuntimeExports.jsx(ArrowRight, { className: "h-4 w-4" })
           }
         ),
@@ -31377,7 +31386,6 @@ function ViewWebview({
             size: "sm",
             onClick: handleWebviewReload,
             className: "h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white",
-            title: "Reload webview",
             children: /* @__PURE__ */ jsxRuntimeExports.jsx(RotateCcw, { className: "h-4 w-4" })
           }
         ),
@@ -31387,7 +31395,6 @@ function ViewWebview({
             size: "sm",
             onClick: handleGoHome,
             className: "h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white",
-            title: "Go home",
             children: /* @__PURE__ */ jsxRuntimeExports.jsx(House, { className: "h-4 w-4" })
           }
         ),
@@ -31399,7 +31406,6 @@ function ViewWebview({
             onClick: handleOpenDevTools,
             disabled: !isElectron2,
             className: "h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed",
-            title: isElectron2 ? "Open DevTools" : "DevTools not available in web mode",
             children: /* @__PURE__ */ jsxRuntimeExports.jsx(Code, { className: "h-4 w-4" })
           }
         )
@@ -31411,8 +31417,7 @@ function ViewWebview({
         allowpopups: true,
         ref: setWebviewRef,
         src: url,
-        className: `flex-1 bg-black`,
-        title
+        className: `flex-1 bg-black`
       }
     ) : /* @__PURE__ */ jsxRuntimeExports.jsx(
       "iframe",
@@ -31420,7 +31425,6 @@ function ViewWebview({
         ref: setIframeRef,
         src: url,
         className: `flex-1 bg-black`,
-        title,
         allow: "fullscreen",
         sandbox: "allow-same-origin allow-scripts allow-popups allow-forms allow-downloads"
       }
@@ -31429,12 +31433,10 @@ function ViewWebview({
 }
 function ViewProject({
   selectedItem,
-  items,
-  sidebarOpen,
-  setSidebarOpen
+  items
 }) {
   const [activeTab, setActiveTab] = reactExports.useState(() => {
-    return selectedItem?.type === "panel" ? "preview" : "terminal";
+    return "terminal";
   });
   const [localIp, setLocalIp] = reactExports.useState("localhost");
   const [webPort] = reactExports.useState(6969);
@@ -31446,7 +31448,7 @@ function ViewProject({
     [localIp, webPort]
   );
   const isPanel = reactExports.useMemo(
-    () => selectedItem?.type === "panel",
+    () => selectedItem?.type === ItemType.PANEL,
     [selectedItem?.type]
   );
   const fetchLocalIp = reactExports.useCallback(async () => {
@@ -31469,33 +31471,15 @@ function ViewProject({
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [activeTab, currentItem?.id]);
-  const NoUrlConfigured = reactExports.useCallback(
-    ({ itemType }) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-      NonIdealState,
-      {
-        icon: Globe,
-        title: `No ${itemType === "panel" ? "URL" : "Preview URL"} Configured`,
-        description: `Configure a ${itemType === "panel" ? "URL" : "preview URL"} in your ${itemType} settings to view${itemType === "panel" ? " content" : " your application"} here.${itemType === "project" ? " Example: http://localhost:3000" : ""}`
-      }
-    ),
-    []
-  );
-  const WebViewContent = () => {
-    if (!previewUrl) {
-      return /* @__PURE__ */ jsxRuntimeExports.jsx(NoUrlConfigured, { itemType: currentItem?.type || "project" });
-    }
-    const title = isPanel ? currentItem?.name || "" : `Preview for ${currentItem?.name || ""}`;
-    return /* @__PURE__ */ jsxRuntimeExports.jsx(ViewWebview, { url: previewUrl, title });
-  };
+  }, [activeTab, currentItem?.id, currentItem]);
   return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-full flex-1 flex flex-col", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
     Tabs,
     {
       value: activeTab,
-      onValueChange: setActiveTab,
+      onValueChange: (value) => setActiveTab(value),
       className: "flex-1 flex flex-col",
       children: [
-        !isPanel && currentItem?.type === "project" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-0 md:px-4 pt-0 md:pt-4 mb-0 md:mb-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col lg:flex-row lg:items-start lg:justify-between", children: [
+        isPanel ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-4" }) : currentItem?.type === ItemType.PROJECT && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "px-0 md:px-4 pt-0 md:pt-4 mb-0 md:mb-4", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "flex flex-col lg:flex-row lg:items-start lg:justify-between", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex items-center w-full md:w-auto", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(TabsList, { className: "bg-gray-900/50 md:border border-gray-800 flex-shrink-0 overflow-hidden w-full md:w-auto m-0 mdp-0 md:p-1 rounded-none md:rounded-md h-10 md:h-auto px-2 ", children: [
             /* @__PURE__ */ jsxRuntimeExports.jsxs(
               TabsTrigger,
@@ -31553,12 +31537,6 @@ function ViewProject({
           ) })
         ] }) }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "h-full flex-1 flex flex-col", children: [
-          isPanel && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "h-full flex-1 flex flex-col p-0 md:p-4", children: /* @__PURE__ */ jsxRuntimeExports.jsx(WebViewContent, {}) }),
-          !isPanel && /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-            activeTab === "git-diff" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 h-full", children: /* @__PURE__ */ jsxRuntimeExports.jsx(ViewGitDiff, { selectedProject: currentItem }) }),
-            activeTab === "editor" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 h-full", children: /* @__PURE__ */ jsxRuntimeExports.jsx(ViewFileEditor, { selectedProject: currentItem }) }),
-            activeTab === "preview" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `flex-1 h-full p-0 md:p-4 md:pt-0`, children: /* @__PURE__ */ jsxRuntimeExports.jsx(WebViewContent, {}) })
-          ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "div",
             {
@@ -31571,11 +31549,14 @@ function ViewProject({
                 {
                   ref: terminalRef,
                   selectedProject: currentItem,
-                  projects: items.filter((item) => item.type === "project")
+                  projects: items.filter((item) => item.type === ItemType.PROJECT)
                 }
               )
             }
-          )
+          ),
+          activeTab === "git-diff" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 h-full", children: /* @__PURE__ */ jsxRuntimeExports.jsx(ViewGitDiff, { selectedProject: currentItem }) }),
+          activeTab === "editor" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "flex-1 h-full", children: /* @__PURE__ */ jsxRuntimeExports.jsx(ViewFileEditor, { selectedProject: currentItem }) }),
+          (activeTab === "preview" || isPanel) && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `flex-1 h-full p-0 md:p-4 md:pt-0`, children: /* @__PURE__ */ jsxRuntimeExports.jsx(ViewWebview, { url: currentItem?.url || "" }) })
         ] })
       ]
     }
@@ -32624,8 +32605,8 @@ function App() {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-  const projects = items.filter((item) => item.type === "project");
-  const panels = items.filter((item) => item.type === "panel");
+  const projects = items.filter((item) => item.type === ItemType.PROJECT);
+  const panels = items.filter((item) => item.type === ItemType.PANEL);
   reactExports.useEffect(() => {
     console.log(
       "[App Debug] useEffect running, isElectron:",
@@ -32636,15 +32617,8 @@ function App() {
     initializeStore();
     const unsubscribeFunctions = [];
     if (communicationAPI.onTerminalOutput) {
-      console.log(`[Debug] Setting up terminal output listener...`);
       const unsubscribeOutput = communicationAPI.onTerminalOutput(
         (output) => {
-          console.log(`[App Debug] *** TERMINAL OUTPUT RECEIVED ***`, {
-            projectId: output.projectId,
-            dataLength: output.data?.length,
-            dataPreview: output.data?.substring(0, 50),
-            timestamp: (/* @__PURE__ */ new Date()).toISOString()
-          });
           const currentItem2 = items.find(
             (item) => item.id === output.projectId
           );
@@ -32758,7 +32732,9 @@ function App() {
       const unsubscribeClaudeStatusChange = webSocketManager.on(
         "claude-status-change",
         (message) => {
-          console.log(`[Web App] Claude status changed for ${message.projectId}: ${message.data}`);
+          console.log(
+            `[Web App] Claude status changed for ${message.projectId}: ${message.data}`
+          );
           updateItem(message.projectId, {
             status: message.data,
             lastActivity: (/* @__PURE__ */ new Date()).toLocaleTimeString()
@@ -32791,7 +32767,7 @@ function App() {
       }
       updateStoredItem(editingProject.id, {
         id: projectData.name,
-        type: "project",
+        type: ItemType.PROJECT,
         name: projectData.name,
         path: projectData.path,
         icon: projectData.icon,
@@ -32811,7 +32787,7 @@ function App() {
       }
       const newItem = {
         id: projectData.name,
-        type: "project",
+        type: ItemType.PROJECT,
         name: projectData.name,
         path: projectData.path,
         icon: projectData.icon,
@@ -32832,13 +32808,13 @@ function App() {
       setSidebarOpen(false);
     }
     const item = items.find((i) => i.id === itemId);
-    if (item?.type === "project") {
+    if (item?.type === ItemType.PROJECT) {
       communicationAPI.setSelectedProject(itemId);
     }
   };
   const handleProjectStart = async (projectId, command) => {
     const project = items.find(
-      (item) => item.id === projectId && item.type === "project"
+      (item) => item.id === projectId && item.type === ItemType.PROJECT
     );
     if (!project) return;
     setSelectedItem(projectId);
@@ -32862,6 +32838,11 @@ function App() {
           output: [`Error: ${result.error}`]
         });
         y.error(`Failed to start process: ${result.error}`);
+      } else {
+        updateItem(projectId, {
+          status: "ready",
+          lastActivity: (/* @__PURE__ */ new Date()).toLocaleTimeString()
+        });
       }
     } catch (error) {
       updateItem(projectId, {
@@ -32884,7 +32865,7 @@ function App() {
   };
   const handleProjectEdit = (projectId) => {
     const project = items.find(
-      (item) => item.id === projectId && item.type === "project"
+      (item) => item.id === projectId && item.type === ItemType.PROJECT
     );
     if (project) {
       setEditingProject(project);
@@ -32922,16 +32903,16 @@ function App() {
     });
   };
   const handleProjectReorder = (startIndex, endIndex) => {
-    const projectItems = items.filter((item) => item.type === "project");
-    const panelItems = items.filter((item) => item.type === "panel");
+    const projectItems = items.filter((item) => item.type === ItemType.PROJECT);
+    const panelItems = items.filter((item) => item.type === ItemType.PANEL);
     const reorderedProjects = Array.from(projectItems);
     const [removed] = reorderedProjects.splice(startIndex, 1);
     reorderedProjects.splice(endIndex, 0, removed);
     setItems([...reorderedProjects, ...panelItems]);
   };
   const handlePanelReorder = (startIndex, endIndex) => {
-    const projectItems = items.filter((item) => item.type === "project");
-    const panelItems = items.filter((item) => item.type === "panel");
+    const projectItems = items.filter((item) => item.type === ItemType.PROJECT);
+    const panelItems = items.filter((item) => item.type === ItemType.PANEL);
     const reorderedPanels = Array.from(panelItems);
     const [removed] = reorderedPanels.splice(startIndex, 1);
     reorderedPanels.splice(endIndex, 0, removed);
@@ -32944,7 +32925,7 @@ function App() {
   };
   const handlePanelEdit = (panelId) => {
     const panel = items.find(
-      (item) => item.id === panelId && item.type === "panel"
+      (item) => item.id === panelId && item.type === ItemType.PANEL
     );
     if (panel) {
       setEditingPanel(panel);
@@ -32962,12 +32943,12 @@ function App() {
         setSelectedItem(editingPanel.id);
       }
     } else {
-      const existingIds = items.filter((item) => item.type === "panel").map((item) => parseInt(item.id)).filter((id) => !isNaN(id));
+      const existingIds = items.filter((item) => item.type === ItemType.PANEL).map((item) => parseInt(item.id)).filter((id) => !isNaN(id));
       const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 0;
       const newPanelId = (maxId + 1).toString();
       const newItem = {
         id: newPanelId,
-        type: "panel",
+        type: ItemType.PANEL,
         name: panelData.name,
         url: panelData.url,
         icon: panelData.icon

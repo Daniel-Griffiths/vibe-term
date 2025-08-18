@@ -1,15 +1,21 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Tabs, TabsList, TabsTrigger } from "./tabs";
 import { Input } from "./input";
-import { Button } from "./button";
 import ViewTerminal, { type ViewTerminalRef } from "./view-terminal";
 import ViewGitDiff from "./view-git-diff";
 import ViewFileEditor from "./view-file-editor";
 import ViewWebview from "./view-webview";
-import { NonIdealState } from "./non-ideal-state";
 import { communicationAPI } from "../utils/communication";
 import { Terminal, GitBranch, Globe, FileText } from "lucide-react";
 import type { UnifiedItem } from "../types";
+import { ItemType } from "../types";
+
+enum ProjectTab {
+  TERMINAL = "terminal",
+  GIT_DIFF = "git-diff",
+  EDITOR = "editor",
+  PREVIEW = "preview",
+}
 
 interface IViewProjectProps {
   selectedItem: UnifiedItem | null;
@@ -21,11 +27,9 @@ interface IViewProjectProps {
 export default function ViewProject({
   selectedItem,
   items,
-  sidebarOpen,
-  setSidebarOpen,
 }: IViewProjectProps) {
-  const [activeTab, setActiveTab] = useState(() => {
-    return selectedItem?.type === "panel" ? "preview" : "terminal";
+  const [activeTab, setActiveTab] = useState<ProjectTab>(() => {
+    return ProjectTab.TERMINAL;
   });
   const [localIp, setLocalIp] = useState<string>("localhost");
   const [webPort] = useState(6969); // Default web server port
@@ -38,7 +42,7 @@ export default function ViewProject({
     [localIp, webPort]
   );
   const isPanel = useMemo(
-    () => selectedItem?.type === "panel",
+    () => selectedItem?.type === ItemType.PANEL,
     [selectedItem?.type]
   );
 
@@ -60,152 +64,114 @@ export default function ViewProject({
 
   // Handle terminal resize when switching back to terminal tab
   useEffect(() => {
-    if (activeTab === "terminal" && currentItem && terminalRef.current) {
+    if (
+      activeTab === ProjectTab.TERMINAL &&
+      currentItem &&
+      terminalRef.current
+    ) {
       // Small delay to ensure the terminal container is visible before resizing
       const timer = setTimeout(() => {
         terminalRef.current?.fitTerminal(currentItem.id);
       }, 100);
-      
+
       return () => clearTimeout(timer);
     }
-  }, [activeTab, currentItem?.id]);
-
-
-  // Shared component for no URL state
-  const NoUrlConfigured = useCallback(
-    ({ itemType }: { itemType: "panel" | "project" }) => (
-      <NonIdealState
-        icon={Globe}
-        title={`No ${itemType === "panel" ? "URL" : "Preview URL"} Configured`}
-        description={`Configure a ${
-          itemType === "panel" ? "URL" : "preview URL"
-        } in your ${itemType} settings to view${
-          itemType === "panel" ? " content" : " your application"
-        } here.${
-          itemType === "project" ? " Example: http://localhost:3000" : ""
-        }`}
-      />
-    ),
-    []
-  );
-
-  // Shared WebView component
-  const WebViewContent = () => {
-    if (!previewUrl) {
-      return <NoUrlConfigured itemType={currentItem?.type || "project"} />;
-    }
-
-    const title = isPanel
-      ? currentItem?.name || ""
-      : `Preview for ${currentItem?.name || ""}`;
-
-    return <ViewWebview url={previewUrl} title={title} />;
-  };
+  }, [activeTab, currentItem?.id, currentItem]);
 
   return (
     <div className="h-full flex-1 flex flex-col">
       <Tabs
         value={activeTab}
-        onValueChange={setActiveTab}
+        onValueChange={(value: string) => setActiveTab(value as ProjectTab)}
         className="flex-1 flex flex-col"
       >
         {/* Tab bar - only show for projects */}
-        {!isPanel && currentItem?.type === "project" && (
-          <div className="px-0 md:px-4 pt-0 md:pt-4 mb-0 md:mb-4">
-            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between">
-              <div className="flex items-center w-full md:w-auto">
-                <TabsList className="bg-gray-900/50 md:border border-gray-800 flex-shrink-0 overflow-hidden w-full md:w-auto m-0 mdp-0 md:p-1 rounded-none md:rounded-md h-10 md:h-auto px-2 ">
-                  <TabsTrigger
-                    value="terminal"
-                    className="flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start"
-                  >
-                    <Terminal className="h-4 w-4" />
-                    <span className="hidden sm:inline">Terminal</span>
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="git-diff"
-                    className="flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start"
-                  >
-                    <GitBranch className="h-4 w-4" />
-                    <span className="hidden sm:inline">Git Diff</span>
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="editor"
-                    className="flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start"
-                  >
-                    <FileText className="h-4 w-4" />
-                    <span className="hidden sm:inline">Editor</span>
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="preview"
-                    className={`flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start`}
-                    disabled={!previewUrl}
-                  >
-                    <Globe className="h-4 w-4" />
-                    <span className="hidden sm:inline">Preview</span>
-                  </TabsTrigger>
-                </TabsList>
-              </div>
+        {isPanel ? (
+          <div className="h-4" />
+        ) : (
+          currentItem?.type === ItemType.PROJECT && (
+            <div className="px-0 md:px-4 pt-0 md:pt-4 mb-0 md:mb-4">
+              <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between">
+                <div className="flex items-center w-full md:w-auto">
+                  <TabsList className="bg-gray-900/50 md:border border-gray-800 flex-shrink-0 overflow-hidden w-full md:w-auto m-0 mdp-0 md:p-1 rounded-none md:rounded-md h-10 md:h-auto px-2 ">
+                    <TabsTrigger
+                      value={ProjectTab.TERMINAL}
+                      className="flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start"
+                    >
+                      <Terminal className="h-4 w-4" />
+                      <span className="hidden sm:inline">Terminal</span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value={ProjectTab.GIT_DIFF}
+                      className="flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start"
+                    >
+                      <GitBranch className="h-4 w-4" />
+                      <span className="hidden sm:inline">Git Diff</span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value={ProjectTab.EDITOR}
+                      className="flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start"
+                    >
+                      <FileText className="h-4 w-4" />
+                      <span className="hidden sm:inline">Editor</span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value={ProjectTab.PREVIEW}
+                      className={`flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start`}
+                      disabled={!previewUrl}
+                    >
+                      <Globe className="h-4 w-4" />
+                      <span className="hidden sm:inline">Preview</span>
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
 
-              <div className="hidden lg:block">
-                <Input
-                  value={webUrl}
-                  hasCopy
-                  className="font-mono text-sm w-auto min-w-64"
-                />
+                <div className="hidden lg:block">
+                  <Input
+                    value={webUrl}
+                    hasCopy
+                    className="font-mono text-sm w-auto min-w-64"
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          )
         )}
 
-        {/* Content area */}
         <div className="h-full flex-1 flex flex-col">
-          {/* Panel mode - show preview directly */}
-          {isPanel && (
-            <div className="h-full flex-1 flex flex-col p-0 md:p-4">
-              <WebViewContent />
-            </div>
-          )}
-
-          {/* Project mode - show tabbed content */}
-          {!isPanel && (
-            <>
-              {/* Git diff tab */}
-              {activeTab === "git-diff" && (
-                <div className="flex-1 h-full">
-                  <ViewGitDiff selectedProject={currentItem} />
-                </div>
-              )}
-
-              {/* Editor tab */}
-              {activeTab === "editor" && (
-                <div className="flex-1 h-full">
-                  <ViewFileEditor selectedProject={currentItem} />
-                </div>
-              )}
-
-              {/* Preview tab */}
-              {activeTab === "preview" && (
-                <div className={`flex-1 h-full p-0 md:p-4 md:pt-0`}>
-                  <WebViewContent />
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Always render ViewTerminal to preserve terminal state */}
-          <div 
+          <div
             className="flex-1 h-full"
             style={{
-              display: !isPanel && activeTab === "terminal" ? "block" : "none",
+              display:
+                !isPanel && activeTab === ProjectTab.TERMINAL
+                  ? "block"
+                  : "none",
             }}
           >
             <ViewTerminal
               ref={terminalRef}
               selectedProject={currentItem}
-              projects={items.filter((item) => item.type === "project")}
+              projects={items.filter((item) => item.type === ItemType.PROJECT)}
             />
           </div>
+
+          {activeTab === ProjectTab.GIT_DIFF && (
+            <div className="flex-1 h-full">
+              <ViewGitDiff selectedProject={currentItem} />
+            </div>
+          )}
+
+          {activeTab === ProjectTab.EDITOR && (
+            <div className="flex-1 h-full">
+              <ViewFileEditor selectedProject={currentItem} />
+            </div>
+          )}
+
+          {(activeTab === ProjectTab.PREVIEW || isPanel) && (
+            <div className={`flex-1 h-full p-0 md:p-4 md:pt-0`}>
+              <ViewWebview url={currentItem?.url || ""} />
+            </div>
+          )}
         </div>
       </Tabs>
     </div>

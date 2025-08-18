@@ -207,8 +207,8 @@ export class ShellUtils {
   }): string {
     const { action, sessionName, projectPath, startCommand, tmuxOptions } = options;
     
-    // Default tmux options - always include status off
-    const defaultOptions = ['set-option status off'];
+    // Default tmux options - always include status off, mouse on, and increased history
+    const defaultOptions = ['set-option status off', 'set -g mouse on', 'set -g history-limit 10000'];
     const allOptions = tmuxOptions ? [...defaultOptions, ...tmuxOptions] : defaultOptions;
     
     let command = '';
@@ -246,8 +246,8 @@ export class ShellUtils {
     try {
       let command = '';
       
-      // Default tmux options - always include status off
-      const defaultOptions = ['set-option status off'];
+      // Default tmux options - always include status off, mouse on, and increased history
+      const defaultOptions = ['set-option status off', 'set -g mouse on', 'set -g history-limit 10000'];
       const allOptions = tmuxOptions ? [...defaultOptions, ...tmuxOptions] : defaultOptions;
       
       switch (action) {
