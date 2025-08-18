@@ -28250,6 +28250,9 @@ class TerminalService {
    */
   static setupDataHandler(terminal, onData) {
     const disposable = terminal.onData((data) => {
+      if (data.charCodeAt(0) === 3) {
+        return;
+      }
       onData(data);
     });
     return () => {

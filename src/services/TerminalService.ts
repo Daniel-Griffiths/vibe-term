@@ -193,6 +193,11 @@ export class TerminalService {
     onData: (data: string) => void
   ): () => void {
     const disposable = terminal.onData((data: string) => {
+      // Block Ctrl+C (character code 3) to prevent users from quitting Claude
+      if (data.charCodeAt(0) === 3) {
+        return;
+      }
+      
       // Only send actual user input
       onData(data);
     });
