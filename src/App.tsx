@@ -10,12 +10,9 @@ import { FormSettings } from "./components/form-settings";
 import { FormDependencies } from "./components/form-dependencies";
 import { FormConfirmation } from "./components/form-confirmation";
 import { useAppState } from "./hooks/use-app-state";
-import {
-  communicationAPI,
-  webSocketManager,
-  isElectron,
-  isWeb,
-} from "./utils/communication";
+import { communicationAPI } from "./utils/communication";
+import { webSocketManager } from "./utils/websocket-manager";
+import { isElectron, isWeb } from "./utils/environment";
 import type { UnifiedItem, TerminalOutput, ProcessExit } from "./types";
 import { ItemType } from "./types";
 

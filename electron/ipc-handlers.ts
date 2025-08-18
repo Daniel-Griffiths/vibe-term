@@ -4,7 +4,7 @@ import path from "path";
 import os from "os";
 import { promisify } from "util";
 import { exec, ChildProcess } from "child_process";
-import { ShellUtils } from "../src/utils/shellUtils";
+import { ShellUtils } from "../src/utils/shell-utils";
 import type { IPty } from "@lydell/node-pty";
 import { broadcastToWebClients } from "./web-server";
 import type { UnifiedItem } from "../src/types";

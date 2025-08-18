@@ -4,14 +4,14 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { ChildProcess, spawn } from "child_process";
 import * as pty from "@lydell/node-pty";
-import { ShellUtils } from "../src/utils/shellUtils";
+import { ShellUtils } from "../src/utils/shell-utils";
 import { setupIPCHandlers, ipcHandlers } from "./ipc-handlers";
 import {
   createWebServer,
   broadcastToWebClients,
   closeWebServer,
 } from "./web-server";
-import { setupClaudeHooks } from "../src/utils/claudeHookSetup";
+import { setupClaudeHooks } from "../src/utils/claude-hook-setup";
 import { SettingsManager, AppState } from "./settings-manager";
 import { ErrorHandler } from "./error-handler";
 import type { UnifiedItem } from "../src/types";
