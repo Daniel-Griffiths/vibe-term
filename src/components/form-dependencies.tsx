@@ -31,10 +31,7 @@ const getInstallCommand = (dep: string) => {
   }
 };
 
-export function FormDependencies({
-  data,
-  onClose,
-}: IFormDependenciesProps) {
+export function FormDependencies({ data, onClose }: IFormDependenciesProps) {
   const { missingDeps } = data;
 
   const copyToClipboard = (text: string) => {

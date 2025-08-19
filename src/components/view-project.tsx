@@ -6,7 +6,7 @@ import { ViewGitDiff } from "./view-git-diff";
 import { ViewFileEditor } from "./view-file-editor";
 import { ViewWebview } from "./view-webview";
 import { api } from "../utils/api";
-import { Terminal, GitBranch, Globe, FileText } from "lucide-react";
+import { Icon } from "./icon";
 import type { UnifiedItem } from "../types";
 import { ItemType } from "../types";
 
@@ -95,21 +95,21 @@ export function ViewProject({ selectedItem, items }: IViewProjectProps) {
                       value={ProjectTab.TERMINAL}
                       className="flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start"
                     >
-                      <Terminal className="h-4 w-4" />
+                      <Icon name="terminal" className="h-4 w-4" />
                       <span className="hidden sm:inline">Terminal</span>
                     </TabsTrigger>
                     <TabsTrigger
                       value={ProjectTab.GIT_DIFF}
                       className="flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start"
                     >
-                      <GitBranch className="h-4 w-4" />
+                      <Icon name="gitbranch" className="h-4 w-4" />
                       <span className="hidden sm:inline">Git Diff</span>
                     </TabsTrigger>
                     <TabsTrigger
                       value={ProjectTab.EDITOR}
                       className="flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start"
                     >
-                      <FileText className="h-4 w-4" />
+                      <Icon name="filetext" className="h-4 w-4" />
                       <span className="hidden sm:inline">Editor</span>
                     </TabsTrigger>
                     <TabsTrigger
@@ -117,7 +117,7 @@ export function ViewProject({ selectedItem, items }: IViewProjectProps) {
                       className={`flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start`}
                       disabled={!previewUrl}
                     >
-                      <Globe className="h-4 w-4" />
+                      <Icon name="globe" className="h-4 w-4" />
                       <span className="hidden sm:inline">Preview</span>
                     </TabsTrigger>
                   </TabsList>

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Loader2 } from "lucide-react";
+import { Icon } from "./icon";
 import { cn } from "@/utils/cn";
 
 export interface IButtonProps
@@ -75,7 +75,7 @@ export const Button = React.forwardRef<HTMLButtonElement, IButtonProps>(
         disabled={disabled || isLoading}
         {...props}
       >
-        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        {isLoading && <Icon name="loader2" className="mr-2 h-4 w-4 animate-spin" />}
         {isLoading ? loadingText || children : children}
       </button>
     );

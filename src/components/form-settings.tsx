@@ -3,16 +3,8 @@ import { Button } from "./button";
 import { Input } from "./input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs";
 import { api } from "../utils/api";
-import type { AppSettings } from "../types/ipc";
-import {
-  Settings as SettingsIcon,
-  MessageCircle,
-  Globe,
-  Bell,
-  Copy,
-  Check,
-  AlertTriangle,
-} from "lucide-react";
+import type { AppSettings } from "../utils/api";
+import { Icon } from "./icon";
 
 const DEFAULT_WEB_SERVER_PORT = 6969;
 
@@ -140,21 +132,21 @@ export function FormSettings({ onClose }: IFormSettingsProps) {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3 bg-gray-900/50 border border-gray-800">
           <TabsTrigger value="general" className="flex items-center gap-2">
-            <Bell className="h-4 w-4" />
+            <Icon name="bell" className="h-4 w-4" />
             General
           </TabsTrigger>
           <TabsTrigger
             value="notifications"
             className="flex items-center gap-2"
           >
-            <MessageCircle className="h-4 w-4" />
+            <Icon name="messagecircle" className="h-4 w-4" />
             Discord
           </TabsTrigger>
           <TabsTrigger
             value="web-interface"
             className="flex items-center gap-2"
           >
-            <Globe className="h-4 w-4" />
+            <Icon name="globe" className="h-4 w-4" />
             Web Interface
           </TabsTrigger>
         </TabsList>
@@ -302,9 +294,9 @@ export function FormSettings({ onClose }: IFormSettingsProps) {
                       title="Copy local URL"
                     >
                       {copied ? (
-                        <Check className="h-3 w-3 text-green-400" />
+                        <Icon name="check" className="h-3 w-3 text-green-400" />
                       ) : (
-                        <Copy className="h-3 w-3" />
+                        <Icon name="copy" className="h-3 w-3" />
                       )}
                     </Button>
                   </div>
@@ -316,7 +308,7 @@ export function FormSettings({ onClose }: IFormSettingsProps) {
                 {!hasTailscale && (
                   <div className="bg-orange-900/20 border border-orange-800 rounded-lg p-3">
                     <div className="flex items-start gap-2">
-                      <AlertTriangle className="h-4 w-4 text-orange-400 mt-0.5 flex-shrink-0" />
+                      <Icon name="alerttriangle" className="h-4 w-4 text-orange-400 mt-0.5 flex-shrink-0" />
                       <div>
                         <p className="text-sm text-orange-300 font-medium">
                           Remote Access Not Available

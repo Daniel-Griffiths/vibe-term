@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "./button";
 import { NonIdealState } from "./non-ideal-state";
-import { RotateCcw, Code, ArrowLeft, ArrowRight, Home, Globe } from "lucide-react";
+import { Icon } from "./icon";
 
 interface IViewWebviewProps {
   url?: string;
@@ -24,7 +24,7 @@ export function ViewWebview({
   if (!url) {
     return (
       <NonIdealState
-        icon={Globe}
+        icon={() => <Icon name="globe" className="h-16 w-16 opacity-50" />}
         title="No URL Configured"
         description={title ? `Configure a URL for ${title}` : "Configure a URL to display content here"}
       />
@@ -86,7 +86,7 @@ export function ViewWebview({
                 disabled={!isElectron}
                 className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <ArrowLeft className="h-4 w-4" />
+                <Icon name="arrowleft" className="h-4 w-4" />
               </Button>
               <Button
                 size="sm"
@@ -94,21 +94,21 @@ export function ViewWebview({
                 disabled={!isElectron}
                 className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <ArrowRight className="h-4 w-4" />
+                <Icon name="arrowright" className="h-4 w-4" />
               </Button>
               <Button
                 size="sm"
                 onClick={handleWebviewReload}
                 className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white"
               >
-                <RotateCcw className="h-4 w-4" />
+                <Icon name="rotateccw" className="h-4 w-4" />
               </Button>
               <Button
                 size="sm"
                 onClick={handleGoHome}
                 className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white"
               >
-                <Home className="h-4 w-4" />
+                <Icon name="home" className="h-4 w-4" />
               </Button>
             </div>
             {/* URL bar row */}
@@ -125,7 +125,7 @@ export function ViewWebview({
               disabled={!isElectron}
               className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <ArrowLeft className="h-4 w-4" />
+              <Icon name="arrowleft" className="h-4 w-4" />
             </Button>
             <Button
               size="sm"
@@ -133,21 +133,21 @@ export function ViewWebview({
               disabled={!isElectron}
               className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <ArrowRight className="h-4 w-4" />
+              <Icon name="arrowright" className="h-4 w-4" />
             </Button>
             <Button
               size="sm"
               onClick={handleWebviewReload}
               className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white"
             >
-              <RotateCcw className="h-4 w-4" />
+              <Icon name="rotateccw" className="h-4 w-4" />
             </Button>
             <Button
               size="sm"
               onClick={handleGoHome}
               className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white"
             >
-              <Home className="h-4 w-4" />
+              <Icon name="home" className="h-4 w-4" />
             </Button>
             <div className="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-1 text-sm text-gray-300 font-mono">
               {url}
@@ -158,7 +158,7 @@ export function ViewWebview({
               disabled={!isElectron}
               className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Code className="h-4 w-4" />
+              <Icon name="code" className="h-4 w-4" />
             </Button>
           </div>
         </div>

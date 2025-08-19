@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "./button";
 import { Input } from "./input";
-import { ChevronDown } from "lucide-react";
+import { Icon } from "./icon";
 import { ICON_OPTIONS } from "./shared-icons";
 import { api } from "../utils/api";
 
@@ -197,7 +197,8 @@ export function FormProject({ data, onSubmit, onCancel }: IFormProjectProps) {
                 return <span className="text-gray-500">Select an icon</span>;
               })()}
             </div>
-            <ChevronDown
+            <Icon
+              name="chevrondown"
               className={`h-4 w-4 text-gray-400 transition-transform ${
                 isIconDropdownOpen ? "rotate-180" : ""
               }`}

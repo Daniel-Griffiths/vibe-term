@@ -4,18 +4,7 @@ import { CodeEditorImageViewer } from "./code-editor-image-viewer";
 import { Card, CardContent, CardHeader, CardTitle } from "./card";
 import { api } from "../utils/api";
 import { Button } from "./button";
-import {
-  File,
-  Folder,
-  FolderOpen,
-  ChevronRight,
-  ChevronDown,
-  Save,
-  X,
-  RefreshCw,
-  FileText,
-  AlertCircle,
-} from "lucide-react";
+import { Icon } from "./icon";
 import { NonIdealState } from "./non-ideal-state";
 import { ContextMenu, ContextMenuItem } from "./context-menu";
 import { Modal } from "./modal";
@@ -430,20 +419,20 @@ export function ViewFileEditor({ selectedProject }: IViewFileEditorProps) {
           {node.isDirectory ? (
             <>
               {node.isExpanded ? (
-                <ChevronDown className="h-3 w-3 text-gray-500" />
+                <Icon name="chevrondown" className="h-3 w-3 text-gray-500" />
               ) : (
-                <ChevronRight className="h-3 w-3 text-gray-500" />
+                <Icon name="chevronright" className="h-3 w-3 text-gray-500" />
               )}
               {node.isExpanded ? (
-                <FolderOpen className="h-4 w-4 text-blue-400" />
+                <Icon name="folderopen" className="h-4 w-4 text-blue-400" />
               ) : (
-                <Folder className="h-4 w-4 text-blue-400" />
+                <Icon name="folder" className="h-4 w-4 text-blue-400" />
               )}
             </>
           ) : (
             <>
               <div className="w-3" /> {/* Spacer for alignment */}
-              <File className="h-4 w-4 text-gray-400" />
+              <Icon name="file" className="h-4 w-4 text-gray-400" />
             </>
           )}
           <span className="text-gray-300 truncate">{node.name}</span>
@@ -460,7 +449,7 @@ export function ViewFileEditor({ selectedProject }: IViewFileEditorProps) {
     return (
       <div className="flex-1 h-full flex items-center justify-center">
         <NonIdealState
-          icon={FileText}
+          icon={() => <Icon name="filetext" className="h-16 w-16 opacity-50" />}
           title="No Project Selected"
           description="Select a project from the sidebar to browse and edit files"
           className="min-w-80 max-w-2xl"
@@ -473,14 +462,14 @@ export function ViewFileEditor({ selectedProject }: IViewFileEditorProps) {
     return (
       <div className="flex-1 h-full flex items-center justify-center">
         <NonIdealState
-          icon={AlertCircle}
+          icon={() => <Icon name="alertcircle" className="h-16 w-16 opacity-50" />}
           title="Error Loading Files"
           description={error}
           variant="error"
           className="min-w-80 max-w-2xl"
           action={
             <Button onClick={loadFileTree} className="raycast-button-primary">
-              <RefreshCw className="h-4 w-4 mr-2" />
+              <Icon name="refreshcw" className="h-4 w-4 mr-2" />
               Retry
             </Button>
           }
@@ -500,7 +489,7 @@ export function ViewFileEditor({ selectedProject }: IViewFileEditorProps) {
         <div className="p-2 md:p-4 border-b border-gray-800">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2 text-sm text-gray-400">
-              <FileText className="h-4 w-4" />
+              <Icon name="filetext" className="h-4 w-4" />
               <span>Explorer</span>
             </div>
             <Button
@@ -510,7 +499,8 @@ export function ViewFileEditor({ selectedProject }: IViewFileEditorProps) {
               className="h-6 w-6 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50"
               title="Refresh file tree"
             >
-              <RefreshCw
+              <Icon
+                name="refreshcw"
                 className={`h-3 w-3 ${loading ? "animate-spin" : ""}`}
               />
             </Button>
@@ -521,14 +511,14 @@ export function ViewFileEditor({ selectedProject }: IViewFileEditorProps) {
         <div className="p-2">
           {loading ? (
             <div className="text-center py-8">
-              <RefreshCw className="h-6 w-6 text-gray-600 mx-auto mb-2 animate-spin" />
+              <Icon name="refreshcw" className="h-6 w-6 text-gray-600 mx-auto mb-2 animate-spin" />
               <p className="text-sm text-gray-500">Loading files...</p>
             </div>
           ) : fileTree.length > 0 ? (
             renderFileTree(fileTree)
           ) : (
             <div className="text-center py-8">
-              <FileText className="h-8 w-8 text-gray-600 mx-auto mb-2" />
+              <Icon name="filetext" className="h-8 w-8 text-gray-600 mx-auto mb-2" />
               <p className="text-sm text-gray-500">No files found</p>
             </div>
           )}
@@ -543,7 +533,7 @@ export function ViewFileEditor({ selectedProject }: IViewFileEditorProps) {
               {/* File Tabs in Header */}
               {openFiles.length > 0 ? (
                 <div className="flex items-center gap-1 flex-1 min-w-0">
-                  <FileText className="h-5 w-5 text-blue-400 flex-shrink-0" />
+                  <Icon name="filetext" className="h-5 w-5 text-blue-400 flex-shrink-0" />
                   <div className="flex items-center gap-1 overflow-x-auto flex-1 min-w-0 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
                     {openFiles.map((file) => (
                       <div
@@ -570,7 +560,7 @@ export function ViewFileEditor({ selectedProject }: IViewFileEditorProps) {
                           }}
                           className="h-3 w-3 p-0 bg-transparent hover:bg-red-600/20 text-gray-500 hover:text-red-400 rounded-sm"
                         >
-                          <X className="h-2 w-2" />
+                          <Icon name="x" className="h-2 w-2" />
                         </Button>
                       </div>
                     ))}
@@ -578,7 +568,7 @@ export function ViewFileEditor({ selectedProject }: IViewFileEditorProps) {
                 </div>
               ) : (
                 <CardTitle className="flex items-center gap-2 text-gray-200 font-semibold">
-                  <FileText className="h-5 w-5 text-blue-400" />
+                  <Icon name="filetext" className="h-5 w-5 text-blue-400" />
                   No file selected
                 </CardTitle>
               )}
@@ -591,7 +581,7 @@ export function ViewFileEditor({ selectedProject }: IViewFileEditorProps) {
                   variant="success"
                   className="h-7 px-3 ml-4 flex-shrink-0"
                 >
-                  <Save className="h-3 w-3 mr-1" />
+                  <Icon name="save" className="h-3 w-3 mr-1" />
                   Save
                 </Button>
               )}
@@ -608,7 +598,7 @@ export function ViewFileEditor({ selectedProject }: IViewFileEditorProps) {
             ) : (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
-                  <FileText className="h-12 w-12 text-gray-600 mx-auto mb-3" />
+                  <Icon name="filetext" className="h-12 w-12 text-gray-600 mx-auto mb-3" />
                   <p className="text-sm text-gray-500">
                     Select a file to start editing
                   </p>

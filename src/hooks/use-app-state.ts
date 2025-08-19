@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../utils/api";
 import type { UnifiedItem } from "../types";
-import type { AppSettings } from "../types/ipc";
+import type { AppSettings } from "../utils/api";
 import { ItemType } from "../types";
 
 interface AppState {

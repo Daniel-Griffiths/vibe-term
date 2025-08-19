@@ -1,12 +1,19 @@
-import * as React from "react";
 import { cn } from "../utils/cn";
+import {
+  useState,
+  useContext,
+  useCallback,
+  createContext,
+  type HTMLAttributes,
+  type ButtonHTMLAttributes,
+} from "react";
 
-const TabsContext = React.createContext<{
+const TabsContext = createContext<{
   value?: string;
   onValueChange?: (value: string) => void;
 }>({});
 
-interface ITabsProps extends React.HTMLAttributes<HTMLDivElement> {
+interface ITabsProps extends HTMLAttributes<HTMLDivElement> {
   value?: string;
   defaultValue?: string;
   onValueChange?: (value: string) => void;
@@ -20,11 +27,10 @@ export function Tabs({
   children,
   ...props
 }: ITabsProps) {
-  const [uncontrolledValue, setUncontrolledValue] =
-    React.useState(defaultValue);
+  const [uncontrolledValue, setUncontrolledValue] = useState(defaultValue);
   const value = controlledValue ?? uncontrolledValue;
 
-  const handleValueChange = React.useCallback(
+  const handleValueChange = useCallback(
     (newValue: string) => {
       if (controlledValue === undefined) {
         setUncontrolledValue(newValue);
@@ -46,7 +52,7 @@ export function Tabs({
 export function TabsList({
   className,
   ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
+}: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={cn(
@@ -58,8 +64,7 @@ export function TabsList({
   );
 }
 
-interface ITabsTriggerProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface ITabsTriggerProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   value: string;
 }
 
@@ -69,7 +74,7 @@ export function TabsTrigger({
   children,
   ...props
 }: ITabsTriggerProps) {
-  const context = React.useContext(TabsContext);
+  const context = useContext(TabsContext);
   const isSelected = context.value === value;
 
   return (
@@ -89,7 +94,7 @@ export function TabsTrigger({
   );
 }
 
-interface ITabsContentProps extends React.HTMLAttributes<HTMLDivElement> {
+interface ITabsContentProps extends HTMLAttributes<HTMLDivElement> {
   value: string;
 }
 
@@ -99,7 +104,7 @@ export function TabsContent({
   children,
   ...props
 }: ITabsContentProps) {
-  const context = React.useContext(TabsContext);
+  const context = useContext(TabsContext);
   const isSelected = context.value === value;
 
   if (!isSelected) return null;

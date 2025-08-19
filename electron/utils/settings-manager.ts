@@ -6,7 +6,7 @@
 import fs from "fs";
 import path from "path";
 import { app } from "electron";
-import type { AppSettings } from "../../src/types/ipc";
+import type { AppSettings } from "../ipc-handler-types";
 import type { UnifiedItem } from "../../src/types";
 import { ErrorHandler } from "./error-handler";
 

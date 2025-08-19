@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "./button";
 import { Input } from "./input";
-import { ChevronDown } from "lucide-react";
+import { Icon } from "./icon";
 import { ICON_OPTIONS } from "./shared-icons";
 import type { UnifiedItem } from "../types";
 
@@ -120,7 +120,7 @@ export function FormPanel({ data, onSubmit, onCancel }: IFormPanelProps) {
                 setIsIconDropdownOpen(true);
               }}
             />
-            <ChevronDown className={`h-4 w-4 transition-transform ${isIconDropdownOpen ? 'rotate-180' : ''}`} />
+            <Icon name="chevrondown" className={`h-4 w-4 transition-transform ${isIconDropdownOpen ? 'rotate-180' : ''}`} />
           </div>
 
           {isIconDropdownOpen && (

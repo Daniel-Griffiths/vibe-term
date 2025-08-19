@@ -1,13 +1,11 @@
-import { type LucideProps } from "lucide-react";
-
 export interface INonIdealStateProps {
-  icon: React.ComponentType<LucideProps>;
   title: string;
+  className?: string;
   description?: string;
   action?: React.ReactNode;
-  variant?: "default" | "error" | "warning" | "info";
   size?: "sm" | "md" | "lg";
-  className?: string;
+  icon: React.ComponentType<any> | (() => React.ReactNode);
+  variant?: "default" | "error" | "warning" | "info";
 }
 
 const variantStyles = {

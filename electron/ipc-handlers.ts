@@ -20,7 +20,7 @@ import type {
   DiscordSettings,
   ImageResult,
   AppSettings,
-} from "../src/types/ipc";
+} from "./ipc-handler-types";
 
 const execAsync = promisify(exec);
 
@@ -355,7 +355,7 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
     "select-directory",
     async (): Promise<DataResponse<{ path: string }>> => {
       if (!win) {
-        return { success: false, error: "Window not available" };
+        return { success: false, error: "Window not available", data: { path: "" } };
       }
       try {
         const result = await dialog.showOpenDialog(win, {
@@ -363,7 +363,7 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
         });
 
         if (result.canceled || !result.filePaths[0]) {
-          return { success: false, error: "Directory selection cancelled" };
+          return { success: false, error: "Directory selection cancelled", data: { path: "" } };
         }
 
         return {
@@ -374,7 +374,7 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
         console.error("Directory selection error:", error);
-        return { success: false, error: errorMessage };
+        return { success: false, error: errorMessage, data: { path: "" } };
       }
     }
   );
@@ -391,7 +391,7 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
         ).catch(() => ({ stdout: "" }));
 
         if (!isGitRepo.trim()) {
-          return { success: false, error: "Not a git repository" };
+          return { success: false, error: "Not a git repository", data: { files: [], branch: "", ahead: 0, behind: 0 } };
         }
 
         // Get current branch
@@ -528,7 +528,7 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
         console.error("Git diff error:", error);
-        return { success: false, error: errorMessage };
+        return { success: false, error: errorMessage, data: { files: [], branch: "", ahead: 0, behind: 0 } };
       }
     }
   );
@@ -575,7 +575,7 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
   // File operations
   registerIPCHandler(
     "get-project-files",
-    async (...args: unknown[]): Promise<DataResult<FileTreeItem[]>> => {
+    async (...args: unknown[]): Promise<DataResponse<FileTreeItem[]>> => {
       const [projectPath] = args as [string];
       try {
         const getFileTree = async (
@@ -639,27 +639,27 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
         console.error("Get project files error:", error);
-        return { success: false, error: errorMessage };
+        return { success: false, error: errorMessage, data: [] };
       }
     }
   );
 
   registerIPCHandler(
     "read-project-file",
-    async (...args: unknown[]): Promise<DataResult<string>> => {
+    async (...args: unknown[]): Promise<DataResponse<string>> => {
       const [projectPath, filePath] = args as [string, string];
       try {
         const fullPath = path.join(projectPath, filePath);
 
         // Check if file exists
         if (!fs.existsSync(fullPath)) {
-          return { success: false, error: "File not found" };
+          return { success: false, error: "File not found", data: "" };
         }
 
         // Check if it's actually a file and not a directory
         const stats = fs.statSync(fullPath);
         if (!stats.isFile()) {
-          return { success: false, error: "Path is not a file" };
+          return { success: false, error: "Path is not a file", data: "" };
         }
 
         // Read file content
@@ -669,7 +669,7 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
         console.error("Read project file error:", error);
-        return { success: false, error: errorMessage };
+        return { success: false, error: errorMessage, data: "" };
       }
     }
   );
@@ -725,7 +725,7 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
 
   registerIPCHandler(
     "git-commit",
-    async (...args: unknown[]): Promise<BasicResult> => {
+    async (...args: unknown[]): Promise<BaseResponse> => {
       const [projectPath, message] = args as [string, string];
       try {
         // Add all changes and commit
@@ -770,7 +770,7 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
 
   registerIPCHandler(
     "get-local-ip",
-    async (): Promise<DataResult<LocalIpResult>> => {
+    async (): Promise<DataResponse<LocalIpResult>> => {
       const interfaces = os.networkInterfaces();
 
       let localIp = "localhost";
@@ -839,7 +839,7 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
   // Discord notification handlers
   registerIPCHandler(
     "test-discord-notification",
-    async (...args: unknown[]): Promise<BasicResult> => {
+    async (...args: unknown[]): Promise<BaseResponse> => {
       const [discordSettings] = args as [DiscordSettings];
       try {
         if (!discordSettings.webhookUrl) {
@@ -863,7 +863,7 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
 
   registerIPCHandler(
     "send-discord-notification",
-    async (...args: unknown[]): Promise<BasicResult> => {
+    async (...args: unknown[]): Promise<BaseResponse> => {
       const [discordSettings, message] = args as [DiscordSettings, string];
       try {
         if (!discordSettings.webhookUrl || !discordSettings.enabled) {
@@ -893,7 +893,7 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
     "get-stored-items",
     async (): Promise<{ success: boolean; data: UnifiedItem[] }> => {
       const state = getAppState();
-      return { success: true, data: state.storedItems };
+      return { success: true, data: state.storedItems || [] };
     }
   );
 

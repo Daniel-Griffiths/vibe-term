@@ -6,19 +6,7 @@ import {
 } from "./code-editor";
 import { Card, CardContent, CardHeader, CardTitle } from "./card";
 import { Button } from "./button";
-import {
-  GitBranch,
-  FileText,
-  Plus,
-  Minus,
-  Edit,
-  Save,
-  Undo2,
-  RefreshCw,
-  X,
-  GitCommit,
-  AlertCircle,
-} from "lucide-react";
+import { Icon } from "./icon";
 import { NonIdealState } from "./non-ideal-state";
 import { api } from "../utils/api";
 import type { UnifiedItem } from "../types";
@@ -282,7 +270,7 @@ export function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
     return (
       <div className="flex-1 h-full flex items-center justify-center">
         <NonIdealState
-          icon={GitBranch}
+          icon={() => <Icon name="gitbranch" className="h-16 w-16 opacity-50" />}
           title="No Project Selected"
           description="Select a project from the sidebar to view its git diff"
           className="min-w-80 max-w-2xl"
@@ -295,14 +283,14 @@ export function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
     return (
       <div className="flex-1 h-full flex items-center justify-center">
         <NonIdealState
-          icon={AlertCircle}
+          icon={() => <Icon name="alertcircle" className="h-16 w-16 opacity-50" />}
           title="Git Error"
           description={error}
           variant="error"
           className="min-w-80 max-w-2xl"
           action={
             <Button onClick={handleRefresh} className="raycast-button-primary">
-              <RefreshCw className="h-4 w-4 mr-2" />
+              <Icon name="refreshcw" className="h-4 w-4 mr-2" />
               Retry
             </Button>
           }
@@ -321,7 +309,7 @@ export function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
         <div className="p-2 md:p-4 border-b border-gray-800">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2 text-sm text-gray-400">
-              <GitBranch className="h-4 w-4" />
+              <Icon name="gitbranch" className="h-4 w-4" />
               <span>{diffData?.branch || "main"}</span>
               {diffData?.ahead && diffData.ahead > 0 && (
                 <span className="text-green-400">↑{diffData.ahead}</span>
@@ -338,7 +326,8 @@ export function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
               className="h-6 w-6 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50"
               title="Refresh git status"
             >
-              <RefreshCw
+              <Icon
+                name="refreshcw"
                 className={`h-3 w-3 ${loading ? "animate-spin" : ""}`}
               />
             </Button>
@@ -377,7 +366,7 @@ export function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
                 variant="success"
                 className="w-full h-8"
               >
-                <GitCommit className="h-3 w-3 mr-1" />
+                <Icon name="gitcommit" className="h-3 w-3 mr-1" />
                 {isCommitting ? "Committing..." : "Commit All"}
               </Button>
             </div>
@@ -399,11 +388,11 @@ export function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     {file.status === "added" ? (
-                      <Plus className="h-4 w-4 text-green-400 flex-shrink-0" />
+                      <Icon name="plus" className="h-4 w-4 text-green-400 flex-shrink-0" />
                     ) : file.status === "deleted" ? (
-                      <Minus className="h-4 w-4 text-red-400 flex-shrink-0" />
+                      <Icon name="minus" className="h-4 w-4 text-red-400 flex-shrink-0" />
                     ) : (
-                      <Edit className="h-4 w-4 text-yellow-400 flex-shrink-0" />
+                      <Icon name="edit" className="h-4 w-4 text-yellow-400 flex-shrink-0" />
                     )}
                     <span
                       className="text-sm text-gray-300 truncate flex-1 min-w-0"
@@ -427,7 +416,7 @@ export function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
                       className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-orange-600 hover:bg-orange-700 text-white"
                       title={`Revert ${file.path}`}
                     >
-                      <Undo2 className="h-3 w-3" />
+                      <Icon name="undo2" className="h-3 w-3" />
                     </Button>
                   )}
                 </div>
@@ -435,7 +424,7 @@ export function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
             ))
           ) : (
             <div className="text-center py-8">
-              <GitBranch className="h-8 w-8 text-gray-600 mx-auto mb-2" />
+              <Icon name="gitbranch" className="h-8 w-8 text-gray-600 mx-auto mb-2" />
               <p className="text-sm text-gray-500">No changes to display</p>
               <p className="text-xs text-gray-600 mt-1">
                 Your working directory is clean
@@ -451,7 +440,7 @@ export function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
           <CardHeader className="flex-shrink-0 py-3 bg-gradient-to-r from-black to-gray-900 border-b border-gray-800 md:rounded-t-lg">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-gray-200 font-semibold min-w-0 flex-1">
-                <FileText className="h-5 w-5 text-green-400 flex-shrink-0" />
+                <Icon name="filetext" className="h-5 w-5 text-green-400 flex-shrink-0" />
                 <span className="truncate">
                   {selectedFile?.path || "Select a file"}
                 </span>
@@ -485,7 +474,7 @@ export function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
                       variant="primary"
                       className="h-7 px-2 lg:px-3"
                     >
-                      <Edit className="h-3 w-3 lg:mr-1" />
+                      <Icon name="edit" className="h-3 w-3 lg:mr-1" />
                       <span className="hidden lg:inline">Edit</span>
                     </Button>
                   ) : (
@@ -497,7 +486,7 @@ export function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
                         variant="success"
                         className="h-7 px-2 lg:px-3"
                       >
-                        <Save className="h-3 w-3 lg:mr-1" />
+                        <Icon name="save" className="h-3 w-3 lg:mr-1" />
                         <span className="hidden lg:inline">Save</span>
                       </Button>
                       <Button
@@ -506,7 +495,7 @@ export function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
                         variant="outline"
                         className="h-7 px-2 lg:px-3"
                       >
-                        <X className="h-3 w-3 lg:mr-1" />
+                        <Icon name="x" className="h-3 w-3 lg:mr-1" />
                         <span className="hidden lg:inline">Cancel</span>
                       </Button>
                     </>
@@ -536,7 +525,7 @@ export function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
             ) : (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
-                  <FileText className="h-12 w-12 text-gray-600 mx-auto mb-3" />
+                  <Icon name="filetext" className="h-12 w-12 text-gray-600 mx-auto mb-3" />
                   <p className="text-sm text-gray-500">
                     {hasChanges
                       ? "Select a file to view changes"

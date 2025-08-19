@@ -14,7 +14,7 @@
     "build:web": "vite build --config vite.web.config.ts",
     "lint": "eslint .",
     "tsc": "tsc --noEmit",
-    "generate": "node scripts/generate.js",
+    "generate": "node scripts/generate-preload.js && node scripts/generate-communication-api.js",
     "test": "vitest"
   },
   "dependencies": {

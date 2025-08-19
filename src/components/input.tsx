@@ -1,7 +1,7 @@
-import { useState, useCallback, forwardRef, InputHTMLAttributes } from "react";
 import { cn } from "@/utils/cn";
-import { Copy, Check } from "lucide-react";
 import { Button } from "./button";
+import { Icon } from "./icon";
+import { useState, useCallback, forwardRef, InputHTMLAttributes } from "react";
 
 export interface IInputProps extends InputHTMLAttributes<HTMLInputElement> {
   hasCopy?: boolean;
@@ -10,7 +10,7 @@ export interface IInputProps extends InputHTMLAttributes<HTMLInputElement> {
 
 export const Input = forwardRef<HTMLInputElement, IInputProps>(
   ({ className, type, hasCopy, onCopy, ...props }, ref) => {
-    const [copied, setCopied] = useState(false);
+    const [copied, setCopied] = useState<boolean>(false);
 
     const handleCopy = useCallback(async () => {
       if (!props.value && !props.defaultValue) return;
@@ -48,9 +48,9 @@ export const Input = forwardRef<HTMLInputElement, IInputProps>(
             title="Copy to clipboard"
           >
             {copied ? (
-              <Check className="h-3 w-3 text-green-400" />
+              <Icon name="check" className="h-3 w-3 text-green-400" />
             ) : (
-              <Copy className="h-3 w-3" />
+              <Icon name="copy" className="h-3 w-3" />
             )}
           </Button>
         </div>

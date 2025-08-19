@@ -3,7 +3,7 @@
  * Provides consistent error formatting, logging, and response patterns
  */
 
-import type { BaseResponse } from "../../src/types/ipc";
+import type { BaseResponse } from "../ipc-handler-types";
 
 export interface ErrorContext {
   operation: string;
