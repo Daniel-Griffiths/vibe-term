@@ -3,12 +3,12 @@ import path from "node:path";
 import * as pty from "@lydell/node-pty";
 import { fileURLToPath } from "node:url";
 import { ErrorHandler } from "./utils/error-handler";
-import type { UnifiedItem } from "../src/types";
+import type { UnifiedItem } from "../client/types";
 import { ChildProcess, spawn } from "child_process";
-import { ShellUtils } from "../src/utils/shell-utils";
+import { ShellUtils } from "./utils/shell-utils";
 import { setupIPCHandlers, ipcHandlers } from "./ipc-handlers";
 import { SettingsManager, AppState } from "./utils/settings-manager";
-import { setupClaudeHooks } from "../src/utils/claude-hook-setup";
+import { setupClaudeHooks } from "./utils/claude-hook-setup";
 import { app, BrowserWindow, Notification, powerSaveBlocker } from "electron";
 import {
   createWebServer,

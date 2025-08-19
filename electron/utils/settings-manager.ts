@@ -7,7 +7,7 @@ import fs from "fs";
 import path from "path";
 import { app } from "electron";
 import type { AppSettings } from "../ipc-handler-types";
-import type { UnifiedItem } from "../../src/types";
+import type { UnifiedItem } from "../../client/types";
 import { ErrorHandler } from "./error-handler";
 
 export interface AppState {

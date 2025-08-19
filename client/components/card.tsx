@@ -2,11 +2,11 @@ import * as React from "react";
 import { cva } from "class-variance-authority";
 
 const cardVariants = cva("md:rounded-lg text-gray-100 shadow-sm");
-const cardHeaderVariants = cva("flex flex-col space-y-1.5 p-6");
+const cardHeaderVariants = cva("flex flex-col space-y-1.5 p-3");
 const cardTitleVariants = cva("font-semibold leading-none tracking-tight");
 const cardDescriptionVariants = cva("text-sm text-gray-400");
-const cardContentVariants = cva("p-6 pt-0");
-const cardFooterVariants = cva("flex items-center p-6 pt-0");
+const cardContentVariants = cva("p-3 pt-0");
+const cardFooterVariants = cva("flex items-center p-3 pt-0");
 
 export const Card = React.forwardRef<
   HTMLDivElement,

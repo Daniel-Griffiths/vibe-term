@@ -4,10 +4,10 @@ import path from "path";
 import os from "os";
 import { promisify } from "util";
 import { exec, ChildProcess } from "child_process";
-import { ShellUtils } from "../src/utils/shell-utils";
+import { ShellUtils } from "./utils/shell-utils";
 import type { IPty } from "@lydell/node-pty";
 import { broadcastToWebClients } from "./web-server";
-import type { UnifiedItem } from "../src/types";
+import type { UnifiedItem } from "../client/types";
 import type {
   BaseResponse,
   DataResponse,
@@ -69,29 +69,39 @@ const sendDiscordNotification = async (
 
   return new Promise((resolve, reject) => {
     const req = https.request(options, (res) => {
-      let responseData = '';
-      
-      res.on('data', (chunk) => {
+      let responseData = "";
+
+      res.on("data", (chunk) => {
         responseData += chunk;
       });
-      
-      res.on('end', () => {
+
+      res.on("end", () => {
         try {
           if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
             resolve({ success: true });
           } else {
-            console.error(`Discord webhook failed with status ${res.statusCode}:`, responseData);
-            reject(new Error(`Discord webhook returned status ${res.statusCode}`));
+            console.error(
+              `Discord webhook failed with status ${res.statusCode}:`,
+              responseData
+            );
+            reject(
+              new Error(`Discord webhook returned status ${res.statusCode}`)
+            );
           }
         } catch (error) {
-          console.error('Error handling Discord response:', error, 'Response:', responseData);
+          console.error(
+            "Error handling Discord response:",
+            error,
+            "Response:",
+            responseData
+          );
           reject(error);
         }
       });
     });
 
     req.on("error", (error: Error) => {
-      console.error('Discord webhook request error:', error);
+      console.error("Discord webhook request error:", error);
       reject(error);
     });
 
@@ -355,7 +365,11 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
     "select-directory",
     async (): Promise<DataResponse<{ path: string }>> => {
       if (!win) {
-        return { success: false, error: "Window not available", data: { path: "" } };
+        return {
+          success: false,
+          error: "Window not available",
+          data: { path: "" },
+        };
       }
       try {
         const result = await dialog.showOpenDialog(win, {
@@ -363,7 +377,11 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
         });
 
         if (result.canceled || !result.filePaths[0]) {
-          return { success: false, error: "Directory selection cancelled", data: { path: "" } };
+          return {
+            success: false,
+            error: "Directory selection cancelled",
+            data: { path: "" },
+          };
         }
 
         return {
@@ -391,7 +409,11 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
         ).catch(() => ({ stdout: "" }));
 
         if (!isGitRepo.trim()) {
-          return { success: false, error: "Not a git repository", data: { files: [], branch: "", ahead: 0, behind: 0 } };
+          return {
+            success: false,
+            error: "Not a git repository",
+            data: { files: [], branch: "", ahead: 0, behind: 0 },
+          };
         }
 
         // Get current branch
@@ -528,7 +550,11 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
         console.error("Git diff error:", error);
-        return { success: false, error: errorMessage, data: { files: [], branch: "", ahead: 0, behind: 0 } };
+        return {
+          success: false,
+          error: errorMessage,
+          data: { files: [], branch: "", ahead: 0, behind: 0 },
+        };
       }
     }
   );

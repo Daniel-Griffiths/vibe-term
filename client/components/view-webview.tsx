@@ -26,7 +26,11 @@ export function ViewWebview({
       <NonIdealState
         icon={() => <Icon name="globe" className="h-16 w-16 opacity-50" />}
         title="No URL Configured"
-        description={title ? `Configure a URL for ${title}` : "Configure a URL to display content here"}
+        description={
+          title
+            ? `Configure a URL for ${title}`
+            : "Configure a URL to display content here"
+        }
       />
     );
   }
@@ -82,34 +86,30 @@ export function ViewWebview({
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
+                icon="arrowleft"
                 onClick={handleGoBack}
                 disabled={!isElectron}
-                className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Icon name="arrowleft" className="h-4 w-4" />
-              </Button>
+                className="p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              />
               <Button
                 size="sm"
+                icon="arrowright"
                 onClick={handleGoForward}
                 disabled={!isElectron}
-                className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Icon name="arrowright" className="h-4 w-4" />
-              </Button>
+                className="p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              />
               <Button
                 size="sm"
+                icon="rotateccw"
                 onClick={handleWebviewReload}
-                className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white"
-              >
-                <Icon name="rotateccw" className="h-4 w-4" />
-              </Button>
+                className="p-0 bg-gray-600 hover:bg-gray-700 text-white"
+              />
               <Button
                 size="sm"
+                icon="home"
                 onClick={handleGoHome}
-                className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white"
-              >
-                <Icon name="home" className="h-4 w-4" />
-              </Button>
+                className="p-0 bg-gray-600 hover:bg-gray-700 text-white"
+              />
             </div>
             {/* URL bar row */}
             <div className="bg-gray-700 border border-gray-600 rounded px-3 py-1 text-sm text-gray-300 font-mono">
@@ -121,45 +121,45 @@ export function ViewWebview({
           <div className="hidden md:flex items-center gap-2">
             <Button
               size="sm"
+              icon="arrowleft"
+              iconClassName="h-5 w-5"
               onClick={handleGoBack}
               disabled={!isElectron}
-              className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Icon name="arrowleft" className="h-4 w-4" />
-            </Button>
+              className="p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            />
             <Button
               size="sm"
+              icon="arrowright"
+              iconClassName="h-5 w-5"
               onClick={handleGoForward}
               disabled={!isElectron}
-              className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Icon name="arrowright" className="h-4 w-4" />
-            </Button>
+              className="p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            />
             <Button
               size="sm"
+              icon="rotateccw"
+              iconClassName="h-5 w-5"
               onClick={handleWebviewReload}
-              className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white"
-            >
-              <Icon name="rotateccw" className="h-4 w-4" />
-            </Button>
+              className="p-0 bg-gray-600 hover:bg-gray-700 text-white"
+            />
             <Button
               size="sm"
+              icon="home"
+              iconClassName="h-5 w-5"
               onClick={handleGoHome}
-              className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white"
-            >
-              <Icon name="home" className="h-4 w-4" />
-            </Button>
+              className="p-0 bg-gray-600 hover:bg-gray-700 text-white"
+            />
             <div className="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-1 text-sm text-gray-300 font-mono">
               {url}
             </div>
             <Button
               size="sm"
+              icon="code"
+              iconClassName="h-5 w-5"
               onClick={handleOpenDevTools}
               disabled={!isElectron}
-              className="h-8 w-8 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Icon name="code" className="h-4 w-4" />
-            </Button>
+              className="p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            />
           </div>
         </div>
       )}

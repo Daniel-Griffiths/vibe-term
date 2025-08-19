@@ -1,6 +1,6 @@
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
-import { Icon } from "./icon";
+import { Icon, type IconName } from "./icon";
 
 const buttonVariants = cva(
   "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-50",
@@ -34,6 +34,9 @@ const buttonVariants = cva(
 export interface IButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
+  icon?: IconName;
+  iconClassName?: string;
+  iconPosition?: "left" | "right";
   isLoading?: boolean;
   loadingText?: string;
 }
@@ -44,6 +47,9 @@ export const Button = React.forwardRef<HTMLButtonElement, IButtonProps>(
       className,
       variant,
       size,
+      icon,
+      iconClassName,
+      iconPosition = "left",
       isLoading = false,
       loadingText,
       children,
@@ -52,6 +58,19 @@ export const Button = React.forwardRef<HTMLButtonElement, IButtonProps>(
     },
     ref
   ) => {
+    const renderIcon = () => {
+      if (isLoading) {
+        return <Icon name="loader2" className="h-4 w-4 animate-spin" />;
+      }
+      if (icon) {
+        return <Icon name={icon} className={iconClassName || "h-4 w-4"} />;
+      }
+      return null;
+    };
+
+    const hasContent = children || loadingText;
+    const iconElement = renderIcon();
+
     return (
       <button
         className={buttonVariants({ variant, size, className })}
@@ -59,8 +78,14 @@ export const Button = React.forwardRef<HTMLButtonElement, IButtonProps>(
         disabled={disabled || isLoading}
         {...props}
       >
-        {isLoading && <Icon name="loader2" className="mr-2 h-4 w-4 animate-spin" />}
+        {iconElement && iconPosition === "left" && hasContent && (
+          <span className="mr-2">{iconElement}</span>
+        )}
+        {iconElement && !hasContent && iconElement}
         {isLoading ? loadingText || children : children}
+        {iconElement && iconPosition === "right" && hasContent && (
+          <span className="ml-2">{iconElement}</span>
+        )}
       </button>
     );
   }

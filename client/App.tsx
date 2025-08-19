@@ -903,7 +903,7 @@ function App() {
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
           } lg:translate-x-0 fixed lg:relative z-50 lg:z-auto transition-transform duration-300 ease-in-out`}
         >
-          <div className="w-80 min-w-64 max-w-80 lg:w-80 md:w-72 sm:w-64 h-full glass-sidebar p-4 flex-shrink-0 flex flex-col">
+          <div className="w-80 min-w-64 max-w-80 lg:w-80 md:w-72 sm:w-64 h-full glass-sidebar p-4 pb-6 flex-shrink-0 flex flex-col overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-200">Projects</h2>
               <div className="flex gap-2">

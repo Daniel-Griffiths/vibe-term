@@ -260,14 +260,14 @@ ${methods}
 // Extract unique return types from handlers
 function extractReturnTypes(handlers) {
   const types = new Set();
-  handlers.forEach(h => {
-    if (h.returnType && h.returnType !== 'any') {
+  handlers.forEach((h) => {
+    if (h.returnType && h.returnType !== "any") {
       // Extract base type from generics like DataResponse<Something>
       const baseType = h.returnType.match(/^([^<]+)/)?.[1] || h.returnType;
       types.add(baseType);
-      
+
       // Also add the full type if it's a generic
-      if (h.returnType.includes('<')) {
+      if (h.returnType.includes("<")) {
         types.add(h.returnType);
       }
     }
@@ -278,7 +278,7 @@ function extractReturnTypes(handlers) {
 // Generate minimal type definitions based on what's actually used
 function generateTypeDefinitions(returnTypes) {
   const typeDefinitions = [];
-  
+
   // Always include base types
   typeDefinitions.push(`// Base response types
 export interface BaseResponse {
@@ -365,7 +365,7 @@ export interface DiscordSettings {
   enabled?: boolean;
 }`);
 
-  return typeDefinitions.join('\n');
+  return typeDefinitions.join("\n");
 }
 
 // Generate the complete communication.ts file
@@ -412,7 +412,7 @@ function main() {
   console.log("\n🏗️  Generating simplified unified communication.ts file...");
   const completeFile = generateCodeFile(handlers);
 
-  const outputFile = path.join(__dirname, "..", "src", "utils", "api.ts");
+  const outputFile = path.join(__dirname, "..", "client", "utils", "api.ts");
   fs.writeFileSync(outputFile, completeFile);
   console.log(`\n💾 communication.ts has been updated: ${outputFile}`);
 

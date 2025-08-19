@@ -18,7 +18,7 @@
     /* Path mapping */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./client/*"]
     },
 
     /* Linting */
@@ -28,5 +28,9 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src"]
+  "include": [
+    "src",
+    "electron/utils/claude-hook-setup.ts",
+    "electron/utils/shell-utils.ts"
+  ]
 }

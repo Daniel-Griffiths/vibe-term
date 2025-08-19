@@ -9,6 +9,7 @@ Vibe Term is a terminal multiplexer interface for Claude Code built with React a
 ## Core Architecture
 
 ### Technology Stack
+
 - **Frontend**: React with TypeScript, Tailwind CSS
 - **Desktop**: Electron (main process handles PTY sessions, tmux management)
 - **State Management**: Zustand with persistence
@@ -57,14 +58,15 @@ pnpm electron:run
 ## Project Structure
 
 - `electron/main.ts` - Main Electron process: manages PTY sessions, tmux, IPC handlers, web server
-- `src/App.tsx` - Main React component: coordinates UI state and IPC communication
-- `src/stores/settings.ts` - Zustand store: manages persistent state and settings
-- `src/components/view-*.tsx` - View components for different panels (terminal, git diff, file editor)
-- `src/utils/shellUtils.ts` - Shell utilities: tmux session management, command execution
+- `client/App.tsx` - Main React component: coordinates UI state and IPC communication
+- `client/stores/settings.ts` - Zustand store: manages persistent state and settings
+- `client/components/view-*.tsx` - View components for different panels (terminal, git diff, file editor)
+- `client/utils/shellUtils.ts` - Shell utilities: tmux session management, command execution
 
 ## Code Style Guidelines
 
 ### Component Interface Naming
+
 - All component prop interfaces must follow the format `I{ComponentName}Props`
 - Example: `ICodeEditorProps`, `ICodeEditorImageViewerProps`, `IViewFileEditorProps`
 - This ensures consistent naming across the codebase and easy identification of component interfaces
@@ -72,22 +74,26 @@ pnpm electron:run
 ## Key Implementation Details
 
 ### Terminal Session Management
+
 - Each project runs in its own tmux session with a unique name
 - PTY processes are created and managed in `electron/main.ts`
 - Terminal output is streamed to both desktop and web clients
 - Session state is tracked by detecting Claude's status indicators (⏺ for finished, ✳ for working)
 
 ### Git Integration
+
 - Git operations use native git commands via `execAsync`
 - Git diff view shows file changes with Monaco Editor diff viewer
 - Supports commit, push, and file revert operations
 
 ### Web Server
+
 - Express server runs on port 6969 by default
 - WebSocket connections stream terminal output to web clients
 - API endpoints mirror IPC handlers for project management
 
 ### State Management
+
 - Persistent state stored in localStorage via Zustand
 - Runtime state (status, output) kept separate from stored state
 - State file written to disk for web server access
@@ -95,16 +101,19 @@ pnpm electron:run
 ## Common Development Tasks
 
 ### Adding a New IPC Handler
+
 1. Add handler in `electron/main.ts` `setupIPCHandlers()` function
 2. Add corresponding method in `electron/preload.ts`
 3. Use via `window.electronAPI` in React components
 
 ### Adding a New View Component
-1. Create component in `src/components/view-*.tsx`
-2. Add tab in `src/components/view-project.tsx`
+
+1. Create component in `client/components/view-*.tsx`
+2. Add tab in `client/components/view-project.tsx`
 3. Handle state updates via Zustand store
 
 ### Modifying Terminal Behavior
+
 1. PTY creation logic in `getOrCreateSharedPty()` function
 2. Output parsing for status detection in the `onData` handler
 3. tmux commands generated via `ShellUtils` class
