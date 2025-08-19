@@ -103,9 +103,13 @@ export async function createWebServer(
   // Automatic API endpoint generation from IPC handlers
   expressApp.post("/api/ipc/:handlerName", async (req, res) => {
     const { handlerName } = req.params;
-    const args = req.body.args || [];
-
+    
     try {
+      // Debug request body
+      console.log(`[API] ${handlerName} - Body:`, JSON.stringify(req.body));
+      
+      const args = req.body.args || [];
+
       const handler = ipcHandlers.get(handlerName);
       if (!handler) {
         return res.status(404).json({

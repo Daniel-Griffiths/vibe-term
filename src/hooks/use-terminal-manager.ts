@@ -87,6 +87,43 @@ export function useTerminalManager(
     return unsubscribe;
   }, []);
 
+  // Track project output for web environment (when WebSocket updates come through project state)
+  const lastOutputLengthRef = useRef<Map<string, number>>(new Map());
+  
+  useEffect(() => {
+    console.log(`[Terminal Manager Debug] useEffect triggered with ${projects.length} projects`);
+    projects.forEach((project, index) => {
+      console.log(`[Terminal Manager Debug] Project ${index}: ${project.id}, output length: ${project.output?.length || 0}`);
+      if (!project.output || project.output.length === 0) return;
+      
+      const lastLength = lastOutputLengthRef.current.get(project.id) || 0;
+      const newOutput = project.output.slice(lastLength);
+      
+      if (newOutput.length > 0) {
+        console.log(`[Terminal Manager Debug] Processing ${newOutput.length} new output items for project ${project.id}`);
+        const manager = managerRef.current;
+        const instance = manager.getTerminal(project.id);
+        
+        if (instance) {
+          console.log(`[Terminal Manager Debug] Writing to terminal for project ${project.id}`);
+          // Write new output to terminal
+          newOutput.forEach((data, index) => {
+            console.log(`[Terminal Manager Debug] Writing chunk ${index}: ${data.substring(0, 50)}...`);
+            instance.terminal.write(data);
+          });
+        } else {
+          console.log(`[Terminal Manager Debug] No terminal instance for project ${project.id}, storing for later`);
+          // Store output for when terminal is created
+          const pending = pendingOutputRef.current.get(project.id) || [];
+          pending.push(...newOutput);
+          pendingOutputRef.current.set(project.id, pending);
+        }
+        
+        lastOutputLengthRef.current.set(project.id, project.output.length);
+      }
+    });
+  }, [projects]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -102,6 +139,7 @@ export function useTerminalManager(
   }, []);
 
   const showTerminal = useCallback((projectId: string) => {
+    console.log(`[Terminal Debug] showTerminal called for project ${projectId}`);
     // Create terminal if it doesn't exist
     const instance = createTerminalIfNeeded(projectId);
     if (!instance) {
@@ -109,9 +147,11 @@ export function useTerminalManager(
       return;
     }
     
+    console.log(`[Terminal Debug] Terminal instance created/found for project ${projectId}`);
     const manager = managerRef.current;
     manager.hideAllTerminals();
     manager.showTerminal(projectId, 50);
+    console.log(`[Terminal Debug] Terminal shown for project ${projectId}`);
   }, [createTerminalIfNeeded]);
 
   const focusTerminal = useCallback((projectId: string) => {

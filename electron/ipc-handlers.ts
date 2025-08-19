@@ -69,14 +69,29 @@ const sendDiscordNotification = async (
 
   return new Promise((resolve, reject) => {
     const req = https.request(options, (res) => {
-      if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-        resolve({ success: true });
-      } else {
-        reject(new Error(`Discord webhook returned status ${res.statusCode}`));
-      }
+      let responseData = '';
+      
+      res.on('data', (chunk) => {
+        responseData += chunk;
+      });
+      
+      res.on('end', () => {
+        try {
+          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+            resolve({ success: true });
+          } else {
+            console.error(`Discord webhook failed with status ${res.statusCode}:`, responseData);
+            reject(new Error(`Discord webhook returned status ${res.statusCode}`));
+          }
+        } catch (error) {
+          console.error('Error handling Discord response:', error, 'Response:', responseData);
+          reject(error);
+        }
+      });
     });
 
     req.on("error", (error: Error) => {
+      console.error('Discord webhook request error:', error);
       reject(error);
     });
 

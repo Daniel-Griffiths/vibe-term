@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { ProjectList } from "./components/project-list";
@@ -52,6 +52,14 @@ function App() {
     }
     return false; // Default to closed for SSR
   });
+
+  // Ref to store current items for WebSocket listeners
+  const itemsRef = useRef(items);
+
+  // Keep the ref updated
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
 
   // Auto-open sidebar on large screens only
   useEffect(() => {
@@ -220,13 +228,36 @@ function App() {
         }
       );
 
+      const unsubscribeTerminalOutput = webSocketManager.on(
+        "terminal-output",
+        (message: any) => {
+          console.log(`[Web App] Terminal output for ${message.projectId}:`, message.data);
+          console.log(`[Web App Debug] Current items in ref:`, itemsRef.current.map(item => ({ id: item.id, name: item.name, type: item.type })));
+          const currentItem = itemsRef.current.find(
+            (item) => item.id === message.projectId
+          );
+          console.log(`[Web App Debug] Found current item:`, currentItem);
+          if (currentItem) {
+            const newOutput = [...(currentItem.output || []), message.data];
+            console.log(`[Web App Debug] Updating item with ${newOutput.length} total output items`);
+            updateItem(message.projectId, {
+              output: newOutput,
+              lastActivity: new Date().toLocaleTimeString(),
+            });
+          } else {
+            console.log(`[Web App Debug] No item found for projectId: ${message.projectId}`);
+          }
+        }
+      );
+
       unsubscribeFunctions.push(
         unsubscribeProjectReady,
         unsubscribeProjectWorking,
         unsubscribeProjectStarted,
         unsubscribeProjectStopped,
         unsubscribeProjectsState,
-        unsubscribeClaudeStatusChange
+        unsubscribeClaudeStatusChange,
+        unsubscribeTerminalOutput
       );
     }
 
