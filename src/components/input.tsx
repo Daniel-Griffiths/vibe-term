@@ -1,7 +1,22 @@
-import { cn } from "@/utils/cn";
+import { cva, type VariantProps } from "class-variance-authority";
 import { Button } from "./button";
 import { Icon } from "./icon";
 import { useState, useCallback, forwardRef, InputHTMLAttributes } from "react";
+
+const inputVariants = cva(
+  "flex h-9 rounded-md border border-gray-600/50 bg-gray-800/30 backdrop-blur-sm text-gray-100 px-3 py-1 text-sm shadow-sm transition-all file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:bg-gray-700/40 disabled:cursor-not-allowed disabled:opacity-50",
+  {
+    variants: {
+      copyButton: {
+        true: "w-auto min-w-full pr-12",
+        false: "w-full",
+      },
+    },
+    defaultVariants: {
+      copyButton: false,
+    },
+  }
+);
 
 export interface IInputProps extends InputHTMLAttributes<HTMLInputElement> {
   hasCopy?: boolean;
@@ -31,10 +46,7 @@ export const Input = forwardRef<HTMLInputElement, IInputProps>(
         <div className="relative">
           <input
             type={type}
-            className={cn(
-              "flex h-9 w-auto min-w-full rounded-md border border-gray-600/50 bg-gray-800/30 backdrop-blur-sm text-gray-100 px-3 pr-12 py-1 text-sm shadow-sm transition-all file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:bg-gray-700/40 disabled:cursor-not-allowed disabled:opacity-50",
-              className
-            )}
+            className={inputVariants({ copyButton: true, className })}
             ref={ref}
             readOnly
             size={props.value ? String(props.value).length + 1 : undefined}
@@ -60,10 +72,7 @@ export const Input = forwardRef<HTMLInputElement, IInputProps>(
     return (
       <input
         type={type}
-        className={cn(
-          "flex h-9 w-full rounded-md border border-gray-600/50 bg-gray-800/30 backdrop-blur-sm text-gray-100 px-3 py-1 text-sm shadow-sm transition-all file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:bg-gray-700/40 disabled:cursor-not-allowed disabled:opacity-50",
-          className
-        )}
+        className={inputVariants({ copyButton: false, className })}
         ref={ref}
         {...props}
       />

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "./button";
 import { Input } from "./input";
 import { Icon } from "./icon";
-import { ICON_OPTIONS } from "./shared-icons";
+import { ICON_OPTIONS } from "../constants/icons";
 import { api } from "../utils/api";
 
 interface IFormProjectProps {

@@ -84,7 +84,7 @@ import {
   RotateCcw,
   ArrowLeft,
   ArrowRight,
-  // Additional icons from shared-icons
+  // Additional icons from constants/icons
   Headphones,
   Car,
   Plane,
@@ -218,7 +218,7 @@ export type IconName =
   | "rotateccw"
   | "arrowleft"
   | "arrowright"
-  // Additional from shared-icons
+  // Additional from constants/icons
   | "headphones"
   | "car"
   | "plane"
@@ -350,7 +350,7 @@ const iconMap: Record<IconName, LucideIcon> = {
   rotateccw: RotateCcw,
   arrowleft: ArrowLeft,
   arrowright: ArrowRight,
-  // Additional from shared-icons
+  // Additional from constants/icons
   headphones: Headphones,
   car: Car,
   plane: Plane,

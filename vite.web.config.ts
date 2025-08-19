@@ -11,7 +11,7 @@ export default defineConfig({
     sourcemap: true, // Enable source maps for debugging
     rollupOptions: {
       input: {
-        'web-app': path.resolve(__dirname, 'src/web-main.tsx'),
+        'web-app': path.resolve(__dirname, 'src/main.tsx'),
       },
       output: {
         entryFileNames: '[name].js',

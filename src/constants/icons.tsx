@@ -1,6 +1,7 @@
-import { Icon, type IconName } from "./icon";
+import React from "react";
+import { Icon, type IconName } from "../components/icon";
 
-interface IconOption {
+export interface IconOption {
   id: IconName;
   icon: React.ComponentType<any>;
   label: string;
