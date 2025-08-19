@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "./button";
 import { Input } from "./input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs";
-import { communicationAPI } from "../utils/communication";
+import { api } from "../utils/api";
 import type { AppSettings } from "../types/ipc";
 import {
   Settings as SettingsIcon,
@@ -21,10 +21,10 @@ interface IFormSettingsProps {
 }
 
 const defaultSettings: AppSettings = {
-  editor: { theme: 'vibe-term' },
+  editor: { theme: "vibe-term" },
   desktop: { notifications: true },
   webServer: { enabled: true, port: 6969 },
-  discord: { enabled: false, username: 'Vibe Term', webhookUrl: '' }
+  discord: { enabled: false, username: "Vibe Term", webhookUrl: "" },
 };
 
 export function FormSettings({ onClose }: IFormSettingsProps) {
@@ -41,25 +41,29 @@ export function FormSettings({ onClose }: IFormSettingsProps) {
 
   // Load settings from backend when component mounts
   useEffect(() => {
-    communicationAPI.getAppSettings()
-      .then(result => {
+    api
+      .getAppSettings()
+      .then((result) => {
         if (result.success) {
           setSettings(result.data);
           setLocalSettings(result.data);
         }
       })
-      .catch(error => {
-        console.error('Failed to load settings:', error);
+      .catch((error) => {
+        console.error("Failed to load settings:", error);
       });
-    
-    communicationAPI.getLocalIp().then((result) => {
-      if (result?.success && result?.data) {
-        setLocalIp(result.data.localIp);
-        setHasTailscale(result.data.hasTailscale);
-      }
-    }).catch((error) => {
-      console.error("Failed to get local IP:", error);
-    });
+
+    api
+      .getLocalIp()
+      .then((result) => {
+        if (result?.success && result?.data) {
+          setLocalIp(result.data.localIp);
+          setHasTailscale(result.data.hasTailscale);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to get local IP:", error);
+      });
   }, []);
 
   const handleSettingChange = (path: string, value: any) => {
@@ -83,7 +87,7 @@ export function FormSettings({ onClose }: IFormSettingsProps) {
     setIsSaving(true);
     try {
       // Save settings via IPC to backend
-      await communicationAPI.updateAppSettings(localSettings);
+      await api.updateAppSettings(localSettings);
       setSettings(localSettings);
       setHasChanges(false);
     } catch (error) {
@@ -101,9 +105,7 @@ export function FormSettings({ onClose }: IFormSettingsProps) {
 
     setTestingSending(true);
     try {
-      const result = await communicationAPI.testDiscordNotification(
-        localSettings.discord
-      );
+      const result = await api.testDiscordNotification(localSettings.discord);
       if (result?.success) {
         alert("Test notification sent successfully!");
       } else {
@@ -117,7 +119,9 @@ export function FormSettings({ onClose }: IFormSettingsProps) {
   };
 
   const handleCopyUrl = async () => {
-    const url = `http://${localIp}:${localSettings.webServer.port || DEFAULT_WEB_SERVER_PORT}`;
+    const url = `http://${localIp}:${
+      localSettings.webServer.port || DEFAULT_WEB_SERVER_PORT
+    }`;
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
@@ -127,7 +131,9 @@ export function FormSettings({ onClose }: IFormSettingsProps) {
     }
   };
 
-  const webUrl = `http://${localIp}:${localSettings.webServer.port || DEFAULT_WEB_SERVER_PORT}`;
+  const webUrl = `http://${localIp}:${
+    localSettings.webServer.port || DEFAULT_WEB_SERVER_PORT
+  }`;
 
   return (
     <div className="space-y-6">
@@ -137,11 +143,17 @@ export function FormSettings({ onClose }: IFormSettingsProps) {
             <Bell className="h-4 w-4" />
             General
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="flex items-center gap-2">
+          <TabsTrigger
+            value="notifications"
+            className="flex items-center gap-2"
+          >
             <MessageCircle className="h-4 w-4" />
             Discord
           </TabsTrigger>
-          <TabsTrigger value="web-interface" className="flex items-center gap-2">
+          <TabsTrigger
+            value="web-interface"
+            className="flex items-center gap-2"
+          >
             <Globe className="h-4 w-4" />
             Web Interface
           </TabsTrigger>
@@ -168,12 +180,16 @@ export function FormSettings({ onClose }: IFormSettingsProps) {
                   )
                 }
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  localSettings.desktop.notifications ? "bg-blue-600" : "bg-gray-600"
+                  localSettings.desktop.notifications
+                    ? "bg-blue-600"
+                    : "bg-gray-600"
                 }`}
               >
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    localSettings.desktop.notifications ? "translate-x-6" : "translate-x-1"
+                    localSettings.desktop.notifications
+                      ? "translate-x-6"
+                      : "translate-x-1"
                   }`}
                 />
               </button>
@@ -234,12 +250,16 @@ export function FormSettings({ onClose }: IFormSettingsProps) {
                   )
                 }
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  localSettings.webServer.enabled ? "bg-blue-600" : "bg-gray-600"
+                  localSettings.webServer.enabled
+                    ? "bg-blue-600"
+                    : "bg-gray-600"
                 }`}
               >
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    localSettings.webServer.enabled ? "translate-x-6" : "translate-x-1"
+                    localSettings.webServer.enabled
+                      ? "translate-x-6"
+                      : "translate-x-1"
                   }`}
                 />
               </button>
@@ -321,8 +341,8 @@ export function FormSettings({ onClose }: IFormSettingsProps) {
                 {actualWebPort &&
                   actualWebPort !== localSettings.webServer.port && (
                     <p className="text-xs text-yellow-400">
-                      Using port {actualWebPort} - {localSettings.webServer.port}{" "}
-                      was busy
+                      Using port {actualWebPort} -{" "}
+                      {localSettings.webServer.port} was busy
                     </p>
                   )}
               </div>
@@ -376,12 +396,16 @@ export function FormSettings({ onClose }: IFormSettingsProps) {
                   )
                 }
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  localSettings.discord.enabled ? "bg-purple-600" : "bg-gray-600"
+                  localSettings.discord.enabled
+                    ? "bg-purple-600"
+                    : "bg-gray-600"
                 }`}
               >
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    localSettings.discord.enabled ? "translate-x-6" : "translate-x-1"
+                    localSettings.discord.enabled
+                      ? "translate-x-6"
+                      : "translate-x-1"
                   }`}
                 />
               </button>
@@ -403,8 +427,8 @@ export function FormSettings({ onClose }: IFormSettingsProps) {
                 className="w-full px-3 py-2 text-sm bg-gray-800 border border-gray-700 rounded text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Create a webhook in your Discord server settings →
-                Integrations → Webhooks
+                Create a webhook in your Discord server settings → Integrations
+                → Webhooks
               </p>
             </div>
 

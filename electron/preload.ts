@@ -13,12 +13,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectDirectory: () => 
     ipcRenderer.invoke('select-directory'),
   
-  loadAppConfig: () => 
-    ipcRenderer.invoke('load-app-config'),
-
-  saveAppConfig: (config: any) => 
-    ipcRenderer.invoke('save-app-config', config),
-  
   onTerminalOutput: (callback: (data: any) => void) => {
     ipcRenderer.on('terminal-output', (event, data) => {
       console.log(`[Preload Debug] Received terminal-output in preload:`, {
@@ -78,12 +72,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   setSelectedProject: (projectId: string | null) => 
     ipcRenderer.invoke('set-selected-project', projectId),
-  
-  loadSettings: () => 
-    ipcRenderer.invoke('load-settings'),
-  
-  saveSettings: (settings: any) => 
-    ipcRenderer.invoke('save-settings', settings),
   
   getLocalIp: () =>
     ipcRenderer.invoke('get-local-ip'),

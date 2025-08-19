@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { ZoomIn, ZoomOut, RotateCw, Download, Maximize2 } from "lucide-react";
 import { Button } from "./button";
-import { communicationAPI } from "../utils/communication";
+import { api } from "../utils/api";
 
 interface ICodeEditorImageViewerProps {
   filePath: string;
@@ -9,23 +9,32 @@ interface ICodeEditorImageViewerProps {
   fileName: string;
 }
 
-export function CodeEditorImageViewer({ filePath, projectPath, fileName }: ICodeEditorImageViewerProps) {
+export function CodeEditorImageViewer({
+  filePath,
+  projectPath,
+  fileName,
+}: ICodeEditorImageViewerProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
+  const [imageDimensions, setImageDimensions] = useState({
+    width: 0,
+    height: 0,
+  });
 
   const loadImage = useCallback(async () => {
     try {
       // Read the image file as base64
-      const result = await communicationAPI.readImageFile(projectPath, filePath);
+      const result = await api.readImageFile(projectPath, filePath);
       if (result?.success && result.data) {
         // Create a data URL from the base64 string
-        const url = `data:${result.mimeType || 'image/jpeg'};base64,${result.data}`;
+        const url = `data:${result.mimeType || "image/jpeg"};base64,${
+          result.data
+        }`;
         setImageUrl(url);
         setError(null);
-        
+
         // Load image to get dimensions
         const img = new Image();
         img.onload = () => {
@@ -51,17 +60,16 @@ export function CodeEditorImageViewer({ filePath, projectPath, fileName }: ICode
     };
   }, [loadImage, imageUrl]);
 
-
   const handleZoomIn = useCallback(() => {
-    setScale(prev => Math.min(prev + 0.25, 5));
+    setScale((prev) => Math.min(prev + 0.25, 5));
   }, []);
 
   const handleZoomOut = useCallback(() => {
-    setScale(prev => Math.max(prev - 0.25, 0.25));
+    setScale((prev) => Math.max(prev - 0.25, 0.25));
   }, []);
 
   const handleRotate = useCallback(() => {
-    setRotation(prev => (prev + 90) % 360);
+    setRotation((prev) => (prev + 90) % 360);
   }, []);
 
   const handleResetView = useCallback(() => {
@@ -71,7 +79,7 @@ export function CodeEditorImageViewer({ filePath, projectPath, fileName }: ICode
 
   const handleDownload = useCallback(() => {
     if (imageUrl) {
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = imageUrl;
       link.download = fileName;
       document.body.appendChild(link);
@@ -143,7 +151,7 @@ export function CodeEditorImageViewer({ filePath, projectPath, fileName }: ICode
             <Maximize2 className="h-4 w-4" />
           </Button>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <span className="text-xs text-gray-500">
             {imageDimensions.width} × {imageDimensions.height}px
@@ -165,8 +173,8 @@ export function CodeEditorImageViewer({ filePath, projectPath, fileName }: ICode
         <div
           style={{
             transform: `scale(${scale}) rotate(${rotation}deg)`,
-            transition: 'transform 0.2s ease',
-            transformOrigin: 'center',
+            transition: "transform 0.2s ease",
+            transformOrigin: "center",
           }}
         >
           <img
@@ -174,7 +182,7 @@ export function CodeEditorImageViewer({ filePath, projectPath, fileName }: ICode
             alt={fileName}
             className="max-w-full max-h-full object-contain shadow-2xl"
             style={{
-              imageRendering: scale > 2 ? 'pixelated' : 'auto',
+              imageRendering: scale > 2 ? "pixelated" : "auto",
             }}
           />
         </div>

@@ -10,7 +10,7 @@ import { Terminal as TerminalIcon } from "lucide-react";
 import { useTerminalManager } from "../hooks/use-terminal-manager";
 import { TerminalService } from "../services/TerminalService";
 import { NonIdealState } from "./non-ideal-state";
-import { communicationAPI } from "../utils/communication";
+import { api } from "../utils/api";
 import type { UnifiedItem } from "../types";
 import "@xterm/xterm/css/xterm.css";
 
@@ -39,7 +39,7 @@ export const ViewTerminal = forwardRef<ViewTerminalRef, IViewTerminalProps>(
       TerminalService.getClaudeConfig(),
       (output) => {
         // Handle terminal data input (send to Electron)
-        communicationAPI.sendInput(output.projectId, output.data);
+        api.sendInput(output.projectId, output.data);
       }
     );
 

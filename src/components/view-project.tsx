@@ -5,7 +5,7 @@ import { ViewTerminal, type ViewTerminalRef } from "./view-terminal";
 import { ViewGitDiff } from "./view-git-diff";
 import { ViewFileEditor } from "./view-file-editor";
 import { ViewWebview } from "./view-webview";
-import { communicationAPI } from "../utils/communication";
+import { api } from "../utils/api";
 import { Terminal, GitBranch, Globe, FileText } from "lucide-react";
 import type { UnifiedItem } from "../types";
 import { ItemType } from "../types";
@@ -24,10 +24,7 @@ interface IViewProjectProps {
   setSidebarOpen?: (open: boolean) => void;
 }
 
-export function ViewProject({
-  selectedItem,
-  items,
-}: IViewProjectProps) {
+export function ViewProject({ selectedItem, items }: IViewProjectProps) {
   const [activeTab, setActiveTab] = useState<ProjectTab>(() => {
     return ProjectTab.TERMINAL;
   });
@@ -49,7 +46,7 @@ export function ViewProject({
   // Fetch local IP when component mounts
   const fetchLocalIp = useCallback(async () => {
     try {
-      const result = await communicationAPI.getLocalIp();
+      const result = await api.getLocalIp();
       if (result?.success && result?.data) {
         setLocalIp(result.data.localIp);
       }

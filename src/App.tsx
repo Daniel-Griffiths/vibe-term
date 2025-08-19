@@ -10,7 +10,7 @@ import { FormSettings } from "./components/form-settings";
 import { FormDependencies } from "./components/form-dependencies";
 import { FormConfirmation } from "./components/form-confirmation";
 import { useAppState } from "./hooks/use-app-state";
-import { communicationAPI } from "./utils/communication";
+import { api } from "./utils/api";
 import { webSocketManager } from "./utils/websocket-manager";
 import { isElectron, isWeb } from "./utils/environment";
 import type { UnifiedItem, TerminalOutput, ProcessExit } from "./types";
@@ -87,11 +87,11 @@ function App() {
       isWeb
     );
 
-    // Set up event listeners - the communicationAPI handles environment detection
+    // Set up event listeners - the api handles environment detection
     const unsubscribeFunctions: (() => void)[] = [];
 
-    if (communicationAPI.onTerminalOutput) {
-      const unsubscribeOutput = communicationAPI.onTerminalOutput(
+    if (api.onTerminalOutput) {
+      const unsubscribeOutput = api.onTerminalOutput(
         (output: TerminalOutput) => {
           // Get current items from store and update
           const currentItem = items.find(
@@ -108,20 +108,18 @@ function App() {
       unsubscribeFunctions.push(unsubscribeOutput);
     }
 
-    if (communicationAPI.onProcessExit) {
-      const unsubscribeExit = communicationAPI.onProcessExit(
-        (exit: ProcessExit) => {
-          updateItem(exit.projectId, {
-            status: exit.code === 0 ? "completed" : "error",
-            lastActivity: new Date().toLocaleTimeString(),
-          });
-        }
-      );
+    if (api.onProcessExit) {
+      const unsubscribeExit = api.onProcessExit((exit: ProcessExit) => {
+        updateItem(exit.projectId, {
+          status: exit.code === 0 ? "completed" : "error",
+          lastActivity: new Date().toLocaleTimeString(),
+        });
+      });
       unsubscribeFunctions.push(unsubscribeExit);
     }
 
-    if (communicationAPI.onClaudeReady) {
-      const unsubscribeReady = communicationAPI.onClaudeReady(
+    if (api.onClaudeReady) {
+      const unsubscribeReady = api.onClaudeReady(
         (data: { projectId: string; timestamp: number }) => {
           updateItem(data.projectId, {
             status: "ready",
@@ -132,8 +130,8 @@ function App() {
       unsubscribeFunctions.push(unsubscribeReady);
     }
 
-    if (communicationAPI.onClaudeWorking) {
-      const unsubscribeWorking = communicationAPI.onClaudeWorking(
+    if (api.onClaudeWorking) {
+      const unsubscribeWorking = api.onClaudeWorking(
         (data: { projectId: string; timestamp: number }) => {
           updateItem(data.projectId, {
             status: "working",
@@ -144,12 +142,10 @@ function App() {
       unsubscribeFunctions.push(unsubscribeWorking);
     }
 
-    if (communicationAPI.onMissingDependencies) {
-      const unsubscribeDeps = communicationAPI.onMissingDependencies(
-        (deps: string[]) => {
-          setMissingDeps(deps);
-        }
-      );
+    if (api.onMissingDependencies) {
+      const unsubscribeDeps = api.onMissingDependencies((deps: string[]) => {
+        setMissingDeps(deps);
+      });
       unsubscribeFunctions.push(unsubscribeDeps);
     }
 
@@ -231,21 +227,35 @@ function App() {
       const unsubscribeTerminalOutput = webSocketManager.on(
         "terminal-output",
         (message: any) => {
-          console.log(`[Web App] Terminal output for ${message.projectId}:`, message.data);
-          console.log(`[Web App Debug] Current items in ref:`, itemsRef.current.map(item => ({ id: item.id, name: item.name, type: item.type })));
+          console.log(
+            `[Web App] Terminal output for ${message.projectId}:`,
+            message.data
+          );
+          console.log(
+            `[Web App Debug] Current items in ref:`,
+            itemsRef.current.map((item) => ({
+              id: item.id,
+              name: item.name,
+              type: item.type,
+            }))
+          );
           const currentItem = itemsRef.current.find(
             (item) => item.id === message.projectId
           );
           console.log(`[Web App Debug] Found current item:`, currentItem);
           if (currentItem) {
             const newOutput = [...(currentItem.output || []), message.data];
-            console.log(`[Web App Debug] Updating item with ${newOutput.length} total output items`);
+            console.log(
+              `[Web App Debug] Updating item with ${newOutput.length} total output items`
+            );
             updateItem(message.projectId, {
               output: newOutput,
               lastActivity: new Date().toLocaleTimeString(),
             });
           } else {
-            console.log(`[Web App Debug] No item found for projectId: ${message.projectId}`);
+            console.log(
+              `[Web App Debug] No item found for projectId: ${message.projectId}`
+            );
           }
         }
       );
@@ -341,7 +351,7 @@ function App() {
     // Notify about the project selection for notifications
     const item = items.find((i) => i.id === itemId);
     if (item?.type === ItemType.PROJECT) {
-      communicationAPI.setSelectedProject(itemId);
+      api.setSelectedProject(itemId);
     }
   };
 
@@ -353,7 +363,7 @@ function App() {
 
     // Select the project when starting it
     setSelectedItem(projectId);
-    communicationAPI.setSelectedProject(projectId);
+    api.setSelectedProject(projectId);
 
     updateItem(projectId, {
       status: "running",
@@ -362,7 +372,7 @@ function App() {
     });
 
     try {
-      const result = await communicationAPI.startClaudeProcess(
+      const result = await api.startClaudeProcess(
         projectId,
         project.path!,
         command,
@@ -393,7 +403,7 @@ function App() {
 
   const handleProjectStop = async (projectId: string) => {
     try {
-      await communicationAPI.stopClaudeProcess(projectId);
+      await api.stopClaudeProcess(projectId);
     } catch (error) {
       console.error("Failed to stop project:", error);
     }

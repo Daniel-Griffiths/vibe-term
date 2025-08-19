@@ -3,7 +3,7 @@ import { Button } from "./button";
 import { Input } from "./input";
 import { ChevronDown } from "lucide-react";
 import { ICON_OPTIONS } from "./shared-icons";
-import { communicationAPI } from "../utils/communication";
+import { api } from "../utils/api";
 
 interface IFormProjectProps {
   data?: {
@@ -27,11 +27,7 @@ interface IFormProjectProps {
   onCancel: () => void;
 }
 
-export function FormProject({
-  data,
-  onSubmit,
-  onCancel,
-}: IFormProjectProps) {
+export function FormProject({ data, onSubmit, onCancel }: IFormProjectProps) {
   const [name, setName] = useState("");
   const [path, setPath] = useState("");
   const [selectedIcon, setSelectedIcon] = useState("code");
@@ -102,7 +98,7 @@ export function FormProject({
 
   const handleSelectDirectory = async () => {
     try {
-      const result = await communicationAPI.selectDirectory();
+      const result = await api.selectDirectory();
       if (result?.success && result?.data?.path) {
         setPath(result.data.path);
         // Auto-populate name with folder name if name is empty
@@ -133,7 +129,6 @@ export function FormProject({
       restrictedBranches: restrictedBranches.trim() || undefined,
     });
   };
-
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -316,10 +311,20 @@ export function FormProject({
 
       {/* Form Actions */}
       <div className="flex gap-3 pt-4">
-        <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          className="flex-1"
+        >
           Cancel
         </Button>
-        <Button type="submit" variant="primary" disabled={!path.trim()} className="flex-1">
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={!path.trim()}
+          className="flex-1"
+        >
           {data ? "Update" : "Add"} Project
         </Button>
       </div>

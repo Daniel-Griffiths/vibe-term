@@ -8,7 +8,7 @@
 
 import { isElectron } from './environment';
 
-class CommunicationAPI {
+class API {
   private electronAPI: any;
 
   constructor() {
@@ -170,30 +170,6 @@ class CommunicationAPI {
       : this.callAPI('select-directory', []);
   }
 
-  // Legacy settings methods
-  async loadAppConfig(): Promise<any> {
-    return isElectron 
-      ? this.electronAPI.loadAppConfig()
-      : this.callAPI('load-app-config', []);
-  }
-
-  async saveAppConfig(config: any): Promise<any> {
-    return isElectron 
-      ? this.electronAPI.saveAppConfig(config)
-      : this.callAPI('save-app-config', [config]);
-  }
-
-  async loadSettings(): Promise<any> {
-    return isElectron 
-      ? this.electronAPI.loadSettings()
-      : this.callAPI('load-settings', []);
-  }
-
-  async saveSettings(settings: any): Promise<any> {
-    return isElectron 
-      ? this.electronAPI.saveSettings(settings)
-      : this.callAPI('save-settings', [settings]);
-  }
 
   // Event listener methods (Electron only)
   // For web clients, use webSocketManager from websocket-manager.ts directly
@@ -227,4 +203,4 @@ class CommunicationAPI {
 }
 
 // Create the unified API instance
-export const communicationAPI = new CommunicationAPI();
+export const api = new API();

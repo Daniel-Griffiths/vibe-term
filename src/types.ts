@@ -3,8 +3,6 @@ export interface ElectronAPI {
   stopClaudeProcess: (projectId: string) => Promise<{ success: boolean; error?: string }>;
   sendInput: (projectId: string, input: string) => Promise<{ success: boolean; error?: string }>;
   selectDirectory: () => Promise<string | null>;
-  loadAppConfig: () => Promise<AppConfig>;
-  saveAppConfig: (config: AppConfig) => Promise<{ success: boolean; error?: string }>;
   onTerminalOutput: (callback: (data: TerminalOutput) => void) => () => void;
   onProcessExit: (callback: (data: ProcessExit) => void) => () => void;
   onClaudeReady: (callback: (data: { projectId: string; timestamp: number }) => void) => () => void;

@@ -20,7 +20,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { NonIdealState } from "./non-ideal-state";
-import { communicationAPI } from "../utils/communication";
+import { api } from "../utils/api";
 import type { UnifiedItem } from "../types";
 
 interface IViewGitDiffProps {
@@ -65,7 +65,7 @@ export function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
       setLoading(true);
       setError(null);
       try {
-        const result = await communicationAPI.getGitDiff(selectedProject.path);
+        const result = await api.getGitDiff(selectedProject.path);
         if (result.success) {
           setDiffData(result.data);
           if (result.data.files.length > 0) {
@@ -110,7 +110,7 @@ export function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
     setLoading(true);
     setError(null);
     try {
-      const result = await communicationAPI.getGitDiff(selectedProject.path);
+      const result = await api.getGitDiff(selectedProject.path);
       if (result.success) {
         setDiffData(result.data);
         if (result.data.files.length > 0) {
@@ -172,7 +172,7 @@ export function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
     if (!selectedProject || !selectedFile) return;
 
     try {
-      const result = await communicationAPI.saveFile(
+      const result = await api.saveFile(
         selectedProject.path,
         selectedFile.path,
         editContent
@@ -202,7 +202,7 @@ export function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
 
     setIsCommitting(true);
     try {
-      const result = await communicationAPI.gitCommit(
+      const result = await api.gitCommit(
         selectedProject.path,
         commitMessage.trim()
       );
@@ -229,9 +229,7 @@ export function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
             "Commit successful! Do you want to push to remote?"
           );
           if (shouldPush) {
-            const pushResult = await communicationAPI.gitPush(
-              selectedProject.path
-            );
+            const pushResult = await api.gitPush(selectedProject.path);
             if (pushResult?.success) {
               alert("Successfully pushed to remote!");
             } else {
@@ -257,10 +255,7 @@ export function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
     if (!selectedProject) return;
 
     try {
-      const result = await communicationAPI.revertFile(
-        selectedProject.path,
-        filePath
-      );
+      const result = await api.revertFile(selectedProject.path, filePath);
       if (result?.success) {
         // If this was the currently selected file, update it
         if (selectedFile && selectedFile.path === filePath) {
