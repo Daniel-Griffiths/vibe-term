@@ -1,30 +1,27 @@
-import { app, BrowserWindow, Notification, powerSaveBlocker } from "electron";
 import fs from "fs";
-import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { ChildProcess, spawn } from "child_process";
 import * as pty from "@lydell/node-pty";
+import { fileURLToPath } from "node:url";
+import { ErrorHandler } from "./utils/error-handler";
+import type { UnifiedItem } from "../src/types";
+import { ChildProcess, spawn } from "child_process";
 import { ShellUtils } from "../src/utils/shell-utils";
 import { setupIPCHandlers, ipcHandlers } from "./ipc-handlers";
+import { SettingsManager, AppState } from "./utils/settings-manager";
+import { setupClaudeHooks } from "../src/utils/claude-hook-setup";
+import { app, BrowserWindow, Notification, powerSaveBlocker } from "electron";
 import {
   createWebServer,
   broadcastToWebClients,
   closeWebServer,
 } from "./web-server";
-import { setupClaudeHooks } from "../src/utils/claude-hook-setup";
-import { SettingsManager, AppState } from "./settings-manager";
-import { ErrorHandler } from "./error-handler";
-import type { UnifiedItem } from "../src/types";
 
-// Global settings manager instance
 let settingsManager: SettingsManager;
 
-// Initialize settings manager
 const initializeSettingsManager = () => {
   settingsManager = SettingsManager.getInstance();
 };
 
-// Test variable to force missing dependencies modal
 const FORCE_SHOW_DEPENDENCIES_MODAL = false; // Set to true for testing
 
 // Check for required dependencies
@@ -50,9 +47,6 @@ async function checkDependencies(): Promise<string[]> {
 
   return missing;
 }
-
-// Safely import liquid glass with fallback (unused placeholder)
-// const liquidGlass: unknown = null;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -596,5 +590,3 @@ app.whenReady().then(async () => {
     });
   }
 });
-
-// IPC handlers are set up in setupIPCHandlers()

@@ -8,7 +8,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "./card";
 import { Terminal as TerminalIcon } from "lucide-react";
 import { useTerminalManager } from "../hooks/use-terminal-manager";
-import { TerminalService } from "../services/TerminalService";
+import { TerminalService } from "../utils/terminal-service";
 import { NonIdealState } from "./non-ideal-state";
 import { api } from "../utils/api";
 import type { UnifiedItem } from "../types";

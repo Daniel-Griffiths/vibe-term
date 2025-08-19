@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
-import { TerminalService } from "../services/TerminalService";
-import type { TerminalConfig } from "../services/TerminalService";
+import { TerminalService } from "../utils/terminal-service";
+import type { TerminalConfig } from "../utils/terminal-service";
 import type { Project } from "../types";
 import { api } from "../utils/api";
 
