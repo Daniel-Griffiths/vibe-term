@@ -1,64 +1,60 @@
-import { useState, useEffect, useRef, useMemo } from "react";
-import { toast, ToastContainer } from "react-toastify";
+import { api } from "./utils/api";
+import { ItemType } from "./types";
+import { Input } from "./components/input";
+import { Modal } from "./components/modal";
+import { isWeb } from "./utils/environment";
 import "react-toastify/dist/ReactToastify.css";
+import { FormPanel } from "./components/form-panel";
+import { useAppState } from "./hooks/use-app-state";
+import { toast, ToastContainer } from "react-toastify";
+import { ViewWebview } from "./components/view-webview";
+import { FormProject } from "./components/form-project";
+import { ViewGitDiff } from "./components/view-git-diff";
+import { FormSettings } from "./components/form-settings";
+import { NonIdealState } from "./components/non-ideal-state";
+import { webSocketManager } from "./utils/websocket-manager";
+import { ViewFileEditor } from "./components/view-file-editor";
+import { Tabs, TabsList, TabsTrigger } from "./components/tabs";
+import { FormDependencies } from "./components/form-dependencies";
+import { FormConfirmation } from "./components/form-confirmation";
+import type { UnifiedItem, TerminalOutput, ProcessExit } from "./types";
+import { Card, CardContent, CardHeader, CardTitle } from "./components/card";
+import { ViewTerminal, type ViewTerminalRef } from "./components/view-terminal";
+import React, {
+  useRef,
+  useMemo,
+  useState,
+  useEffect,
+  useCallback,
+  CSSProperties,
+} from "react";
 import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
   useSensor,
+  DndContext,
   useSensors,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
   type DragEndEvent,
 } from "@dnd-kit/core";
 import {
+  useSortable,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
-  useSortable,
 } from "@dnd-kit/sortable";
-import { NonIdealState } from "./components/non-ideal-state";
-import { Card, CardContent, CardHeader, CardTitle } from "./components/card";
-import { ViewProject } from "./components/view-project";
-import { Modal } from "./components/modal";
-import { FormProject } from "./components/form-project";
-import { FormPanel } from "./components/form-panel";
-import { FormSettings } from "./components/form-settings";
-import { FormDependencies } from "./components/form-dependencies";
-import { FormConfirmation } from "./components/form-confirmation";
-import { useAppState } from "./hooks/use-app-state";
-import { api } from "./utils/api";
-import { webSocketManager } from "./utils/websocket-manager";
-import { isElectron, isWeb } from "./utils/environment";
-import type { UnifiedItem, TerminalOutput, ProcessExit } from "./types";
-import { ItemType } from "./types";
+
+enum ProjectTab {
+  TERMINAL = "terminal",
+  GIT_DIFF = "git-diff",
+  EDITOR = "editor",
+  PREVIEW = "preview",
+}
+
 import { Button } from "./components/button";
 import { Icon } from "./components/icon";
+import { StatusIcon } from "./components/status-icon";
 
-// Helper function to get status icon
-const getStatusIcon = (status: UnifiedItem["status"]) => {
-  switch (status) {
-    case "running":
-      return (
-        <div className="flex items-center justify-center">
-          <div className="animate-spin rounded-full h-3 w-3 border border-blue-400 border-t-transparent"></div>
-        </div>
-      );
-    case "working":
-      return (
-        <div className="flex items-center justify-center">
-          <div className="animate-spin rounded-full h-3 w-3 border border-yellow-400 border-t-transparent"></div>
-        </div>
-      );
-    case "ready":
-      return (
-        <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse shadow-lg shadow-green-400/50" />
-      );
-    case "completed":
-      return <Icon name="checkcircle" className="h-4 w-4 text-green-500" />;
-    default:
-      return <div className="h-2 w-2 rounded-full bg-gray-500" />;
-  }
-};
 
 // Sortable Project Card Component
 interface ISortableProjectCardProps {
@@ -102,9 +98,7 @@ function SortableProjectCard({
               <Icon
                 name={project.icon || "folder"}
                 className={`h-4 w-4 ${
-                  selectedItem === project.id
-                    ? "text-white"
-                    : "text-gray-400"
+                  selectedItem === project.id ? "text-white" : "text-gray-400"
                 }`}
               />
               <CardTitle
@@ -120,7 +114,7 @@ function SortableProjectCard({
                 {project.name}
               </CardTitle>
             </div>
-            {getStatusIcon(project.status)}
+            <StatusIcon status={project.status} />
           </div>
           <p
             className={`text-xs truncate ${
@@ -152,7 +146,7 @@ function SortableProjectCard({
                   className="h-6 px-2 text-xs"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onProjectStart(project.id, project.runCommand || "");
+                    onProjectStart(project.id, project.runCommand ?? "");
                   }}
                 >
                   <Icon name="play" className="h-3 w-3" />
@@ -226,9 +220,7 @@ function SortablePanelCard({
               <Icon
                 name={panel.icon || "globe"}
                 className={`h-4 w-4 ${
-                  selectedItem === panel.id
-                    ? "text-white"
-                    : "text-gray-400"
+                  selectedItem === panel.id ? "text-white" : "text-gray-400"
                 }`}
               />
               <CardTitle
@@ -325,6 +317,14 @@ function App() {
     }
     return false; // Default to closed for SSR
   });
+
+  // ViewProject state
+  const [activeTab, setActiveTab] = useState<ProjectTab>(() => {
+    return ProjectTab.TERMINAL;
+  });
+  const [localIp, setLocalIp] = useState<string>("localhost");
+  const [webPort] = useState(6969);
+  const terminalRef = useRef<ViewTerminalRef>(null);
 
   // Ref to store current items for WebSocket listeners
   const itemsRef = useRef(items);
@@ -538,6 +538,49 @@ function App() {
     };
   }, []);
 
+  // ViewProject logic
+  const currentItem = selectedItem
+    ? items.find((item) => item.id === selectedItem)
+    : null;
+  const previewUrl = useMemo(() => currentItem?.url, [currentItem?.url]);
+  const webUrl = useMemo(
+    () => `http://${localIp}:${webPort}`,
+    [localIp, webPort]
+  );
+  const isPanel = useMemo(
+    () => currentItem?.type === ItemType.PANEL,
+    [currentItem?.type]
+  );
+
+  const fetchLocalIp = useCallback(async () => {
+    try {
+      const result = await api.getLocalIp();
+      if (result?.success && result?.data) {
+        setLocalIp(result.data.localIp);
+      }
+    } catch (error) {
+      console.error("Failed to fetch local IP:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLocalIp();
+  }, [fetchLocalIp]);
+
+  useEffect(() => {
+    if (
+      activeTab === ProjectTab.TERMINAL &&
+      currentItem &&
+      terminalRef.current
+    ) {
+      const timer = setTimeout(() => {
+        terminalRef.current?.fitTerminal(currentItem.id);
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab, currentItem?.id, currentItem]);
+
   const handleProjectAdd = (projectData: {
     name: string;
     path: string;
@@ -654,7 +697,7 @@ function App() {
           lastActivity: new Date().toLocaleTimeString(),
         });
       }
-    } catch (error) {
+    } catch {
       updateItem(projectId, {
         status: "error",
         output: [`Error: Failed to start project`],
@@ -740,10 +783,6 @@ function App() {
     setItems([...projectItems, ...reorderedPanels]);
   };
 
-  const currentItem = selectedItem
-    ? items.find((item) => item.id === selectedItem)
-    : null;
-
   // Setup DnD sensors
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -774,11 +813,6 @@ function App() {
       const newIndex = panels.findIndex((p) => p.id === over.id);
       handlePanelReorder(oldIndex, newIndex);
     }
-  };
-
-  const handlePanelAdd = () => {
-    setEditingPanel(null);
-    setIsPanelModalOpen(true);
   };
 
   const handlePanelEdit = (panelId: string) => {
@@ -856,7 +890,7 @@ function App() {
     <div className="h-screen flex flex-col bg-gray-950 text-gray-100 overflow-hidden">
       <div
         className="h-16 glass-titlebar flex items-center px-4 select-none relative"
-        style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
+        style={{ WebkitAppRegion: "drag" } as CSSProperties}
       >
         <h1 className="text-lg font-medium text-gray-200 absolute left-1/2 transform -translate-x-1/2">
           Vibe Term
@@ -866,7 +900,7 @@ function App() {
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
           className="lg:hidden bg-gray-800/50 border border-gray-700/50 rounded-lg p-2 hover:bg-gray-700/50 transition-colors ml-auto"
-          style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+          style={{ WebkitAppRegion: "no-drag" } as CSSProperties}
         >
           <svg
             className="w-5 h-5 text-gray-300"
@@ -954,11 +988,16 @@ function App() {
 
             {projects.length === 0 && (
               <NonIdealState
-                icon={() => <Icon name="folder" className="h-8 w-8 text-gray-400" />}
+                icon={() => (
+                  <Icon name="folder" className="h-8 w-8 text-gray-400" />
+                )}
                 title="No Projects Found"
                 description="Add your first project to get started"
                 action={
-                  <Button onClick={() => setIsModalOpen(true)} variant="outline">
+                  <Button
+                    onClick={() => setIsModalOpen(true)}
+                    variant="outline"
+                  >
                     <Icon name="plus" className="h-4 w-4 mr-2" />
                     Add Project
                   </Button>
@@ -1013,7 +1052,9 @@ function App() {
 
                 {panels.length === 0 && (
                   <NonIdealState
-                    icon={() => <Icon name="globe" className="h-8 w-8 text-gray-400" />}
+                    icon={() => (
+                      <Icon name="globe" className="h-8 w-8 text-gray-400" />
+                    )}
                     title="No Panels"
                     description="Add panels to quickly access your favorite tools and dashboards."
                     action={
@@ -1037,12 +1078,105 @@ function App() {
 
         <div className="flex-1 relative">
           {currentItem && (
-            <ViewProject
-              selectedItem={currentItem}
-              items={items}
-              sidebarOpen={sidebarOpen}
-              setSidebarOpen={setSidebarOpen}
-            />
+            <div className="h-full flex-1 flex flex-col">
+              <Tabs
+                value={activeTab}
+                onValueChange={(value: string) =>
+                  setActiveTab(value as ProjectTab)
+                }
+                className="flex-1 flex flex-col"
+              >
+                {isPanel ? (
+                  <div className="h-4" />
+                ) : (
+                  currentItem?.type === ItemType.PROJECT && (
+                    <div className="px-0 md:px-4 pt-0 md:pt-4 mb-0 md:mb-4">
+                      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between">
+                        <div className="flex items-center w-full md:w-auto">
+                          <TabsList className="bg-gray-900/50 md:border border-gray-800 flex-shrink-0 overflow-hidden w-full md:w-auto m-0 mdp-0 md:p-1 rounded-none md:rounded-md h-10 md:h-auto px-2 ">
+                            <TabsTrigger
+                              value={ProjectTab.TERMINAL}
+                              className="flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start"
+                            >
+                              <Icon name="terminal" className="h-4 w-4" />
+                              <span className="hidden sm:inline">Terminal</span>
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value={ProjectTab.GIT_DIFF}
+                              className="flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start"
+                            >
+                              <Icon name="gitbranch" className="h-4 w-4" />
+                              <span className="hidden sm:inline">Git Diff</span>
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value={ProjectTab.EDITOR}
+                              className="flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start"
+                            >
+                              <Icon name="filetext" className="h-4 w-4" />
+                              <span className="hidden sm:inline">Editor</span>
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value={ProjectTab.PREVIEW}
+                              className={`flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start`}
+                              disabled={!previewUrl}
+                            >
+                              <Icon name="globe" className="h-4 w-4" />
+                              <span className="hidden sm:inline">Preview</span>
+                            </TabsTrigger>
+                          </TabsList>
+                        </div>
+
+                        <div className="hidden lg:block">
+                          <Input
+                            value={webUrl}
+                            hasCopy
+                            className="font-mono text-sm w-auto min-w-64"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )
+                )}
+
+                <div className="h-full flex-1 flex flex-col">
+                  <div
+                    className="flex-1 h-full"
+                    style={{
+                      display:
+                        !isPanel && activeTab === ProjectTab.TERMINAL
+                          ? "block"
+                          : "none",
+                    }}
+                  >
+                    <ViewTerminal
+                      ref={terminalRef}
+                      selectedProject={currentItem}
+                      projects={items.filter(
+                        (item) => item.type === ItemType.PROJECT
+                      )}
+                    />
+                  </div>
+
+                  {activeTab === ProjectTab.GIT_DIFF && (
+                    <div className="flex-1 h-full">
+                      <ViewGitDiff selectedProject={currentItem} />
+                    </div>
+                  )}
+
+                  {activeTab === ProjectTab.EDITOR && (
+                    <div className="flex-1 h-full">
+                      <ViewFileEditor selectedProject={currentItem} />
+                    </div>
+                  )}
+
+                  {(activeTab === ProjectTab.PREVIEW || isPanel) && (
+                    <div className={`flex-1 h-full p-0 md:p-4 md:pt-0`}>
+                      <ViewWebview url={currentItem?.url || ""} />
+                    </div>
+                  )}
+                </div>
+              </Tabs>
+            </div>
           )}
         </div>
       </div>
