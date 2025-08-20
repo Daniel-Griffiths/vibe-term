@@ -1,6 +1,6 @@
 import { exec } from "child_process";
 import { promisify } from "util";
-import os from "os";
+import { getCurrentOS, OperatingSystem } from "./os";
 
 const execAsync = promisify(exec);
 
@@ -28,13 +28,6 @@ export class ShellUtils {
    * Get the preferred shell for the current platform
    */
   static getPreferredShell(): string {
-    const platform = os.platform();
-
-    if (platform === "win32") {
-      return process.env.COMSPEC || "cmd.exe";
-    }
-
-    // For macOS and Linux, prefer zsh if available, fallback to bash
     return process.env.SHELL || "/bin/zsh";
   }
 
@@ -50,10 +43,7 @@ export class ShellUtils {
       return `bash -l -c "${command.replace(/"/g, '\\"')}"`;
     } else if (shell.includes("fish")) {
       return `fish -l -c "${command.replace(/"/g, '\\"')}"`;
-    } else if (shell.includes("cmd")) {
-      return command; // Windows CMD doesn't need login flag
     } else {
-      // Generic fallback
       return `${shell} -l -c "${command.replace(/"/g, '\\"')}"`;
     }
   }
@@ -134,23 +124,36 @@ export class ShellUtils {
       `${name} --version`,
       `${name} -v`,
     ];
+
+    const currentOS = getCurrentOS();
     const fallbackCommands: string[] = [];
 
-    // Add login shell variants for Unix-like systems
-    if (os.platform() !== "win32") {
-      for (const cmd of commands) {
-        fallbackCommands.push(this.getLoginShellCommand(cmd));
-      }
+    for (const cmd of commands) {
+      fallbackCommands.push(this.getLoginShellCommand(cmd));
     }
 
-    // Add common installation paths for Claude
     if (name === "claude") {
-      const homePath = process.env.HOME || process.env.USERPROFILE || "";
-      fallbackCommands.push(
-        `${homePath}/.claude/local/claude --version`,
-        `${homePath}/.local/bin/claude --version`,
-        "/usr/local/bin/claude --version"
-      );
+      const homePath = process.env.HOME || "";
+
+      switch (currentOS) {
+        case OperatingSystem.MACOS:
+          fallbackCommands.push(
+            `${homePath}/.claude/local/claude --version`,
+            `${homePath}/.local/bin/claude --version`,
+            "/usr/local/bin/claude --version",
+            "/opt/homebrew/bin/claude --version"
+          );
+          break;
+
+        case OperatingSystem.LINUX:
+          fallbackCommands.push(
+            `${homePath}/.claude/local/claude --version`,
+            `${homePath}/.local/bin/claude --version`,
+            "/usr/local/bin/claude --version",
+            "/usr/bin/claude --version"
+          );
+          break;
+      }
     }
 
     return [...commands, ...fallbackCommands];
@@ -184,15 +187,12 @@ export class ShellUtils {
       let command = `tmux new-session -s "${sessionName}"`;
       if (projectPath) command += ` -c "${projectPath}"`;
       if (startCommand) {
-        // Use the format: tmux new-session -s sessionName "zsh -i -c 'command; exec zsh'"
-        // This runs the command and then keeps an interactive shell open
         command += ` "zsh -i -c '${startCommand}; exec zsh'"`;
       }
       command += ` \\; ${allOptions.join(" \\; ")}`;
       return command;
     }
 
-    // action === 'attach'
     return `tmux attach-session -t "${sessionName}" \\; ${allOptions.join(
       " \\; "
     )}`;

@@ -2,20 +2,23 @@ import fs from "fs";
 import path from "node:path";
 import * as pty from "@lydell/node-pty";
 import { fileURLToPath } from "node:url";
-import { ErrorHandler } from "./utils/error-handler";
+import { WEB_PORT } from "../shared/settings";
+import { ShellUtils } from "./utils/shell-utils";
 import type { UnifiedItem } from "../client/types";
 import { ChildProcess, spawn } from "child_process";
-import { ShellUtils } from "./utils/shell-utils";
+import { ErrorHandler } from "./utils/error-handler";
+import { OperatingSystem, getCurrentOS } from "./utils/os";
+import { setupClaudeHooks } from "./utils/claude-hook-setup";
 import { setupIPCHandlers, ipcHandlers } from "./ipc-handlers";
 import { SettingsManager, AppState } from "./utils/settings-manager";
-import { setupClaudeHooks } from "./utils/claude-hook-setup";
 import { app, BrowserWindow, Notification, powerSaveBlocker } from "electron";
 import {
   createWebServer,
   broadcastToWebClients,
   closeWebServer,
+  restartWebServer,
+  isWebServerRunning,
 } from "./web-server";
-import { WEB_PORT } from "../shared/settings";
 
 let settingsManager: SettingsManager;
 
@@ -23,24 +26,20 @@ const initializeSettingsManager = () => {
   settingsManager = SettingsManager.getInstance();
 };
 
-const FORCE_SHOW_DEPENDENCIES_MODAL = false; // Set to true for testing
+const FORCE_SHOW_DEPENDENCIES_MODAL = false;
 
-// Check for required dependencies
 async function checkDependencies(): Promise<string[]> {
   const missing: string[] = [];
 
-  // Force missing dependencies for testing
   if (FORCE_SHOW_DEPENDENCIES_MODAL) {
     return ["tmux", "claude"];
   }
 
-  // Check tmux
   const tmuxAvailable = await ShellUtils.checkDependency("tmux");
   if (!tmuxAvailable) {
     missing.push("tmux");
   }
 
-  // Check claude
   const claudeAvailable = await ShellUtils.checkDependency("claude");
   if (!claudeAvailable) {
     missing.push("claude");
@@ -62,20 +61,16 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   : RENDERER_DIST;
 
 let win: BrowserWindow | null;
-const sharedPtyProcesses = new Map<string, unknown>(); // Shared PTY processes for both desktop and web
-const backgroundProcesses = new Map<string, ChildProcess>(); // Background processes for runCommand
-const terminalBuffers = new Map<string, string>(); // Store terminal history for each project
+const sharedPtyProcesses = new Map<string, unknown>();
+const backgroundProcesses = new Map<string, ChildProcess>();
+const terminalBuffers = new Map<string, string>();
 
-// Power save blocker to keep PC awake
-let powerSaveBlockerId: number | null = null;
-
-// Web server variables
 let webServer: unknown = null;
+let powerSaveBlockerId: number | null = null;
+let webServerHealthCheckInterval: NodeJS.Timeout | null = null;
 
-// Helper function to read state from file (outside web server to avoid app naming conflict)
 const readStateFile = () => {
   if (!settingsManager) {
-    // Return minimal default state if settings manager not initialized yet
     return {
       settings: {
         editor: { theme: "vibe-term" },
@@ -88,8 +83,55 @@ const readStateFile = () => {
   return settingsManager.getAppState();
 };
 
-// Notification debouncing
-const NOTIFICATION_DEBOUNCE_MS = 5000; // 5 seconds debounce period
+function startWebServerHealthCheck() {
+  if (webServerHealthCheckInterval) {
+    clearInterval(webServerHealthCheckInterval);
+  }
+
+  const performHealthCheck = () => {
+    const webServerSettings = settingsManager?.getSettings()?.webServer ?? {
+      enabled: true,
+    };
+
+    if (webServerSettings.enabled) {
+      if (!isWebServerRunning()) {
+        console.log("Web server down - attempting restart");
+        restartWebServer()
+          .then((result) => {
+            if (result) {
+              webServer = result.server;
+              if (win && !win.isDestroyed()) {
+                win.webContents.send("web-server-restarted", {
+                  port: result.port,
+                });
+              }
+              console.log("Web server restarted successfully");
+
+              startWebServerHealthCheck();
+            } else {
+              setTimeout(performHealthCheck, 30_000);
+            }
+          })
+          .catch((error) => {
+            console.error("Web server restart failed:", error);
+
+            setTimeout(performHealthCheck, 30_000);
+          });
+      }
+    }
+  };
+
+  webServerHealthCheckInterval = setInterval(performHealthCheck, 30_000);
+}
+
+function stopWebServerHealthCheck() {
+  if (webServerHealthCheckInterval) {
+    clearInterval(webServerHealthCheckInterval);
+    webServerHealthCheckInterval = null;
+  }
+}
+
+const NOTIFICATION_DEBOUNCE_MS = 5000;
 const lastNotificationTime = new Map<string, number>();
 
 function shouldSendNotification(projectId: string): boolean {
@@ -104,7 +146,6 @@ function shouldSendNotification(projectId: string): boolean {
   return false;
 }
 
-// Shared PTY process management
 async function getOrCreateSharedPty(
   projectId: string,
   projectPath: string,
@@ -113,15 +154,11 @@ async function getOrCreateSharedPty(
   runCommand?: string
 ) {
   try {
-    // Set up Claude hooks for status detection
     await setupClaudeHooks(projectPath);
 
-    // If PTY already exists, send current buffer and return success
     if (sharedPtyProcesses.has(projectId)) {
-      // Send current terminal buffer to ensure UI is synced
       const currentBuffer = terminalBuffers.get(projectId) || "";
       if (currentBuffer) {
-        // Send to desktop if window exists
         if (win && !win.isDestroyed()) {
           win.webContents.send("terminal-output", {
             projectId,
@@ -130,7 +167,6 @@ async function getOrCreateSharedPty(
           });
         }
 
-        // Send to web clients
         broadcastToWebClients({
           type: "terminal-output",
           projectId: projectId,
@@ -144,12 +180,9 @@ async function getOrCreateSharedPty(
     const sessionBase = projectName || projectId;
     const tmuxSessionName = ShellUtils.generateTmuxSessionName(sessionBase);
 
-    // Check if session exists first to determine if we should send Claude command
     const sessionExists = await ShellUtils.checkTmuxSession(tmuxSessionName);
     const shouldStartClaude = !sessionExists;
 
-    // Use a more robust approach: try to attach first, fallback to create if session doesn't exist
-    // This avoids race conditions where session state changes between check and action
     const attachCommand = ShellUtils.tmuxCommand({
       action: "attach",
       sessionName: tmuxSessionName,
@@ -166,7 +199,6 @@ async function getOrCreateSharedPty(
       startCommand: shouldStartClaude ? claudeCommand : undefined,
     });
 
-    // Try attach first, fallback to create on failure
     const tmuxCommand = `(${attachCommand}) || (${createCommand})`;
 
     const proc = pty.spawn(
@@ -193,7 +225,6 @@ async function getOrCreateSharedPty(
 
     sharedPtyProcesses.set(projectId, proc);
 
-    // Add a small delay to ensure UI handlers are ready
     if (win && !win.isDestroyed()) {
       win.webContents.send("terminal-output", {
         projectId,
@@ -202,14 +233,12 @@ async function getOrCreateSharedPty(
       });
     }
 
-    // Send to web clients
     broadcastToWebClients({
       type: "project-started",
       projectId: projectId,
       data: "",
     });
 
-    // Start background runCommand if provided
     if (runCommand && runCommand.trim()) {
       try {
         const backgroundProc = spawn(
@@ -244,29 +273,19 @@ async function getOrCreateSharedPty(
       }
     }
 
-    // Status changes are now handled by Claude hooks
-    // No need for manual status tracking or debouncing here
-
-    // Handle PTY output - send to both desktop and web
     proc.onData((data) => {
-      // Check if process still exists before handling data
       if (!sharedPtyProcesses.has(projectId)) {
         return;
       }
 
       try {
-        // Accumulate terminal history (keep last 10KB to avoid memory issues)
         const currentBuffer = terminalBuffers.get(projectId) || "";
         const newBuffer = currentBuffer + data;
-        // Keep only last 10KB of history
+
         const trimmedBuffer =
           newBuffer.length > 10000 ? newBuffer.slice(-10000) : newBuffer;
         terminalBuffers.set(projectId, trimmedBuffer);
 
-        // Status detection is now handled by Claude hooks
-        // No need to parse terminal output for status indicators
-
-        // Send to desktop
         if (win && !win.isDestroyed()) {
           win.webContents.send("terminal-output", {
             projectId,
@@ -275,7 +294,6 @@ async function getOrCreateSharedPty(
           });
         }
 
-        // Send to web clients
         broadcastToWebClients({
           type: "terminal-output",
           projectId: projectId,
@@ -286,14 +304,13 @@ async function getOrCreateSharedPty(
           `Error handling PTY output for project ${projectId}:`,
           error
         );
-        // Clean up the process if it's causing errors
+
         sharedPtyProcesses.delete(projectId);
         terminalBuffers.delete(projectId);
       }
     });
 
     proc.on("exit", (code) => {
-      // Send to desktop
       if (win && !win.isDestroyed()) {
         win.webContents.send("process-exit", { projectId, code });
         win.webContents.send("terminal-output", {
@@ -303,14 +320,12 @@ async function getOrCreateSharedPty(
         });
       }
 
-      // Send to web clients
       broadcastToWebClients({
         type: "process-exit",
         projectId: projectId,
         code: code,
       });
 
-      // Send desktop notification for non-zero exit codes if window is not focused
       if (code !== 0) {
         const desktopNotificationsEnabled =
           settingsManager?.getSettings()?.desktop?.notifications ?? true;
@@ -346,7 +361,6 @@ async function getOrCreateSharedPty(
     });
 
     proc.on("error", (error) => {
-      // Send to desktop
       if (win && !win.isDestroyed()) {
         win.webContents.send("terminal-output", {
           projectId,
@@ -355,7 +369,6 @@ async function getOrCreateSharedPty(
         });
       }
 
-      // Send desktop notification for errors if window is not focused
       const desktopNotificationsEnabled =
         settingsManager?.getSettings()?.desktop?.notifications ?? true;
       const windowFocused = win && !win.isDestroyed() && win.isFocused();
@@ -392,7 +405,6 @@ async function getOrCreateSharedPty(
 }
 
 function createWindow() {
-  // Try multiple possible icon paths
   const iconPaths = [
     path.join(process.env.APP_ROOT || "", "public", "icon.png"),
     path.join(__dirname, "..", "public", "icon.png"),
@@ -413,32 +425,36 @@ function createWindow() {
     height: 800,
     minWidth: 300,
     minHeight: 600,
+    frame: false,
+    show: false,
+    hasShadow: true,
+    transparent: false,
+    backgroundColor: "#000000",
+    titleBarStyle: "hiddenInset",
+    trafficLightPosition: { x: 15, y: 15 },
     ...(iconPath && { icon: iconPath }),
     webPreferences: {
       preload: path.join(__dirname, "preload.mjs"),
       contextIsolation: true,
       nodeIntegration: false,
       webviewTag: true,
-      nativeWindowOpen: false,
-      devTools: VITE_DEV_SERVER_URL ? true : false, // Disable dev tools in release builds
+      devTools: VITE_DEV_SERVER_URL ? true : false,
     },
-    titleBarStyle: "hiddenInset",
-    trafficLightPosition: { x: 15, y: 15 },
-    backgroundColor: "#000000", // Pure black background for older macOS
-    vibrancy: "ultra-dark", // Use built-in vibrancy for subtle effect
-    frame: false,
-    hasShadow: true,
-    transparent: false, // Solid background instead of transparency
-    show: false, // Don't show until ready
   });
 
-  // Set app icon in dock (macOS specific)
-  if (process.platform === "darwin" && iconPath && app.dock) {
-    try {
-      app.dock.setIcon(iconPath);
-    } catch (error) {
-      console.error("Failed to set dock icon:", error);
-    }
+  const currentOS = getCurrentOS();
+  switch (currentOS) {
+    case OperatingSystem.MACOS:
+      if (iconPath && app.dock) {
+        try {
+          app.dock.setIcon(iconPath);
+        } catch (error) {
+          console.error("Failed to set dock icon:", error);
+        }
+      }
+      break;
+    case OperatingSystem.LINUX:
+      break;
   }
 
   win.setWindowButtonVisibility(true);
@@ -446,25 +462,22 @@ function createWindow() {
   win.webContents.on("did-finish-load", () => {
     win?.webContents.send("main-process-message", new Date().toLocaleString());
     win?.webContents.send("main-process-ready");
-    win?.maximize(); // Maximize window by default
-    win?.show(); // Show window after loading
+    win?.maximize();
+    win?.show();
   });
 
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL);
   } else {
     const indexPath = path.join(RENDERER_DIST, "index.html");
-    // Use loadFile instead of loadURL for local files - it handles the protocol correctly
+
     win.loadFile(indexPath);
   }
 }
 
-// Clean up all tmux sessions and processes before quitting
 app.on("before-quit", async (event) => {
-  // Prevent default quit to allow cleanup
   event.preventDefault();
 
-  // Stop power save blocker
   if (
     powerSaveBlockerId !== null &&
     powerSaveBlocker.isStarted(powerSaveBlockerId)
@@ -472,7 +485,6 @@ app.on("before-quit", async (event) => {
     powerSaveBlocker.stop(powerSaveBlockerId);
   }
 
-  // Kill all tmux sessions associated with projects (silently fail if not running)
   const state = readStateFile();
   const projects =
     state.storedItems?.filter((item: UnifiedItem) => item.type === "project") ||
@@ -484,29 +496,32 @@ app.on("before-quit", async (event) => {
     ShellUtils.killTmuxSession(tmuxSessionName);
   }
 
-  // Clean up shared PTY processes
   sharedPtyProcesses.forEach((proc) => proc.kill());
   sharedPtyProcesses.clear();
 
-  // Clean up background processes
   backgroundProcesses.forEach((proc) => {
     proc.kill("SIGTERM");
   });
   backgroundProcesses.clear();
 
-  // Close web server
+  stopWebServerHealthCheck();
+
   if (webServer) {
     webServer.close();
   }
   closeWebServer();
 
-  // Now actually quit
   app.exit(0);
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
+  const currentOS = getCurrentOS();
+  switch (currentOS) {
+    case OperatingSystem.MACOS:
+      break;
+    case OperatingSystem.LINUX:
+      app.quit();
+      break;
   }
 });
 
@@ -517,15 +532,12 @@ app.on("activate", () => {
 });
 
 app.whenReady().then(async () => {
-  // Initialize settings manager
   initializeSettingsManager();
 
-  // Start power save blocker to keep PC awake while app is running
   powerSaveBlockerId = powerSaveBlocker.start("prevent-app-suspension");
 
   createWindow();
 
-  // Register IPC handlers after creating window so win is available
   setupIPCHandlers({
     win,
     sharedPtyProcesses,
@@ -549,16 +561,13 @@ app.whenReady().then(async () => {
     },
   });
 
-  // Check for required dependencies
   const missingDeps = await checkDependencies();
   if (missingDeps.length > 0) {
-    // Send missing dependencies to renderer for user notification
     win?.webContents.once("did-finish-load", () => {
       win?.webContents.send("missing-dependencies", missingDeps);
     });
   }
 
-  // Start web server with settings from SettingsManager
   try {
     const webServerSettings = settingsManager?.getSettings()?.webServer ?? {
       enabled: true,
@@ -576,10 +585,11 @@ app.whenReady().then(async () => {
       webServer = result.server;
       const actualPort = result.port;
 
-      // Notify renderer about the actual port being used
       if (win) {
         win.webContents.send("web-server-started", { port: actualPort });
       }
+
+      startWebServerHealthCheck();
     }
   } catch (error) {
     ErrorHandler.logError(error, {

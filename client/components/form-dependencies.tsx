@@ -21,9 +21,9 @@ const getInstallCommand = (dep: string) => {
       if (isMac) {
         return "brew install tmux";
       } else if (isLinux) {
-        return "sudo apt-get install tmux  # or sudo yum install tmux";
+        return "sudo apt install tmux";
       }
-      return "brew install tmux  # macOS or use your package manager";
+      return "Install tmux using your package manager";
     case "claude":
       return "curl -fsSL https://claude.ai/install.sh | sh";
     default:

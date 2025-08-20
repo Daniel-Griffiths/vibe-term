@@ -11,6 +11,9 @@ const DEFAULT_WEB_SERVER_PORT = WEB_PORT;
 // Web server variables
 let webSocketServer: WebSocketServer | null = null;
 const webClients = new Set<any>();
+let currentServer: any = null;
+let serverDependencies: WebServerDependencies | null = null;
+let serverPort = DEFAULT_WEB_SERVER_PORT;
 
 interface WebSocketMessage {
   type: string;
@@ -75,9 +78,14 @@ export async function createWebServer(
 ): Promise<{ server: any; port: number }> {
   const { ipcHandlers, app } = deps;
 
+  // Store dependencies and port for restart functionality
+  serverDependencies = deps;
+  serverPort = preferredPort;
+
   const port = await checkPortAvailable(preferredPort);
   const expressApp = express();
   const server = createServer(expressApp);
+  currentServer = server;
 
   // Enable CORS for all routes
   expressApp.use(cors());
@@ -182,12 +190,27 @@ export async function createWebServer(
   return new Promise((resolve, reject) => {
     server
       .listen(port, "0.0.0.0", () => {
+        console.log(`Web server started on port ${port}`);
         resolve({ server, port });
       })
       .on("error", (error) => {
         console.error("Failed to start web server:", error);
         reject(error);
+      })
+      .on("close", () => {
+        console.log("Web server closed");
       });
+
+    // Handle server errors that could cause crashes
+    server.on("clientError", (err, socket) => {
+      console.error("Client error:", err);
+      socket.end("HTTP/1.1 400 Bad Request\r\n\r\n");
+    });
+
+    server.on("error", (err) => {
+      console.error("Server error:", err);
+      // Let the health check handle restarts
+    });
   });
 }
 
@@ -196,7 +219,39 @@ export function closeWebServer() {
     webSocketServer.close();
     webSocketServer = null;
   }
+  if (currentServer) {
+    currentServer.close();
+    currentServer = null;
+  }
   webClients.clear();
 }
 
-export { webSocketServer, webClients };
+// Restart the web server with the same configuration
+export async function restartWebServer(): Promise<{ server: any; port: number } | null> {
+  if (!serverDependencies) {
+    console.error("Cannot restart web server: no dependencies stored");
+    return null;
+  }
+
+  try {
+    // Close existing server
+    closeWebServer();
+    
+    // Wait a moment for the port to be released
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Create new server
+    const result = await createWebServer(serverDependencies, serverPort);
+    return result;
+  } catch (error) {
+    console.error("Failed to restart web server:", error);
+    return null;
+  }
+}
+
+// Check if web server is running
+export function isWebServerRunning(): boolean {
+  return currentServer !== null && webSocketServer !== null;
+}
+
+export { webSocketServer, webClients, currentServer };

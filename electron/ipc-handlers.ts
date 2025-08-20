@@ -844,6 +844,7 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
       return { success: true };
     }
   );
+
 }
 
 export { ipcHandlers };
