@@ -551,16 +551,14 @@ export function ViewFileEditor({ selectedProject }: IViewFileEditorProps) {
                         {file.isDirty && (
                           <span className="text-yellow-400 text-xs">●</span>
                         )}
-                        <Button
-                          size="sm"
+                        <Icon 
+                          name="x" 
+                          className="h-3 w-3 text-gray-500 hover:text-red-400 cursor-pointer" 
                           onClick={(e) => {
                             e.stopPropagation();
                             closeFile(file.path);
                           }}
-                          className="h-3 w-3 p-0 bg-transparent hover:bg-red-600/20 text-gray-500 hover:text-red-400 rounded-sm"
-                        >
-                          <Icon name="x" className="h-2 w-2" />
-                        </Button>
+                        />
                       </div>
                     ))}
                   </div>
