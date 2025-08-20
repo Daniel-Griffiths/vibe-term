@@ -24,7 +24,7 @@ export function ViewWebview({
   if (!url) {
     return (
       <NonIdealState
-        icon={() => <Icon name="globe" className="h-16 w-16 opacity-50" />}
+        icon={() => <Icon name="globe" className="h-16 w-16 opacity-50 mx-auto mb-4" />}
         title="No URL Configured"
         description={
           title
