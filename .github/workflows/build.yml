@@ -25,20 +25,20 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "lts/*"
-          cache: "yarn"
+          cache: "pnpm"
 
       - name: "Install Dependencies"
-        run: yarn install --prefer-offline --frozen-lockfile
+        run: pnpm install --prefer-offline --frozen-lockfile
 
       - name: "Build Mac"
         if: matrix.os == 'macos-latest'
         run: |
-          yarn build --mac
+          pnpm build --mac
 
       - name: "Build Linux AppImage"
         if: matrix.os == 'ubuntu-latest'
         run: |
-          yarn build --linux
+          pnpm build --linux
 
       - name: "Get Package Version"
         id: package-version
