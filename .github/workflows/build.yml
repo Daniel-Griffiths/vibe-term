@@ -20,9 +20,8 @@ jobs:
     steps:
       - uses: pnpm/action-setup@v4
         with:
-          version: 10    
+          version: 10
 
-    steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
