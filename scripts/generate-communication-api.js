@@ -153,6 +153,13 @@ function extractIPCHandlers() {
       returnType: "string | null",
       methodName: "selectDirectory",
     },
+    {
+      name: "update-app-settings",
+      args: ["settings"],
+      argTypes: ["Partial<AppSettings>"],
+      returnType: "BaseResponse",
+      methodName: "updateAppSettings",
+    },
   ];
 
   // Only add if not already found
@@ -350,19 +357,7 @@ export interface AppSettings {
   };
   webServer: {
     enabled: boolean;
-    port: number;
   };
-  discord: {
-    enabled: boolean;
-    username: string;
-    webhookUrl: string;
-  };
-}
-
-export interface DiscordSettings {
-  webhookUrl?: string;
-  username?: string;
-  enabled?: boolean;
 }`);
 
   return typeDefinitions.join("\n");
@@ -391,7 +386,6 @@ export type {
   FileTreeItem,
   LocalIpResult,
   AppSettings,
-  DiscordSettings,
   AppState
 } from '../../electron/ipc-handler-types';
 

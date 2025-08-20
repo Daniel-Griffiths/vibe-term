@@ -17,7 +17,6 @@ export type {
   FileTreeItem,
   LocalIpResult,
   AppSettings,
-  DiscordSettings,
   AppState
 } from '../../electron/ipc-handler-types';
 
@@ -121,18 +120,6 @@ class API {
     return isElectron 
       ? this.electronAPI.getLocalIp()
       : this.callAPI('get-local-ip', []);
-  }
-
-  async testDiscordNotification(): Promise<any> {
-    return isElectron 
-      ? this.electronAPI.testDiscordNotification()
-      : this.callAPI('test-discord-notification', []);
-  }
-
-  async sendDiscordNotification(): Promise<any> {
-    return isElectron 
-      ? this.electronAPI.sendDiscordNotification()
-      : this.callAPI('send-discord-notification', []);
   }
 
   async getStoredItems(): Promise<any> {

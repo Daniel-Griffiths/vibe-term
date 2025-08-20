@@ -15,7 +15,7 @@ const buttonVariants = cva(
         warning: "bg-yellow-600/80 backdrop-blur-sm text-white shadow-sm hover:bg-yellow-700/80 border border-yellow-500/30",
         outline: "border border-gray-600/50 bg-gray-800/30 backdrop-blur-sm text-gray-100 shadow-sm hover:bg-gray-700/40 hover:text-gray-100",
         secondary: "bg-gray-700/50 backdrop-blur-sm text-gray-100 shadow-sm hover:bg-gray-600/60 border border-gray-600/30",
-        ghost: "hover:bg-gray-700/30 backdrop-blur-sm hover:text-gray-100",
+        ghost: "bg-transparent hover:bg-transparent",
       },
       size: {
         default: "h-9 px-4 py-2",

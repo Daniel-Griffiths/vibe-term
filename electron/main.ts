@@ -80,8 +80,7 @@ const readStateFile = () => {
       settings: {
         editor: { theme: "vibe-term" },
         desktop: { notifications: true },
-        webServer: { enabled: true, port: WEB_PORT },
-        discord: { enabled: false, username: "Vibe Term", webhookUrl: "" },
+        webServer: { enabled: true },
       },
       storedItems: [],
     };
@@ -421,6 +420,7 @@ function createWindow() {
       nodeIntegration: false,
       webviewTag: true,
       nativeWindowOpen: false,
+      devTools: VITE_DEV_SERVER_URL ? true : false, // Disable dev tools in release builds
     },
     titleBarStyle: "hiddenInset",
     trafficLightPosition: { x: 15, y: 15 },
@@ -446,6 +446,7 @@ function createWindow() {
   win.webContents.on("did-finish-load", () => {
     win?.webContents.send("main-process-message", new Date().toLocaleString());
     win?.webContents.send("main-process-ready");
+    win?.maximize(); // Maximize window by default
     win?.show(); // Show window after loading
   });
 
@@ -561,9 +562,7 @@ app.whenReady().then(async () => {
   try {
     const webServerSettings = settingsManager?.getSettings()?.webServer ?? {
       enabled: true,
-      port: WEB_PORT,
     };
-    const port = webServerSettings.port;
     const enabled = webServerSettings.enabled;
 
     if (enabled) {
@@ -572,7 +571,7 @@ app.whenReady().then(async () => {
           ipcHandlers,
           app,
         },
-        port
+        WEB_PORT
       );
       webServer = result.server;
       const actualPort = result.port;
@@ -586,7 +585,7 @@ app.whenReady().then(async () => {
     ErrorHandler.logError(error, {
       operation: "start-web-server",
       additionalData: {
-        port: settingsManager?.getSettings()?.webServer?.port ?? WEB_PORT,
+        port: WEB_PORT,
       },
     });
   }

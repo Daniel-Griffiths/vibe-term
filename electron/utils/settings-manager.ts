@@ -9,7 +9,6 @@ import { app } from "electron";
 import type { AppSettings } from "../ipc-handler-types";
 import type { UnifiedItem } from "../../client/types";
 import { ErrorHandler } from "./error-handler";
-import { WEB_PORT } from "../../shared/settings";
 
 export interface AppState {
   settings: AppSettings;
@@ -54,12 +53,6 @@ export class SettingsManager {
         },
         webServer: {
           enabled: true,
-          port: WEB_PORT,
-        },
-        discord: {
-          enabled: false,
-          username: "Vibe Term",
-          webhookUrl: "",
         },
       },
       storedItems: [],
@@ -105,10 +98,6 @@ export class SettingsManager {
             webServer: {
               ...defaultState.settings.webServer,
               ...loadedState.settings?.webServer,
-            },
-            discord: {
-              ...defaultState.settings.discord,
-              ...loadedState.settings?.discord,
             },
           },
         };

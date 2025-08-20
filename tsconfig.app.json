@@ -27,10 +27,5 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
-  },
-  "include": [
-    "src",
-    "electron/utils/claude-hook-setup.ts",
-    "electron/utils/shell-utils.ts"
-  ]
+  }
 }

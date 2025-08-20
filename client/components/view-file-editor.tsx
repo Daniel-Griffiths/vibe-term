@@ -494,15 +494,14 @@ export function ViewFileEditor({ selectedProject }: IViewFileEditorProps) {
             </div>
             <Button
               size="sm"
-              onClick={loadFileTree}
-              disabled={loading}
-              className="h-6 w-6 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50"
-              title="Refresh file tree"
+              variant="outline"
+              className="h-6 px-2 text-xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                loadFileTree();
+              }}
             >
-              <Icon
-                name="refreshcw"
-                className={`h-3 w-3 ${loading ? "animate-spin" : ""}`}
-              />
+              <Icon name="refreshcw" className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
             </Button>
           </div>
           <div className="text-xs text-gray-500">{selectedProject.name}</div>

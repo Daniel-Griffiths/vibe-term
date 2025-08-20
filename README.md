@@ -5,32 +5,18 @@
     A terminal multiplexer interface for Claude Code built with React and Electron.
 </div>
 
-## Prerequisites 
-
-Vibe Term requires the following dependencies to be installed:
-
-- **tmux** - Terminal multiplexer for session management
-  ```bash
-  # macOS
-  brew install tmux
-  
-  # Ubuntu/Debian  
-  sudo apt-get install tmux
-  ```
-
-- **claude** - Claude Code CLI tool
-  ```bash
-  curl -fsSL https://claude.ai/install.sh | sh
-  ```
+> [!WARN]  
+> This was mostly Vibe Coded to create a quick protype, so the source code is currently quite messy.
 
 ## Usage
 
 Vibe Term provides a visual interface for managing multiple Claude Code sessions:
 
-- **Project Management**: Add and organize your coding projects
-- **Terminal Sessions**: Each project runs in its own tmux session
+- **Terminal Sessions**: Each claude instance runs in its own tmux session
 - **Visual Status**: See when Claude is working, ready, or completed
 - **Git Integration**: View and manage git changes directly in the interface
+- **Code Editor**: Edit files directly in the interface
+- **Web Access**: Access your projects from anywhere
 - **Web Interface**: Access your projects remotely via the built-in web server
 
 ## Getting Started

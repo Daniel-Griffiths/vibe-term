@@ -15,8 +15,6 @@ export interface ElectronAPI {
   gitPush: (projectPath: string) => Promise<{ success: boolean; error?: string }>;
   setSelectedProject: (projectId: string | null) => Promise<{ success: boolean }>;
   getLocalIp: () => Promise<{ localIp: string; hasTailscale: boolean }>;
-  testDiscordNotification: (discordSettings: any) => Promise<{ success: boolean; error?: string }>;
-  sendDiscordNotification: (discordSettings: any, message: string) => Promise<{ success: boolean; error?: string }>;
   getProjectFiles: (projectPath: string) => Promise<{ success: boolean; data?: any[]; error?: string }>;
   readProjectFile: (projectPath: string, filePath: string) => Promise<{ success: boolean; data?: string; error?: string }>;
   readImageFile: (projectPath: string, filePath: string) => Promise<{ success: boolean; data?: string; mimeType?: string; error?: string }>;
@@ -66,11 +64,6 @@ export interface AppConfig {
     webServer: {
       enabled: boolean;
       port: number;
-    };
-    discord: {
-      enabled: boolean;
-      username: string;
-      webhookUrl: string;
     };
   };
 }

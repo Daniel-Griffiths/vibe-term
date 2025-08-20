@@ -67,19 +67,7 @@ export interface AppSettings {
   };
   webServer: {
     enabled: boolean;
-    port: number;
   };
-  discord: {
-    enabled: boolean;
-    username: string;
-    webhookUrl: string;
-  };
-}
-
-export interface DiscordSettings {
-  webhookUrl?: string;
-  username?: string;
-  enabled?: boolean;
 }
 
 export interface AppState {
@@ -129,13 +117,6 @@ export interface IPCHandlerMap {
   "git-push": (projectPath: string) => Promise<CommandResult>;
   "set-selected-project": (projectId: string | null) => Promise<BaseResponse>;
   "get-local-ip": () => Promise<DataResponse<LocalIpResult>>;
-  "test-discord-notification": (
-    discordSettings: DiscordSettings
-  ) => Promise<BaseResponse>;
-  "send-discord-notification": (
-    discordSettings: DiscordSettings,
-    message: string
-  ) => Promise<BaseResponse>;
   "get-stored-items": () => Promise<DataResponse<UnifiedItem[]>>;
   "add-stored-item": (item: UnifiedItem) => Promise<BaseResponse>;
   "update-stored-item": (

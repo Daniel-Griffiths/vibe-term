@@ -57,12 +57,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getLocalIp: (...args: any[]) => 
     ipcRenderer.invoke('get-local-ip', ...args),
 
-  testDiscordNotification: (...args: any[]) => 
-    ipcRenderer.invoke('test-discord-notification', ...args),
-
-  sendDiscordNotification: (...args: any[]) => 
-    ipcRenderer.invoke('send-discord-notification', ...args),
-
   getStoredItems: (...args: any[]) => 
     ipcRenderer.invoke('get-stored-items', ...args),
 

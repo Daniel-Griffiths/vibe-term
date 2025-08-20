@@ -86,30 +86,38 @@ export function ViewWebview({
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
-                icon="arrowleft"
+                variant="outline"
+                className="h-6 px-2 text-xs"
                 onClick={handleGoBack}
                 disabled={!isElectron}
-                className="p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-              />
+              >
+                <Icon name="arrowleft" className="h-3 w-3" />
+              </Button>
               <Button
                 size="sm"
-                icon="arrowright"
+                variant="outline"
+                className="h-6 px-2 text-xs"
                 onClick={handleGoForward}
                 disabled={!isElectron}
-                className="p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-              />
+              >
+                <Icon name="arrowright" className="h-3 w-3" />
+              </Button>
               <Button
                 size="sm"
-                icon="rotateccw"
+                variant="outline"
+                className="h-6 px-2 text-xs"
                 onClick={handleWebviewReload}
-                className="p-0 bg-gray-600 hover:bg-gray-700 text-white"
-              />
+              >
+                <Icon name="rotateccw" className="h-3 w-3" />
+              </Button>
               <Button
                 size="sm"
-                icon="home"
+                variant="outline"
+                className="h-6 px-2 text-xs"
                 onClick={handleGoHome}
-                className="p-0 bg-gray-600 hover:bg-gray-700 text-white"
-              />
+              >
+                <Icon name="home" className="h-3 w-3" />
+              </Button>
             </div>
             {/* URL bar row */}
             <div className="bg-gray-700 border border-gray-600 rounded px-3 py-1 text-sm text-gray-300 font-mono">
@@ -121,45 +129,50 @@ export function ViewWebview({
           <div className="hidden md:flex items-center gap-2">
             <Button
               size="sm"
-              icon="arrowleft"
-              iconClassName="h-5 w-5"
+              variant="outline"
+              className="h-6 px-2 text-xs"
               onClick={handleGoBack}
               disabled={!isElectron}
-              className="p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-            />
+            >
+              <Icon name="arrowleft" className="h-3 w-3" />
+            </Button>
             <Button
               size="sm"
-              icon="arrowright"
-              iconClassName="h-5 w-5"
+              variant="outline"
+              className="h-6 px-2 text-xs"
               onClick={handleGoForward}
               disabled={!isElectron}
-              className="p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-            />
+            >
+              <Icon name="arrowright" className="h-3 w-3" />
+            </Button>
             <Button
               size="sm"
-              icon="rotateccw"
-              iconClassName="h-5 w-5"
+              variant="outline"
+              className="h-6 px-2 text-xs"
               onClick={handleWebviewReload}
-              className="p-0 bg-gray-600 hover:bg-gray-700 text-white"
-            />
+            >
+              <Icon name="rotateccw" className="h-3 w-3" />
+            </Button>
             <Button
               size="sm"
-              icon="home"
-              iconClassName="h-5 w-5"
+              variant="outline"
+              className="h-6 px-2 text-xs"
               onClick={handleGoHome}
-              className="p-0 bg-gray-600 hover:bg-gray-700 text-white"
-            />
+            >
+              <Icon name="home" className="h-3 w-3" />
+            </Button>
             <div className="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-1 text-sm text-gray-300 font-mono">
               {url}
             </div>
             <Button
               size="sm"
-              icon="code"
-              iconClassName="h-5 w-5"
+              variant="outline"
+              className="h-6 px-2 text-xs"
               onClick={handleOpenDevTools}
               disabled={!isElectron}
-              className="p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-            />
+            >
+              <Icon name="code" className="h-3 w-3" />
+            </Button>
           </div>
         </div>
       )}

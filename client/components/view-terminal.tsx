@@ -354,7 +354,9 @@ export const ViewTerminal = forwardRef<ViewTerminalRef, IViewTerminalProps>(
       return (
         <div className="flex-1 h-full flex items-center justify-center">
           <NonIdealState
-            icon={() => <Icon name="terminal" className="h-16 w-16 opacity-50" />}
+            icon={() => (
+              <Icon name="terminal" className="h-16 w-16 opacity-50" />
+            )}
             title="No Project Selected"
             description="Select a project from the sidebar to view its terminal"
             className="min-w-80 max-w-2xl"

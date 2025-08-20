@@ -17,7 +17,6 @@ import type {
   GitDiffResult,
   FileTreeItem,
   LocalIpResult,
-  DiscordSettings,
   ImageResult,
   AppSettings,
 } from "./ipc-handler-types";
@@ -40,75 +39,6 @@ function registerIPCHandler<TArgs extends any[], TResult>(
   ipcHandlers.set(name, handler as IPCHandler);
   ipcMain.handle(name, async (_event, ...args) => handler(...(args as TArgs)));
 }
-
-// Discord notification function
-const sendDiscordNotification = async (
-  webhookUrl: string,
-  username: string,
-  content: string
-): Promise<BaseResponse> => {
-  const https = await import("https");
-  const url = await import("url");
-
-  const parsedUrl = url.parse(webhookUrl);
-  const data = JSON.stringify({
-    username: username,
-    content: content,
-  });
-
-  const options = {
-    hostname: parsedUrl.hostname,
-    port: 443,
-    path: parsedUrl.path,
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Content-Length": data.length,
-    },
-  };
-
-  return new Promise((resolve, reject) => {
-    const req = https.request(options, (res) => {
-      let responseData = "";
-
-      res.on("data", (chunk) => {
-        responseData += chunk;
-      });
-
-      res.on("end", () => {
-        try {
-          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-            resolve({ success: true });
-          } else {
-            console.error(
-              `Discord webhook failed with status ${res.statusCode}:`,
-              responseData
-            );
-            reject(
-              new Error(`Discord webhook returned status ${res.statusCode}`)
-            );
-          }
-        } catch (error) {
-          console.error(
-            "Error handling Discord response:",
-            error,
-            "Response:",
-            responseData
-          );
-          reject(error);
-        }
-      });
-    });
-
-    req.on("error", (error: Error) => {
-      console.error("Discord webhook request error:", error);
-      reject(error);
-    });
-
-    req.write(data);
-    req.end();
-  });
-};
 
 // Internal interfaces for this file
 interface WebSocketMessage {
@@ -859,58 +789,6 @@ export function setupIPCHandlers(deps: IPCHandlerDependencies): void {
           hasTailscale: tailscaleRunning,
         },
       };
-    }
-  );
-
-  // Discord notification handlers
-  registerIPCHandler(
-    "test-discord-notification",
-    async (...args: unknown[]): Promise<BaseResponse> => {
-      const [discordSettings] = args as [DiscordSettings];
-      try {
-        if (!discordSettings.webhookUrl) {
-          return { success: false, error: "No webhook URL provided" };
-        }
-
-        await sendDiscordNotification(
-          discordSettings.webhookUrl,
-          discordSettings.username || "Vibe Term",
-          "🧪 **Test Notification**\n\nThis is a test notification from Vibe Term. Your Discord notifications are working correctly!"
-        );
-
-        return { success: true };
-      } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-        return { success: false, error: errorMessage };
-      }
-    }
-  );
-
-  registerIPCHandler(
-    "send-discord-notification",
-    async (...args: unknown[]): Promise<BaseResponse> => {
-      const [discordSettings, message] = args as [DiscordSettings, string];
-      try {
-        if (!discordSettings.webhookUrl || !discordSettings.enabled) {
-          return {
-            success: false,
-            error: "Discord notifications not configured or disabled",
-          };
-        }
-
-        await sendDiscordNotification(
-          discordSettings.webhookUrl,
-          discordSettings.username || "Vibe Term",
-          message
-        );
-
-        return { success: true };
-      } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-        return { success: false, error: errorMessage };
-      }
     }
   );
 

@@ -319,18 +319,17 @@ export function ViewGitDiff({ selectedProject }: IViewGitDiffProps) {
               )}
             </div>
             {/* Refresh button for entire git diff */}
-            <Button
-              size="sm"
-              onClick={handleRefresh}
-              disabled={loading}
-              className="h-6 w-6 p-0 bg-gray-600 hover:bg-gray-700 text-white disabled:opacity-50"
-              title="Refresh git status"
-            >
-              <Icon
-                name="refreshcw"
-                className={`h-3 w-3 ${loading ? "animate-spin" : ""}`}
-              />
-            </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 px-2 text-xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRefresh();
+                }}
+              >
+                <Icon name="refreshcw" className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
+              </Button>
           </div>
           <div className="text-xs text-gray-500 mb-3">
             {hasChanges

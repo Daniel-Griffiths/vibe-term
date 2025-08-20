@@ -16,8 +16,7 @@ interface AppState {
 const defaultSettings: AppSettings = {
   editor: { theme: "vibe-term" },
   desktop: { notifications: true },
-  webServer: { enabled: true, port: WEB_PORT },
-  discord: { enabled: false, username: "Vibe Term", webhookUrl: "" },
+  webServer: { enabled: true },
 };
 
 export function useAppState() {

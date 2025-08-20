@@ -55,8 +55,9 @@ export const Input = forwardRef<HTMLInputElement, IInputProps>(
           <Button
             type="button"
             size="sm"
+            variant="ghost"
             onClick={handleCopy}
-            className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 p-0 bg-transparent hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors rounded"
+            className="absolute right-3 top-1/2 -translate-y-1/2 h-6 px-2 text-xs"
             title="Copy to clipboard"
           >
             {copied ? (

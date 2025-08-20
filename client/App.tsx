@@ -1,6 +1,5 @@
 import { api } from "./utils/api";
 import { ItemType } from "./types";
-import { Input } from "./components/input";
 import { Modal } from "./components/modal";
 import { isWeb } from "./utils/environment";
 import "react-toastify/dist/ReactToastify.css";
@@ -44,56 +43,15 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 
-enum ProjectTab {
-  TERMINAL = "terminal",
-  GIT_DIFF = "git-diff",
-  EDITOR = "editor",
-  PREVIEW = "preview",
-}
+import { MOBILE_BREAKPOINT } from "../shared/settings";
 
-import { WEB_PORT } from "../shared/settings";
-
-// Constants for repeated values
-const MOBILE_BREAKPOINT = 1024;
-
-// Helper functions for modal and state management
-const resetDeleteConfirmation = (): {
-  isOpen: boolean;
-  itemId: string | null;
-  itemName: string | null;
-} => ({
-  isOpen: false,
-  itemId: null,
-  itemName: null,
-});
-
-const createDeleteConfirmation = (
-  itemId: string,
-  itemName: string
-): {
-  isOpen: boolean;
-  itemId: string | null;
-  itemName: string | null;
-} => ({
-  isOpen: true,
-  itemId,
-  itemName,
-});
-
-// Helper for creating button click handlers that stop propagation
-const createButtonClickHandler =
-  (handler: () => void) => (e: React.MouseEvent) => {
-    e.stopPropagation();
-    handler();
-  };
-
-// Inline styles for webkit regions
 const WEBKIT_DRAG_STYLE: CSSProperties = { WebkitAppRegion: "drag" };
 const WEBKIT_NO_DRAG_STYLE: CSSProperties = { WebkitAppRegion: "no-drag" };
 
 import { Button } from "./components/button";
 import { Icon } from "./components/icon";
 import { StatusIcon } from "./components/status-icon";
+import { ProjectTab } from "./enums/ProjectTab";
 
 // Sortable Project Card Component
 interface ISortableProjectCardProps {
@@ -171,9 +129,10 @@ function SortableProjectCard({
                   size="sm"
                   variant="outline"
                   className="h-6 px-2 text-xs"
-                  onClick={createButtonClickHandler(() =>
-                    onProjectStop(project.id)
-                  )}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onProjectStop(project.id);
+                  }}
                 >
                   <Icon name="square" className="h-3 w-3" />
                 </Button>
@@ -182,9 +141,10 @@ function SortableProjectCard({
                   size="sm"
                   variant="primary"
                   className="h-6 px-2 text-xs"
-                  onClick={createButtonClickHandler(() =>
-                    onProjectStart(project.id, project.runCommand ?? "")
-                  )}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onProjectStart(project.id, project.runCommand ?? "");
+                  }}
                 >
                   <Icon name="play" className="h-3 w-3" />
                 </Button>
@@ -193,9 +153,10 @@ function SortableProjectCard({
                 size="sm"
                 variant="outline"
                 className="h-6 px-2 text-xs"
-                onClick={createButtonClickHandler(() =>
-                  onProjectEdit(project.id)
-                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onProjectEdit(project.id);
+                }}
               >
                 <Icon name="edit" className="h-3 w-3" />
               </Button>
@@ -203,9 +164,10 @@ function SortableProjectCard({
                 size="sm"
                 variant="outline"
                 className="h-6 px-2 text-xs"
-                onClick={createButtonClickHandler(() =>
-                  onProjectDelete(project.id)
-                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onProjectDelete(project.id);
+                }}
               >
                 <Icon name="trash2" className="h-3 w-3" />
               </Button>
@@ -287,7 +249,10 @@ function SortablePanelCard({
               <Button
                 size="sm"
                 variant="outline"
-                onClick={createButtonClickHandler(() => onPanelEdit(panel.id))}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPanelEdit(panel.id);
+                }}
                 className="h-6 px-2 text-xs"
                 title="Edit panel"
               >
@@ -296,9 +261,10 @@ function SortablePanelCard({
               <Button
                 size="sm"
                 variant="outline"
-                onClick={createButtonClickHandler(() =>
-                  onPanelDelete(panel.id)
-                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPanelDelete(panel.id);
+                }}
                 className="h-6 px-2 text-xs"
                 title="Delete panel"
               >
@@ -324,6 +290,9 @@ function App() {
     updateStoredItem,
   } = useAppState();
 
+  const itemsRef = useRef(items);
+  const terminalRef = useRef<ViewTerminalRef>(null);
+  const [localIp, setLocalIp] = useState<string>("localhost");
   const [missingDeps, setMissingDeps] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
@@ -332,41 +301,32 @@ function App() {
   const [editingProject, setEditingProject] = useState<UnifiedItem | null>(
     null
   );
-  const [deleteConfirmation, setDeleteConfirmation] = useState(
-    resetDeleteConfirmation()
-  );
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    isOpen: boolean;
+    itemId: string;
+    itemName: string;
+  } | null>(null);
+
   const [sidebarOpen, setSidebarOpen] = useState(() => {
-    // Open sidebar by default only on large screens
     if (typeof window !== "undefined") {
       return window.innerWidth >= MOBILE_BREAKPOINT;
     }
-    return false; // Default to closed for SSR
+    return false;
   });
 
-  // ViewProject state
   const [activeTab, setActiveTab] = useState<ProjectTab>(() => {
     return ProjectTab.TERMINAL;
   });
-  const [localIp, setLocalIp] = useState<string>("localhost");
-  const [webPort] = useState(WEB_PORT);
-  const terminalRef = useRef<ViewTerminalRef>(null);
 
-  // Ref to store current items for WebSocket listeners
-  const itemsRef = useRef(items);
-
-  // Keep the ref updated
   useEffect(() => {
     itemsRef.current = items;
   }, [items]);
 
-  // Auto-open sidebar on large screens only
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= MOBILE_BREAKPOINT) {
         setSidebarOpen(true);
       }
-      // On smaller screens, keep current state
-      // Don't auto-close if user opened it manually
     };
 
     window.addEventListener("resize", handleResize);
@@ -374,7 +334,6 @@ function App() {
   }, []);
 
   useEffect(() => {
-    // Set up event listeners - the api handles environment detection
     const unsubscribeFunctions: (() => void)[] = [];
 
     if (api.onTerminalOutput) {
@@ -568,10 +527,6 @@ function App() {
     ? items.find((item) => item.id === selectedItem)
     : null;
   const previewUrl = useMemo(() => currentItem?.url, [currentItem?.url]);
-  const webUrl = useMemo(
-    () => `http://${localIp}:${webPort}`,
-    [localIp, webPort]
-  );
   const isPanel = useMemo(
     () => currentItem?.type === ItemType.PANEL,
     [currentItem?.type]
@@ -756,22 +711,26 @@ function App() {
   const handleItemDeleteRequest = (itemId: string) => {
     const item = items.find((i) => i.id === itemId);
     if (item) {
-      setDeleteConfirmation(createDeleteConfirmation(itemId, item.name));
+      setDeleteConfirmation({
+        isOpen: true,
+        itemId: itemId,
+        itemName: item.name,
+      });
     }
   };
 
   const handleItemDeleteConfirm = () => {
-    if (deleteConfirmation.itemId) {
-      deleteItem(deleteConfirmation.itemId);
-      if (selectedItem === deleteConfirmation.itemId) {
+    if (deleteConfirmation?.itemId) {
+      deleteItem(deleteConfirmation?.itemId);
+      if (selectedItem === deleteConfirmation?.itemId) {
         setSelectedItem(null);
       }
     }
-    setDeleteConfirmation(resetDeleteConfirmation());
+    setDeleteConfirmation(null);
   };
 
   const handleItemDeleteCancel = () => {
-    setDeleteConfirmation(resetDeleteConfirmation());
+    setDeleteConfirmation(null);
   };
 
   const handleProjectReorder = (startIndex: number, endIndex: number) => {
@@ -881,7 +840,11 @@ function App() {
   const handlePanelDelete = (panelId: string) => {
     const item = items.find((i) => i.id === panelId);
     if (item) {
-      setDeleteConfirmation(createDeleteConfirmation(panelId, item.name));
+      setDeleteConfirmation({
+        isOpen: true,
+        itemId: panelId,
+        itemName: item.name,
+      });
     }
   };
 
@@ -1140,14 +1103,6 @@ function App() {
                             ))}
                           </TabsList>
                         </div>
-
-                        <div className="hidden lg:block">
-                          <Input
-                            value={webUrl}
-                            hasCopy
-                            className="font-mono text-sm w-auto min-w-64"
-                          />
-                        </div>
                       </div>
                     </div>
                   )
@@ -1282,7 +1237,7 @@ function App() {
         title="Delete Item"
         showCloseButton={false}
         onClose={handleItemDeleteCancel}
-        isOpen={deleteConfirmation.isOpen}
+        isOpen={!!deleteConfirmation?.isOpen}
       >
         <FormConfirmation
           onCancel={handleItemDeleteCancel}
@@ -1291,7 +1246,7 @@ function App() {
             title: "",
             cancelText: "Cancel",
             confirmText: "Delete",
-            message: `Are you sure you want to delete "${deleteConfirmation.itemName}"?`,
+            message: `Are you sure you want to delete "${deleteConfirmation?.itemName}"?`,
           }}
         />
       </Modal>
