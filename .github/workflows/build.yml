@@ -55,6 +55,8 @@ jobs:
         with:
           target_commitish: master
           tag_name: ${{ steps.package-version.outputs.current-version}}
+          make_latest: true
+          fail_on_unmatched_files: false
           files: |
             release/**/Vibe\ Term-*.AppImage
             release/**/Vibe\ Term-*.deb
