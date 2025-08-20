@@ -51,10 +51,49 @@ enum ProjectTab {
   PREVIEW = "preview",
 }
 
+import { WEB_PORT } from "../shared/settings";
+
+// Constants for repeated values
+const MOBILE_BREAKPOINT = 1024;
+
+// Helper functions for modal and state management
+const resetDeleteConfirmation = (): {
+  isOpen: boolean;
+  itemId: string | null;
+  itemName: string | null;
+} => ({
+  isOpen: false,
+  itemId: null,
+  itemName: null,
+});
+
+const createDeleteConfirmation = (
+  itemId: string,
+  itemName: string
+): {
+  isOpen: boolean;
+  itemId: string | null;
+  itemName: string | null;
+} => ({
+  isOpen: true,
+  itemId,
+  itemName,
+});
+
+// Helper for creating button click handlers that stop propagation
+const createButtonClickHandler =
+  (handler: () => void) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    handler();
+  };
+
+// Inline styles for webkit regions
+const WEBKIT_DRAG_STYLE: CSSProperties = { WebkitAppRegion: "drag" };
+const WEBKIT_NO_DRAG_STYLE: CSSProperties = { WebkitAppRegion: "no-drag" };
+
 import { Button } from "./components/button";
 import { Icon } from "./components/icon";
 import { StatusIcon } from "./components/status-icon";
-
 
 // Sortable Project Card Component
 interface ISortableProjectCardProps {
@@ -132,10 +171,9 @@ function SortableProjectCard({
                   size="sm"
                   variant="outline"
                   className="h-6 px-2 text-xs"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onProjectStop(project.id);
-                  }}
+                  onClick={createButtonClickHandler(() =>
+                    onProjectStop(project.id)
+                  )}
                 >
                   <Icon name="square" className="h-3 w-3" />
                 </Button>
@@ -144,10 +182,9 @@ function SortableProjectCard({
                   size="sm"
                   variant="primary"
                   className="h-6 px-2 text-xs"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onProjectStart(project.id, project.runCommand ?? "");
-                  }}
+                  onClick={createButtonClickHandler(() =>
+                    onProjectStart(project.id, project.runCommand ?? "")
+                  )}
                 >
                   <Icon name="play" className="h-3 w-3" />
                 </Button>
@@ -156,10 +193,9 @@ function SortableProjectCard({
                 size="sm"
                 variant="outline"
                 className="h-6 px-2 text-xs"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onProjectEdit(project.id);
-                }}
+                onClick={createButtonClickHandler(() =>
+                  onProjectEdit(project.id)
+                )}
               >
                 <Icon name="edit" className="h-3 w-3" />
               </Button>
@@ -167,10 +203,9 @@ function SortableProjectCard({
                 size="sm"
                 variant="outline"
                 className="h-6 px-2 text-xs"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onProjectDelete(project.id);
-                }}
+                onClick={createButtonClickHandler(() =>
+                  onProjectDelete(project.id)
+                )}
               >
                 <Icon name="trash2" className="h-3 w-3" />
               </Button>
@@ -252,10 +287,7 @@ function SortablePanelCard({
               <Button
                 size="sm"
                 variant="outline"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPanelEdit(panel.id);
-                }}
+                onClick={createButtonClickHandler(() => onPanelEdit(panel.id))}
                 className="h-6 px-2 text-xs"
                 title="Edit panel"
               >
@@ -264,10 +296,9 @@ function SortablePanelCard({
               <Button
                 size="sm"
                 variant="outline"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPanelDelete(panel.id);
-                }}
+                onClick={createButtonClickHandler(() =>
+                  onPanelDelete(panel.id)
+                )}
                 className="h-6 px-2 text-xs"
                 title="Delete panel"
               >
@@ -301,19 +332,13 @@ function App() {
   const [editingProject, setEditingProject] = useState<UnifiedItem | null>(
     null
   );
-  const [deleteConfirmation, setDeleteConfirmation] = useState<{
-    isOpen: boolean;
-    itemId: string | null;
-    itemName: string | null;
-  }>({
-    isOpen: false,
-    itemId: null,
-    itemName: null,
-  });
+  const [deleteConfirmation, setDeleteConfirmation] = useState(
+    resetDeleteConfirmation()
+  );
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     // Open sidebar by default only on large screens
     if (typeof window !== "undefined") {
-      return window.innerWidth >= 1024;
+      return window.innerWidth >= MOBILE_BREAKPOINT;
     }
     return false; // Default to closed for SSR
   });
@@ -323,7 +348,7 @@ function App() {
     return ProjectTab.TERMINAL;
   });
   const [localIp, setLocalIp] = useState<string>("localhost");
-  const [webPort] = useState(6969);
+  const [webPort] = useState(WEB_PORT);
   const terminalRef = useRef<ViewTerminalRef>(null);
 
   // Ref to store current items for WebSocket listeners
@@ -337,7 +362,7 @@ function App() {
   // Auto-open sidebar on large screens only
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth >= 1024) {
+      if (window.innerWidth >= MOBILE_BREAKPOINT) {
         setSidebarOpen(true);
       }
       // On smaller screens, keep current state
@@ -650,7 +675,7 @@ function App() {
   const handleItemSelect = (itemId: string) => {
     setSelectedItem(itemId);
     // Auto-close sidebar on mobile when selecting an item
-    if (window.innerWidth < 1024) {
+    if (window.innerWidth < MOBILE_BREAKPOINT) {
       setSidebarOpen(false);
     }
     // Notify about the project selection for notifications
@@ -731,11 +756,7 @@ function App() {
   const handleItemDeleteRequest = (itemId: string) => {
     const item = items.find((i) => i.id === itemId);
     if (item) {
-      setDeleteConfirmation({
-        isOpen: true,
-        itemId: itemId,
-        itemName: item.name,
-      });
+      setDeleteConfirmation(createDeleteConfirmation(itemId, item.name));
     }
   };
 
@@ -746,19 +767,11 @@ function App() {
         setSelectedItem(null);
       }
     }
-    setDeleteConfirmation({
-      isOpen: false,
-      itemId: null,
-      itemName: null,
-    });
+    setDeleteConfirmation(resetDeleteConfirmation());
   };
 
   const handleItemDeleteCancel = () => {
-    setDeleteConfirmation({
-      isOpen: false,
-      itemId: null,
-      itemName: null,
-    });
+    setDeleteConfirmation(resetDeleteConfirmation());
   };
 
   const handleProjectReorder = (startIndex: number, endIndex: number) => {
@@ -868,11 +881,7 @@ function App() {
   const handlePanelDelete = (panelId: string) => {
     const item = items.find((i) => i.id === panelId);
     if (item) {
-      setDeleteConfirmation({
-        isOpen: true,
-        itemId: panelId,
-        itemName: item.name,
-      });
+      setDeleteConfirmation(createDeleteConfirmation(panelId, item.name));
     }
   };
 
@@ -890,7 +899,7 @@ function App() {
     <div className="h-screen flex flex-col bg-gray-950 text-gray-100 overflow-hidden">
       <div
         className="h-16 glass-titlebar flex items-center px-4 select-none relative"
-        style={{ WebkitAppRegion: "drag" } as CSSProperties}
+        style={WEBKIT_DRAG_STYLE}
       >
         <h1 className="text-lg font-medium text-gray-200 absolute left-1/2 transform -translate-x-1/2">
           Vibe Term
@@ -900,7 +909,7 @@ function App() {
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
           className="lg:hidden bg-gray-800/50 border border-gray-700/50 rounded-lg p-2 hover:bg-gray-700/50 transition-colors ml-auto"
-          style={{ WebkitAppRegion: "no-drag" } as CSSProperties}
+          style={WEBKIT_NO_DRAG_STYLE}
         >
           <svg
             className="w-5 h-5 text-gray-300"
@@ -1094,35 +1103,41 @@ function App() {
                       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between">
                         <div className="flex items-center w-full md:w-auto">
                           <TabsList className="bg-gray-900/50 md:border border-gray-800 flex-shrink-0 overflow-hidden w-full md:w-auto m-0 mdp-0 md:p-1 rounded-none md:rounded-md h-10 md:h-auto px-2 ">
-                            <TabsTrigger
-                              value={ProjectTab.TERMINAL}
-                              className="flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start"
-                            >
-                              <Icon name="terminal" className="h-4 w-4" />
-                              <span className="hidden sm:inline">Terminal</span>
-                            </TabsTrigger>
-                            <TabsTrigger
-                              value={ProjectTab.GIT_DIFF}
-                              className="flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start"
-                            >
-                              <Icon name="gitbranch" className="h-4 w-4" />
-                              <span className="hidden sm:inline">Git Diff</span>
-                            </TabsTrigger>
-                            <TabsTrigger
-                              value={ProjectTab.EDITOR}
-                              className="flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start"
-                            >
-                              <Icon name="filetext" className="h-4 w-4" />
-                              <span className="hidden sm:inline">Editor</span>
-                            </TabsTrigger>
-                            <TabsTrigger
-                              value={ProjectTab.PREVIEW}
-                              className={`flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start`}
-                              disabled={!previewUrl}
-                            >
-                              <Icon name="globe" className="h-4 w-4" />
-                              <span className="hidden sm:inline">Preview</span>
-                            </TabsTrigger>
+                            {[
+                              {
+                                value: ProjectTab.TERMINAL,
+                                icon: "terminal",
+                                label: "Terminal",
+                              },
+                              {
+                                value: ProjectTab.GIT_DIFF,
+                                icon: "gitbranch",
+                                label: "Git Diff",
+                              },
+                              {
+                                value: ProjectTab.EDITOR,
+                                icon: "filetext",
+                                label: "Editor",
+                              },
+                              {
+                                value: ProjectTab.PREVIEW,
+                                icon: "globe",
+                                label: "Preview",
+                                disabled: !previewUrl,
+                              },
+                            ].map(({ value, icon, label, disabled }) => (
+                              <TabsTrigger
+                                key={value}
+                                value={value}
+                                className="flex items-center gap-2 whitespace-nowrap flex-1 md:flex-initial justify-center md:justify-start"
+                                disabled={disabled}
+                              >
+                                <Icon name={icon} className="h-4 w-4" />
+                                <span className="hidden sm:inline">
+                                  {label}
+                                </span>
+                              </TabsTrigger>
+                            ))}
                           </TabsList>
                         </div>
 
@@ -1157,19 +1172,19 @@ function App() {
                     />
                   </div>
 
-                  {activeTab === ProjectTab.GIT_DIFF && (
+                  {!isPanel && activeTab === ProjectTab.GIT_DIFF && (
                     <div className="flex-1 h-full">
                       <ViewGitDiff selectedProject={currentItem} />
                     </div>
                   )}
 
-                  {activeTab === ProjectTab.EDITOR && (
+                  {!isPanel && activeTab === ProjectTab.EDITOR && (
                     <div className="flex-1 h-full">
                       <ViewFileEditor selectedProject={currentItem} />
                     </div>
                   )}
 
-                  {(activeTab === ProjectTab.PREVIEW || isPanel) && (
+                  {(isPanel || activeTab === ProjectTab.PREVIEW) && (
                     <div className={`flex-1 h-full p-0 md:p-4 md:pt-0`}>
                       <ViewWebview url={currentItem?.url || ""} />
                     </div>

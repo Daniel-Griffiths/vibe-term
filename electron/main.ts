@@ -15,6 +15,7 @@ import {
   broadcastToWebClients,
   closeWebServer,
 } from "./web-server";
+import { WEB_PORT } from "../shared/settings";
 
 let settingsManager: SettingsManager;
 
@@ -79,7 +80,7 @@ const readStateFile = () => {
       settings: {
         editor: { theme: "vibe-term" },
         desktop: { notifications: true },
-        webServer: { enabled: true, port: 6969 },
+        webServer: { enabled: true, port: WEB_PORT },
         discord: { enabled: false, username: "Vibe Term", webhookUrl: "" },
       },
       storedItems: [],
@@ -560,7 +561,7 @@ app.whenReady().then(async () => {
   try {
     const webServerSettings = settingsManager?.getSettings()?.webServer ?? {
       enabled: true,
-      port: 6969,
+      port: WEB_PORT,
     };
     const port = webServerSettings.port;
     const enabled = webServerSettings.enabled;
@@ -585,7 +586,7 @@ app.whenReady().then(async () => {
     ErrorHandler.logError(error, {
       operation: "start-web-server",
       additionalData: {
-        port: settingsManager?.getSettings()?.webServer?.port ?? 6969,
+        port: settingsManager?.getSettings()?.webServer?.port ?? WEB_PORT,
       },
     });
   }

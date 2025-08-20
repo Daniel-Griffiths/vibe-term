@@ -6,6 +6,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "node:url";
+import { WEB_PORT } from "../../shared/settings";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,7 +37,7 @@ export async function setupClaudeHooks(projectPath: string): Promise<boolean> {
 
     // Extract project ID from directory name
     const projectId = path.basename(projectPath);
-    const vibeTermPort = process.env.VIBE_TERM_PORT || "6969";
+    const vibeTermPort = process.env.VIBE_TERM_PORT || WEB_PORT.toString();
     const ipcEndpoint = `http://localhost:${vibeTermPort}/api/ipc/claude-hook`;
 
     // Create hook configuration using direct curl commands

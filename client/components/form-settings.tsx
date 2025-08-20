@@ -5,8 +5,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs";
 import { api } from "../utils/api";
 import type { AppSettings } from "../utils/api";
 import { Icon } from "./icon";
+import { WEB_PORT } from "../../shared/settings";
 
-const DEFAULT_WEB_SERVER_PORT = 6969;
+const DEFAULT_WEB_SERVER_PORT = WEB_PORT;
 
 interface IFormSettingsProps {
   onClose: () => void;
@@ -15,7 +16,7 @@ interface IFormSettingsProps {
 const defaultSettings: AppSettings = {
   editor: { theme: "vibe-term" },
   desktop: { notifications: true },
-  webServer: { enabled: true, port: 6969 },
+  webServer: { enabled: true, port: WEB_PORT },
   discord: { enabled: false, username: "Vibe Term", webhookUrl: "" },
 };
 
@@ -416,7 +417,7 @@ export function FormSettings({ onClose }: IFormSettingsProps) {
                 }
                 placeholder="https://discord.com/api/webhooks/..."
                 disabled={!localSettings.discord.enabled}
-                className="w-full px-3 py-2 text-sm bg-gray-800 border border-gray-700 rounded text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-3 py-2 text-sm bg-gray-800 border border-gray-700 rounded text-gray-200 placeholder-gray-500 focus:outline-none focus:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden text-ellipsis whitespace-nowrap"
               />
               <p className="text-xs text-gray-500 mt-1">
                 Create a webhook in your Discord server settings → Integrations

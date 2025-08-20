@@ -9,6 +9,7 @@ import { app } from "electron";
 import type { AppSettings } from "../ipc-handler-types";
 import type { UnifiedItem } from "../../client/types";
 import { ErrorHandler } from "./error-handler";
+import { WEB_PORT } from "../../shared/settings";
 
 export interface AppState {
   settings: AppSettings;
@@ -53,7 +54,7 @@ export class SettingsManager {
         },
         webServer: {
           enabled: true,
-          port: 6969,
+          port: WEB_PORT,
         },
         discord: {
           enabled: false,

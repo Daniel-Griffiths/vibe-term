@@ -4,8 +4,9 @@ import cors from "cors";
 import { createServer } from "http";
 import net from "net";
 import path from "path";
+import { WEB_PORT } from "../shared/settings";
 
-const DEFAULT_WEB_SERVER_PORT = 6969;
+const DEFAULT_WEB_SERVER_PORT = WEB_PORT;
 
 // Web server variables
 let webSocketServer: WebSocketServer | null = null;

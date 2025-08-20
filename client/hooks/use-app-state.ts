@@ -3,6 +3,7 @@ import { api } from "../utils/api";
 import type { UnifiedItem } from "../types";
 import type { AppSettings } from "../utils/api";
 import { ItemType } from "../types";
+import { WEB_PORT } from "../../shared/settings";
 
 interface AppState {
   items: UnifiedItem[];
@@ -15,7 +16,7 @@ interface AppState {
 const defaultSettings: AppSettings = {
   editor: { theme: "vibe-term" },
   desktop: { notifications: true },
-  webServer: { enabled: true, port: 6969 },
+  webServer: { enabled: true, port: WEB_PORT },
   discord: { enabled: false, username: "Vibe Term", webhookUrl: "" },
 };
 
