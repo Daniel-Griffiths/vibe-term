@@ -1,0 +1,7 @@
+ignoredBuiltDependencies:
+  - bufferutil
+  - electron
+  - electron-winstaller
+  - esbuild
+  - node-pty
+  - utf-8-validate

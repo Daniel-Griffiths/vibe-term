@@ -1,0 +1,65 @@
+export interface INonIdealStateProps {
+  title: string;
+  className?: string;
+  description?: string;
+  action?: React.ReactNode;
+  size?: "sm" | "md" | "lg";
+  icon: React.ComponentType<any> | (() => React.ReactNode);
+  variant?: "default" | "error" | "warning" | "info";
+}
+
+const variantStyles = {
+  default: "text-gray-400",
+  error: "text-red-400",
+  warning: "text-yellow-400",
+  info: "text-blue-400",
+};
+
+const sizeStyles = {
+  sm: {
+    container: "p-6",
+    icon: "h-12 w-12",
+    title: "text-base",
+    description: "text-xs",
+  },
+  md: {
+    container: "p-8",
+    icon: "h-16 w-16",
+    title: "text-lg",
+    description: "text-sm",
+  },
+  lg: {
+    container: "p-12",
+    icon: "h-20 w-20",
+    title: "text-xl",
+    description: "text-base",
+  },
+};
+
+export function NonIdealState({
+  icon: Icon,
+  title,
+  description,
+  action,
+  variant = "default",
+  size = "md",
+  className = "",
+}: INonIdealStateProps) {
+  const variantClass = variantStyles[variant];
+  const sizeStyle = sizeStyles[size];
+
+  return (
+    <div
+      className={`text-center ${variantClass} glass-card ${sizeStyle.container} rounded-xl ${className}`}
+    >
+      <Icon className={`${sizeStyle.icon} mx-auto mb-4 opacity-50`} />
+      <h3 className={`${sizeStyle.title} font-semibold mb-2 text-gray-200`}>
+        {title}
+      </h3>
+      {description && (
+        <p className={`${sizeStyle.description}`}>{description}</p>
+      )}
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}

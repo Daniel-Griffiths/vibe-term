@@ -1,0 +1,71 @@
+name: Build/release
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - "**.md"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: "pnpm"
+
+      - name: "Install Dependencies"
+        run: pnpm install --prefer-offline --frozen-lockfile
+
+      - name: "Build Mac"
+        if: matrix.os == 'macos-latest'
+        run: |
+          pnpm build --mac
+
+      - name: "Build Linux AppImage"
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          pnpm build --linux
+
+      - name: "Get Package Version"
+        id: package-version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "current-version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          # tag_name: ${{ steps.package-version.outputs.current-version}}
+          tag_name: latest
+          name: Latest Build
+          draft: false
+          overwrite_files: true
+          prerelease: false
+          files: |
+            release/**/Vibe\ Term-*.AppImage
+            release/**/Vibe\ Term-*.deb
+            release/**/Vibe\ Term-*.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
